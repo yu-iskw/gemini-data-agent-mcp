@@ -19,7 +19,6 @@ import { DataAgentMcpError } from '../types.js';
 
 import {
   formatQueryDataResponse,
-  formatA2AResponse,
   formatOperationResponse,
   formatAgentList,
   formatConfigResponse,
@@ -130,7 +129,6 @@ export function registerTools(
   registerListConversationMessages(server, config);
   registerListDataAgents(server, config);
   registerGetDataAgentConfig(server, config);
-  registerSendDataAgentMessage(server, config);
   registerGetOperation(server, config);
   registerRawDataAgentRequest(server, config);
 }
@@ -1151,98 +1149,6 @@ function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void 
         return { content: [{ type: 'text', text }] };
       } catch (err) {
         return { content: [{ type: 'text', text: makeErrorText(err) }], isError: true };
-      }
-    },
-  );
-}
-
-function registerSendDataAgentMessage(server: McpServer, config: AppConfig): void {
-  server.tool(
-    'send_data_agent_message',
-    'Send a message to an A2A-compatible Gemini Data Agent endpoint.',
-    {
-      agent: z.string().describe(configuredAgentNameDescription),
-      message: z.string().describe('Message text to send to the data agent.'),
-      api_version: z.enum(['v1', 'v1beta', 'v1alpha']).optional(),
-      blocking: z.boolean().optional().default(true),
-      timeout_seconds: z.number().int().min(1).max(600).optional(),
-    },
-    async (args) => {
-      const startTime = createAuditStartTime();
-      const agentName = args.agent;
-
-      try {
-        const agentConfig = resolveAgentConfig(config, agentName);
-
-        if (!agentConfig.capabilities.a2a_send) {
-          throw new DataAgentMcpError(
-            'CAPABILITY_DISABLED',
-            `Agent "${agentName}" does not have a2a_send capability enabled.`,
-            false,
-            { agent: agentName },
-          );
-        }
-
-        const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
-        const credentials = await resolveCredentials(agentConfig.auth);
-        const client = createClient(credentials);
-
-        const response = await client.sendA2AMessage({
-          project: agentConfig.project,
-          location: agentConfig.location,
-          dataAgentId: agentConfig.data_agent,
-          version: apiVersion as 'v1' | 'v1beta' | 'v1alpha',
-          message: args.message,
-          blocking: args.blocking ?? true,
-          timeoutMs,
-        });
-
-        const latency = calculateLatency(startTime);
-        const operationName = response['name'] as string | undefined;
-
-        emitAuditEvent(
-          {
-            event: 'mcp_tool_invocation',
-            tool: 'send_data_agent_message',
-            agent: agentName,
-            api_version: apiVersion,
-            auth_mode: agentConfig.auth.mode,
-            impersonate_service_account: agentConfig.auth.impersonate_service_account,
-            latency_ms: latency,
-            success: true,
-            operation_name: operationName ?? null,
-          },
-          config.security,
-        );
-
-        const text = formatA2AResponse(response, {
-          agent: agentName,
-          api_version: apiVersion,
-          latency_ms: latency,
-          operation_name: operationName,
-        });
-
-        return { content: [{ type: 'text', text }] };
-      } catch (err) {
-        const wrapped = err instanceof DataAgentMcpError ? err : wrapNetworkError(err, agentName);
-        const latency = calculateLatency(startTime);
-
-        emitAuditEvent(
-          {
-            event: 'mcp_tool_invocation',
-            tool: 'send_data_agent_message',
-            agent: agentName,
-            api_version: args.api_version ?? unknownValue,
-            auth_mode: unknownValue,
-            latency_ms: latency,
-            success: false,
-            error_code: wrapped.code,
-          },
-          config.security,
-        );
-
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
       }
     },
   );

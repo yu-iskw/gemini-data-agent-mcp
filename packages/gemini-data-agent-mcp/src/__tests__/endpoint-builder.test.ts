@@ -5,8 +5,6 @@ import {
   buildChatUrl,
   buildCreateConversationUrl,
   buildConversationMessagesUrl,
-  buildA2ASendUrl,
-  buildA2AStreamUrl,
   buildOperationUrl,
   extractDataAgentId,
   normalizeDataAgentName,
@@ -67,38 +65,6 @@ describe('buildConversationMessagesUrl', () => {
     expect(url).toContain('pageSize=20');
     expect(url).toContain('pageToken=next-token');
     expect(url).toContain('filter=');
-  });
-});
-
-describe('buildA2ASendUrl', () => {
-  it('builds correct A2A send URL for v1beta dataAgents', () => {
-    const url = buildA2ASendUrl('v1beta', 'my-project', 'us-central1', 'my-agent');
-    expect(url).toBe(
-      `${API_HOST}/v1beta/a2a/projects/my-project/locations/us-central1/dataAgents/my-agent/v1/message:send`,
-    );
-  });
-
-  it('builds correct A2A send URL for v1 agents', () => {
-    const url = buildA2ASendUrl('v1', 'my-project', 'us-central1', 'my-agent');
-    expect(url).toBe(
-      `${API_HOST}/v1/a2a/projects/my-project/locations/us-central1/agents/my-agent/v1/message:send`,
-    );
-  });
-});
-
-describe('buildA2AStreamUrl', () => {
-  it('builds correct A2A stream URL for v1beta dataAgents', () => {
-    const url = buildA2AStreamUrl('v1beta', 'my-project', 'us-central1', 'my-agent');
-    expect(url).toBe(
-      `${API_HOST}/v1beta/a2a/projects/my-project/locations/us-central1/dataAgents/my-agent/v1/message:stream`,
-    );
-  });
-
-  it('builds correct A2A stream URL for v1 agents', () => {
-    const url = buildA2AStreamUrl('v1', 'my-project', 'us-central1', 'my-agent');
-    expect(url).toBe(
-      `${API_HOST}/v1/a2a/projects/my-project/locations/us-central1/agents/my-agent/v1/message:stream`,
-    );
   });
 });
 

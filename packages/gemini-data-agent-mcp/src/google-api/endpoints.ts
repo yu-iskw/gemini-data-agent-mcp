@@ -49,26 +49,6 @@ export function buildConversationMessagesUrl(
   return url.toString();
 }
 
-export function buildA2ASendUrl(
-  version: ApiVersion,
-  project: string,
-  location: string,
-  dataAgentId: string,
-): string {
-  const agentCollection = version === 'v1' ? 'agents' : 'dataAgents';
-  return `${API_HOST}/${version}/a2a/projects/${project}/locations/${location}/${agentCollection}/${dataAgentId}/v1/message:send`;
-}
-
-export function buildA2AStreamUrl(
-  version: ApiVersion,
-  project: string,
-  location: string,
-  dataAgentId: string,
-): string {
-  const agentCollection = version === 'v1' ? 'agents' : 'dataAgents';
-  return `${API_HOST}/${version}/a2a/projects/${project}/locations/${location}/${agentCollection}/${dataAgentId}/v1/message:stream`;
-}
-
 export function buildOperationUrl(version: ApiVersion, operationName: string): string {
   return `${API_HOST}/${version}/${operationName}`;
 }

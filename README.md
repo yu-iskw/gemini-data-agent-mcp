@@ -21,7 +21,7 @@ Coding Agent (Cursor / Claude Code / Codex)
         │  MCP
         ▼
 gemini-data-agent-mcp
-  ├── MCP Tools   (query_data_agent, send_data_agent_message, …)
+  ├── MCP Tools   (query_data_agent, chat_data_agent, …)
   ├── MCP Resources (gemini-data-agent://agents/…)
   └── MCP Prompts (analyze_data_question, investigate_data_issue, …)
         │
@@ -141,8 +141,6 @@ agents:
   my-agent:
     capabilities:
       query_data: true
-      a2a_send: false
-      a2a_stream: false
       chat: false
       raw_passthrough: false
     generation_options:
@@ -162,6 +160,7 @@ agents:
 | Unsupported `api_version`                                      | Startup failure |
 | `impersonation` without `impersonate_service_account`          | Startup failure |
 | Unknown `auth.mode`                                            | Startup failure |
+| Unknown capability keys (for example `a2a_send`)               | Startup failure |
 | `raw_passthrough.enabled=true` without `allowed_path_patterns` | Startup failure |
 
 ---
@@ -203,14 +202,16 @@ Each agent can use a different target service account for least-privilege isolat
 
 ## MCP Tools
 
-| Tool                      | Description                                                       |
-| ------------------------- | ----------------------------------------------------------------- |
-| `query_data_agent`        | Ask a natural-language analytical question to a Gemini Data Agent |
-| `list_data_agents`        | List configured agents from the YAML registry                     |
-| `get_data_agent_config`   | Return redacted configuration for a named agent                   |
-| `send_data_agent_message` | Send a message to an A2A-compatible data agent                    |
-| `get_operation`           | Retrieve a long-running operation                                 |
-| `raw_data_agent_request`  | Raw REST passthrough (disabled by default)                        |
+| Tool                             | Description                                                       |
+| -------------------------------- | ----------------------------------------------------------------- |
+| `query_data_agent`               | Ask a natural-language analytical question to a Gemini Data Agent |
+| `chat_data_agent`                | Run conversational turns with a configured Gemini Data Agent      |
+| `create_data_agent_conversation` | Create a managed conversation for multi-turn chat                 |
+| `list_conversation_messages`     | List persisted messages for a managed conversation                |
+| `list_data_agents`               | List configured agents from the YAML registry                     |
+| `get_data_agent_config`          | Return redacted configuration for a named agent                   |
+| `get_operation`                  | Retrieve a long-running operation                                 |
+| `raw_data_agent_request`         | Raw REST passthrough (disabled by default)                        |
 
 ### `query_data_agent`
 
@@ -224,18 +225,6 @@ Each agent can use a different target service account for least-privilege isolat
 ```
 
 Response includes natural-language answer, generated query, intent explanation, query result, disambiguation questions, and diagnostics.
-
-### `send_data_agent_message`
-
-```json
-{
-  "agent": "sales-prod",
-  "message": "Identify the top 5 anomalies in gross margin this quarter.",
-  "blocking": true
-}
-```
-
-Requires `capabilities.a2a_send: true` in the agent config.
 
 ---
 

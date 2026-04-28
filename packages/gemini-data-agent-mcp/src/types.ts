@@ -6,8 +6,6 @@ export type AuthSource = 'adc';
 
 export interface AgentCapabilities {
   query_data: boolean;
-  a2a_send: boolean;
-  a2a_stream: boolean;
   chat: boolean;
   raw_passthrough: boolean;
 }

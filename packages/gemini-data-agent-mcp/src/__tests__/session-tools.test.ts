@@ -39,8 +39,6 @@ const config = validateConfig({
       auth: { mode: 'adc' },
       capabilities: {
         query_data: true,
-        a2a_send: true,
-        a2a_stream: false,
         chat: true,
         raw_passthrough: false,
       },

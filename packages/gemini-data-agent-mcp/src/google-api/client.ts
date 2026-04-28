@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import { DataAgentMcpError } from '../types.js';
 
 import {
@@ -7,10 +5,7 @@ import {
   buildChatUrl,
   buildCreateConversationUrl,
   buildConversationMessagesUrl,
-  buildA2ASendUrl,
-  buildA2AStreamUrl,
   buildOperationUrl,
-  extractDataAgentId,
   normalizeDataAgentName,
   normalizeConversationName,
 } from './endpoints.js';
@@ -59,16 +54,6 @@ interface ListConversationMessagesOptions {
   pageSize?: number;
   pageToken?: string;
   filter?: string;
-  timeoutMs?: number;
-}
-
-interface A2AMessageOptions {
-  project: string;
-  location: string;
-  dataAgentId: string;
-  version: ApiVersion;
-  message: string;
-  blocking?: boolean;
   timeoutMs?: number;
 }
 
@@ -177,39 +162,6 @@ class GeminiDataAgentClient {
       options.filter,
     );
     return this.get(url, options.version, 'unknown', options.timeoutMs);
-  }
-
-  async sendA2AMessage(options: A2AMessageOptions): Promise<GoogleApiResponse> {
-    const dataAgentId = extractDataAgentId(options.dataAgentId);
-    const url = buildA2ASendUrl(options.version, options.project, options.location, dataAgentId);
-
-    const requestBody = {
-      message: {
-        messageId: randomUUID(),
-        role: 'ROLE_USER',
-        content: [{ text: options.message }],
-      },
-      configuration: {
-        blocking: options.blocking ?? true,
-      },
-    };
-
-    return this.post(url, requestBody, options.version, 'unknown', options.timeoutMs);
-  }
-
-  async streamA2AMessage(options: A2AMessageOptions): Promise<GoogleApiResponse> {
-    const dataAgentId = extractDataAgentId(options.dataAgentId);
-    const url = buildA2AStreamUrl(options.version, options.project, options.location, dataAgentId);
-
-    const requestBody = {
-      message: {
-        messageId: randomUUID(),
-        role: 'ROLE_USER',
-        content: [{ text: options.message }],
-      },
-    };
-
-    return this.post(url, requestBody, options.version, 'unknown', options.timeoutMs);
   }
 
   async getOperation(options: GetOperationOptions): Promise<GoogleApiResponse> {

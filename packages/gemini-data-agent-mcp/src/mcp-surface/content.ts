@@ -82,63 +82,6 @@ function normalizeQueryLikeResponse(response: GoogleApiResponse): GoogleApiRespo
   };
 }
 
-export function formatA2AResponse(
-  response: GoogleApiResponse,
-  diagnostics: DiagnosticsInfo,
-): string {
-  const sections: string[] = [];
-
-  const task = response['task'] as Record<string, unknown> | undefined;
-  if (task) {
-    const taskId = (task['taskId'] as string | undefined) ?? (task['id'] as string | undefined);
-    if (taskId) {
-      sections.push(`Task\n----\n${taskId}`);
-    }
-  }
-
-  const message = response['message'] as Record<string, unknown> | undefined;
-  if (message) {
-    const content = message['content'] as Array<Record<string, unknown>> | undefined;
-    const textParts =
-      content
-        ?.map((part) => part['text'])
-        .filter((part): part is string => typeof part === 'string' && part.length > 0) ?? [];
-    if (textParts.length > 0) {
-      sections.push(`Message\n-------\n${textParts.join('\n')}`);
-    }
-  }
-
-  const name = response['name'] as string | undefined;
-  const done = response['done'] as boolean | undefined;
-  const responseData = response['response'] ?? response['result'];
-  const error = response['error'];
-
-  const statusFromTask = (task?.['status'] as Record<string, unknown> | undefined)?.['state'] as
-    | string
-    | undefined;
-  const statusFromDone = done === true ? 'completed' : done === false ? 'in progress' : undefined;
-  const state = statusFromTask ?? statusFromDone ?? 'unknown';
-  sections.push(`Status\n------\n${state}`);
-
-  if (name) {
-    sections.push(`Operation\n---------\n${name}`);
-  }
-
-  if (responseData) {
-    sections.push(`Response\n--------\n${JSON.stringify(responseData, null, 2)}`);
-  }
-
-  if (error) {
-    sections.push(`Error\n-----\n${JSON.stringify(error, null, 2)}`);
-  }
-
-  sections.push(
-    `Diagnostics\n-----------\nagent: ${diagnostics.agent}\napi_version: ${diagnostics.api_version}\nlatency_ms: ${diagnostics.latency_ms}`,
-  );
-
-  return sections.join('\n\n');
-}
-
 export function formatOperationResponse(
   response: GoogleApiResponse,
   diagnostics: DiagnosticsInfo,

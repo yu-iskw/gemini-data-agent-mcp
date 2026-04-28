@@ -6,13 +6,13 @@ const AuthModeSchema = z.enum(['adc', 'impersonation']);
 
 const AuthSourceSchema = z.enum(['adc']);
 
-const AgentCapabilitiesSchema = z.object({
-  query_data: z.boolean().default(true),
-  a2a_send: z.boolean().default(false),
-  a2a_stream: z.boolean().default(false),
-  chat: z.boolean().default(false),
-  raw_passthrough: z.boolean().default(false),
-});
+const AgentCapabilitiesSchema = z
+  .object({
+    query_data: z.boolean().default(true),
+    chat: z.boolean().default(false),
+    raw_passthrough: z.boolean().default(false),
+  })
+  .strict();
 
 const AgentGenerationOptionsSchema = z.object({
   generate_query: z.boolean().optional(),
@@ -51,8 +51,6 @@ const AgentConfigSchema = z.object({
   // Agent capabilities are optional in user YAML and default to safe values.
   capabilities: AgentCapabilitiesSchema.default({
     query_data: true,
-    a2a_send: false,
-    a2a_stream: false,
     chat: false,
     raw_passthrough: false,
   }),

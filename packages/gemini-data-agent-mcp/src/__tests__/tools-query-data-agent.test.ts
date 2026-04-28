@@ -39,8 +39,6 @@ const baseConfig = {
       auth: { mode: 'adc' },
       capabilities: {
         query_data: true,
-        a2a_send: true,
-        a2a_stream: false,
         chat: false,
         raw_passthrough: false,
       },
@@ -53,8 +51,6 @@ const baseConfig = {
       auth: { mode: 'adc' },
       capabilities: {
         query_data: false,
-        a2a_send: false,
-        a2a_stream: false,
         chat: false,
         raw_passthrough: false,
       },
@@ -117,8 +113,6 @@ describe('query_data_agent tool behavior', () => {
           auth: { mode: 'adc' },
           capabilities: {
             query_data: true,
-            a2a_send: true,
-            a2a_stream: false,
             chat: false,
             raw_passthrough: false,
           },
@@ -194,7 +188,7 @@ describe('query_data_agent tool behavior', () => {
   });
 });
 
-describe('query_data_agent tool behavior (conversation and a2a paths)', () => {
+describe('query_data_agent tool behavior (conversation paths)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -289,41 +283,6 @@ describe('query_data_agent tool behavior (conversation and a2a paths)', () => {
     const config = validateConfig(baseConfig);
     const noQueryAgent = config.agents['no-query-agent']!;
     expect(noQueryAgent.capabilities.query_data).toBe(false);
-  });
-
-  it('forwards A2A send control flags in the request body', async () => {
-    const config = validateConfig(baseConfig);
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      headers: { get: () => 'application/json' },
-      json: async () => ({ name: 'operations/test-op', done: false }),
-    });
-
-    const { resolveCredentials } = await import('../auth/resolver.js');
-    const { createClient } = await import('../google-api/client.js');
-
-    const creds = await resolveCredentials(config.agents['test-agent']!.auth);
-    const client = createClient(creds);
-
-    await client.sendA2AMessage({
-      project: 'my-project',
-      location: 'us-central1',
-      version: 'v1beta',
-      dataAgentId: config.agents['test-agent']!.data_agent,
-      message: 'Find anomalies',
-      blocking: false,
-    });
-
-    const fetchCall = mockFetch.mock.calls.at(-1);
-    const body = JSON.parse(String(fetchCall?.[1]?.body));
-    expect(body['message']).toEqual({
-      messageId: expect.any(String),
-      role: 'ROLE_USER',
-      content: [{ text: 'Find anomalies' }],
-    });
-    expect(body['configuration']).toEqual({ blocking: false });
   });
 
   it('preserves raw DELETE passthrough bodies', async () => {
