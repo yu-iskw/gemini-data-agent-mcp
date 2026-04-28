@@ -19,7 +19,7 @@ export async function startServer(config: AppConfig): Promise<void> {
   });
 
   registerTools(server, config, sessionStore);
-  registerResources(server, config, sessionStore);
+  registerResources(server, config);
   registerPrompts(server);
 
   const agentCount = Object.keys(config.agents).length;
@@ -46,7 +46,7 @@ export function createMcpServer(config: AppConfig): McpServer {
   });
 
   registerTools(server, config, sessionStore);
-  registerResources(server, config, sessionStore);
+  registerResources(server, config);
   registerPrompts(server);
 
   return server;

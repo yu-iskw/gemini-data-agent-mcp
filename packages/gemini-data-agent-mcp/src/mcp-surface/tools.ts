@@ -281,7 +281,7 @@ function registerSessionChat(
       const actor = toSessionActor(args);
 
       try {
-        const session = sessionStore.getSession(args.session_id);
+        const session = sessionStore.getSessionForActor(args.session_id, actor);
         const agentConfig = resolveAgentConfig(config, session.agent);
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
         const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
@@ -622,7 +622,7 @@ function registerSessionHandoff(
       const startTime = createAuditStartTime();
       const actor = toSessionActor(args);
       try {
-        const handoff = sessionStore.createHandoff(args.session_id);
+        const handoff = sessionStore.createHandoff({ session_id: args.session_id, actor });
         const latency = calculateLatency(startTime);
         emitAuditEvent(
           {

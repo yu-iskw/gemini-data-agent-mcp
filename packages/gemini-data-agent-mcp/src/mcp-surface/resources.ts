@@ -3,7 +3,6 @@ import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { redact, redactServiceAccount } from '../security/redaction.js';
 import { DataAgentMcpError } from '../types.js';
 
-import type { SessionStore } from '../session/store.js';
 import type { AppConfig } from '../types.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -11,19 +10,12 @@ function getAgent(config: AppConfig, agentName: string) {
   return Object.entries(config.agents).find(([name]) => name === agentName)?.[1];
 }
 
-export function registerResources(
-  server: McpServer,
-  config: AppConfig,
-  sessionStore?: SessionStore,
-): void {
+export function registerResources(server: McpServer, config: AppConfig): void {
   registerAgentsListResource(server, config);
   registerAgentDetailResource(server, config);
   registerAgentCapabilitiesResource(server, config);
   registerAgentAuthPolicyResource(server, config);
   registerPromptsResource(server, config);
-  if (sessionStore) {
-    registerSessionResources(server, sessionStore);
-  }
 }
 
 function registerAgentsListResource(server: McpServer, config: AppConfig): void {
@@ -272,198 +264,6 @@ function registerPromptsResource(server: McpServer, config: AppConfig): void {
             uri: 'gemini-data-agent://prompts',
             mimeType: 'application/json',
             text: JSON.stringify({ prompts }, null, 2),
-          },
-        ],
-      };
-    },
-  );
-}
-
-function registerSessionResources(server: McpServer, sessionStore: SessionStore): void {
-  registerSessionsListResource(server, sessionStore);
-  registerSessionStateResource(server, sessionStore);
-  registerSessionTimelineResource(server, sessionStore);
-  registerSessionIntentResource(server, sessionStore);
-  registerSessionParticipantsResource(server, sessionStore);
-}
-
-function registerSessionsListResource(server: McpServer, sessionStore: SessionStore): void {
-  server.resource(
-    'sessions-list',
-    'gemini-data-agent://sessions',
-    { mimeType: 'application/json', description: 'List of shared sessions.' },
-    async () => {
-      const sessions = sessionStore.listSessions();
-      return {
-        contents: [
-          {
-            uri: 'gemini-data-agent://sessions',
-            mimeType: 'application/json',
-            annotations: {
-              audience: ['user', 'assistant'],
-              priority: 0.7,
-              lastModified: new Date().toISOString(),
-            },
-            text: JSON.stringify({ sessions }, null, 2),
-          },
-        ],
-      };
-    },
-  );
-}
-
-function registerSessionStateResource(server: McpServer, sessionStore: SessionStore): void {
-  const stateTemplate = new ResourceTemplate('gemini-data-agent://sessions/{sessionId}', {
-    list: async () => ({
-      resources: sessionStore.listSessions().map((session) => ({
-        uri: `gemini-data-agent://sessions/${session.session_id}`,
-        name: session.session_id,
-        mimeType: 'application/json',
-      })),
-    }),
-  });
-
-  server.resource(
-    'session-state',
-    stateTemplate,
-    { mimeType: 'application/json', description: 'Canonical state for a shared session.' },
-    async (uri, variables) => {
-      const sessionId = String(variables['sessionId'] ?? '');
-      const session = sessionStore.getSession(sessionId);
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'application/json',
-            annotations: {
-              audience: ['user', 'assistant'],
-              priority: 1,
-              lastModified: session.updated_at,
-            },
-            text: JSON.stringify(session, null, 2),
-          },
-        ],
-      };
-    },
-  );
-}
-
-function registerSessionTimelineResource(server: McpServer, sessionStore: SessionStore): void {
-  const timelineTemplate = new ResourceTemplate(
-    'gemini-data-agent://sessions/{sessionId}/timeline',
-    {
-      list: async () => ({
-        resources: sessionStore.listSessions().map((session) => ({
-          uri: `gemini-data-agent://sessions/${session.session_id}/timeline`,
-          name: `${session.session_id} timeline`,
-          mimeType: 'application/json',
-        })),
-      }),
-    },
-  );
-
-  server.resource(
-    'session-timeline',
-    timelineTemplate,
-    { mimeType: 'application/json', description: 'Timeline for a shared session.' },
-    async (uri, variables) => {
-      const sessionId = String(variables['sessionId'] ?? '');
-      const events = sessionStore.listTimeline(sessionId);
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'application/json',
-            annotations: {
-              audience: ['user', 'assistant'],
-              priority: 0.9,
-              lastModified: events.at(-1)?.created_at,
-            },
-            text: JSON.stringify({ events }, null, 2),
-          },
-        ],
-      };
-    },
-  );
-}
-
-function registerSessionIntentResource(server: McpServer, sessionStore: SessionStore): void {
-  const intentTemplate = new ResourceTemplate('gemini-data-agent://sessions/{sessionId}/intent', {
-    list: async () => ({
-      resources: sessionStore.listSessions().map((session) => ({
-        uri: `gemini-data-agent://sessions/${session.session_id}/intent`,
-        name: `${session.session_id} intent`,
-        mimeType: 'application/json',
-      })),
-    }),
-  });
-
-  server.resource(
-    'session-intent',
-    intentTemplate,
-    { mimeType: 'application/json', description: 'Current intent and revision for a session.' },
-    async (uri, variables) => {
-      const sessionId = String(variables['sessionId'] ?? '');
-      const session = sessionStore.getSession(sessionId);
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'application/json',
-            annotations: {
-              audience: ['user', 'assistant'],
-              priority: 0.95,
-              lastModified: session.updated_at,
-            },
-            text: JSON.stringify(
-              {
-                session_id: session.session_id,
-                intent: session.intent,
-                revision: session.revision,
-                head_revision: session.head_revision,
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
-    },
-  );
-}
-
-function registerSessionParticipantsResource(server: McpServer, sessionStore: SessionStore): void {
-  const participantsTemplate = new ResourceTemplate(
-    'gemini-data-agent://sessions/{sessionId}/participants',
-    {
-      list: async () => ({
-        resources: sessionStore.listSessions().map((session) => ({
-          uri: `gemini-data-agent://sessions/${session.session_id}/participants`,
-          name: `${session.session_id} participants`,
-          mimeType: 'application/json',
-        })),
-      }),
-    },
-  );
-
-  server.resource(
-    'session-participants',
-    participantsTemplate,
-    { mimeType: 'application/json', description: 'Participants allowed to access the session.' },
-    async (uri, variables) => {
-      const sessionId = String(variables['sessionId'] ?? '');
-      const session = sessionStore.getSession(sessionId);
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: 'application/json',
-            annotations: {
-              audience: ['user', 'assistant'],
-              priority: 0.6,
-              lastModified: session.updated_at,
-            },
-            text: JSON.stringify({ participants: session.participants }, null, 2),
           },
         ],
       };

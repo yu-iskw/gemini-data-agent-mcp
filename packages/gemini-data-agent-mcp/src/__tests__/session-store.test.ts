@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { InMemorySessionStore, SessionConflictError } from '../session/store.js';
+import {
+  InMemorySessionStore,
+  SessionAccessDeniedError,
+  SessionConflictError,
+} from '../session/store.js';
+
+const ownerActor = {
+  tenant_id: 'tenant-1',
+  user_id: 'user-1',
+  client_name: 'claude-code',
+};
+
+const sameTenantOtherUser = {
+  tenant_id: 'tenant-1',
+  user_id: 'user-2',
+  client_name: 'codex',
+};
+
+const otherTenantActor = {
+  tenant_id: 'tenant-2',
+  user_id: 'user-1',
+  client_name: 'codex',
+};
 
 describe('InMemorySessionStore', () => {
   it('supports cross-client session continuity and intent transitions', () => {
@@ -8,11 +30,7 @@ describe('InMemorySessionStore', () => {
 
     const created = store.createSession({
       session_id: 'sess-a',
-      actor: {
-        tenant_id: 'tenant-1',
-        user_id: 'user-1',
-        client_name: 'claude-code',
-      },
+      actor: ownerActor,
       agent: 'jaffle-shop',
       conversation_name: 'projects/p/locations/global/conversations/conv-1',
       intent: 'explore',
@@ -52,11 +70,7 @@ describe('InMemorySessionStore', () => {
     const store = new InMemorySessionStore();
     store.createSession({
       session_id: 'sess-b',
-      actor: {
-        tenant_id: 'tenant-1',
-        user_id: 'user-1',
-        client_name: 'claude-code',
-      },
+      actor: ownerActor,
       agent: 'jaffle-shop',
       conversation_name: 'projects/p/locations/global/conversations/conv-2',
       intent: 'explore',
@@ -92,11 +106,7 @@ describe('InMemorySessionStore', () => {
 
     const first = store.createSession({
       session_id: 'sess-c',
-      actor: {
-        tenant_id: 'tenant-1',
-        user_id: 'user-1',
-        client_name: 'claude-code',
-      },
+      actor: ownerActor,
       agent: 'jaffle-shop',
       conversation_name: 'projects/p/locations/global/conversations/conv-3',
       intent: 'ad-hoc',
@@ -104,11 +114,7 @@ describe('InMemorySessionStore', () => {
     });
     const second = store.createSession({
       session_id: 'sess-c-different',
-      actor: {
-        tenant_id: 'tenant-1',
-        user_id: 'user-1',
-        client_name: 'claude-code',
-      },
+      actor: ownerActor,
       agent: 'jaffle-shop',
       conversation_name: 'projects/p/locations/global/conversations/conv-3',
       intent: 'ad-hoc',
@@ -139,8 +145,72 @@ describe('InMemorySessionStore', () => {
       target_revision: 1,
     });
 
-    const handoff = store.createHandoff('sess-c');
+    const handoff = store.createHandoff({ session_id: 'sess-c', actor: ownerActor });
     expect(handoff.session.session_id).toBe('sess-c');
     expect(handoff.handoff_summary).toContain('sess-c');
+  });
+
+  it('denies read access to non-participants', () => {
+    const store = new InMemorySessionStore();
+    store.createSession({
+      session_id: 'sess-read',
+      actor: ownerActor,
+      agent: 'jaffle-shop',
+      conversation_name: 'projects/p/locations/global/conversations/conv-read',
+      intent: 'explore',
+    });
+
+    expect(() => store.getSessionForActor('sess-read', sameTenantOtherUser)).toThrow(
+      SessionAccessDeniedError,
+    );
+    expect(() => store.getSessionForActor('sess-read', otherTenantActor)).toThrow(
+      SessionAccessDeniedError,
+    );
+  });
+
+  it('denies handoff access to non-participants', () => {
+    const store = new InMemorySessionStore();
+    store.createSession({
+      session_id: 'sess-handoff',
+      actor: ownerActor,
+      agent: 'jaffle-shop',
+      conversation_name: 'projects/p/locations/global/conversations/conv-handoff',
+      intent: 'report',
+    });
+
+    expect(() =>
+      store.createHandoff({ session_id: 'sess-handoff', actor: sameTenantOtherUser }),
+    ).toThrow(SessionAccessDeniedError);
+  });
+
+  it('rejects duplicate custom session ids across actors and tenants', () => {
+    const store = new InMemorySessionStore();
+    store.createSession({
+      session_id: 'sess-collision',
+      actor: ownerActor,
+      agent: 'jaffle-shop',
+      conversation_name: 'projects/p/locations/global/conversations/conv-collision',
+      intent: 'ad-hoc',
+    });
+
+    expect(() =>
+      store.createSession({
+        session_id: 'sess-collision',
+        actor: sameTenantOtherUser,
+        agent: 'jaffle-shop',
+        conversation_name: 'projects/p/locations/global/conversations/conv-other',
+        intent: 'ad-hoc',
+      }),
+    ).toThrow(SessionConflictError);
+
+    expect(() =>
+      store.createSession({
+        session_id: 'sess-collision',
+        actor: otherTenantActor,
+        agent: 'jaffle-shop',
+        conversation_name: 'projects/p/locations/global/conversations/conv-other',
+        intent: 'ad-hoc',
+      }),
+    ).toThrow(SessionAccessDeniedError);
   });
 });

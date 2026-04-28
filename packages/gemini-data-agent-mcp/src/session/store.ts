@@ -39,6 +39,11 @@ interface AppendChatTurnInput {
   response_summary: string;
 }
 
+interface CreateHandoffInput {
+  session_id: string;
+  actor: SessionActor;
+}
+
 interface UpdateSessionWithRevisionInput {
   sessionId: string;
   actor: SessionActor;
@@ -64,12 +69,13 @@ export class SessionAccessDeniedError extends Error {}
 export interface SessionStore {
   createSession(input: CreateSessionInput): SharedSession;
   getSession(sessionId: string): SharedSession;
+  getSessionForActor(sessionId: string, actor: SessionActor): SharedSession;
   listSessions(): SharedSession[];
   switchIntent(input: SwitchIntentInput): SharedSession;
   appendChatTurn(input: AppendChatTurnInput): SharedSession;
   forkSession(input: ForkSessionInput): SharedSession;
   resetSession(input: ResetSessionInput): SharedSession;
-  createHandoff(sessionId: string): SessionHandoff;
+  createHandoff(input: CreateHandoffInput): SessionHandoff;
   listTimeline(sessionId: string): SessionTimelineEvent[];
   listTimelineSince(sessionId: string, revision: number): SessionTimelineEvent[];
 }
@@ -122,13 +128,21 @@ export class InMemorySessionStore implements SessionStore {
     if (idempotencyKey) {
       const existingSessionId = this.idempotencyCreate.get(idempotencyKey);
       if (existingSessionId) {
-        return this.getSession(existingSessionId);
+        return this.getSessionForActor(existingSessionId, input.actor);
       }
     }
 
     const existing = this.sessions.get(input.session_id);
     if (existing) {
-      return cloneSession(existing);
+      if (existing.tenant_id !== input.actor.tenant_id) {
+        throw new SessionAccessDeniedError(
+          `Tenant "${input.actor.tenant_id}" cannot create session "${input.session_id}".`,
+        );
+      }
+      throw new SessionConflictError(
+        `Session "${input.session_id}" already exists.`,
+        existing.revision,
+      );
     }
 
     const timestamp = nowIso();
@@ -169,6 +183,15 @@ export class InMemorySessionStore implements SessionStore {
     if (!session) {
       throw new SessionNotFoundError(`Session "${sessionId}" not found.`);
     }
+    return cloneSession(session);
+  }
+
+  getSessionForActor(sessionId: string, actor: SessionActor): SharedSession {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(`Session "${sessionId}" not found.`);
+    }
+    this.assertAccess(session, actor);
     return cloneSession(session);
   }
 
@@ -219,7 +242,7 @@ export class InMemorySessionStore implements SessionStore {
     if (idempotencyKey) {
       const existingSessionId = this.idempotencyFork.get(idempotencyKey);
       if (existingSessionId) {
-        return this.getSession(existingSessionId);
+        return this.getSessionForActor(existingSessionId, input.actor);
       }
     }
 
@@ -267,9 +290,9 @@ export class InMemorySessionStore implements SessionStore {
     });
   }
 
-  createHandoff(sessionId: string): SessionHandoff {
-    const session = this.getSession(sessionId);
-    const recent = this.listTimelineSince(sessionId, Math.max(1, session.revision - 4));
+  createHandoff(input: CreateHandoffInput): SessionHandoff {
+    const session = this.getSessionForActor(input.session_id, input.actor);
+    const recent = this.listTimelineSince(input.session_id, Math.max(1, session.revision - 4));
     const summary = `Handoff for ${session.session_id}: intent=${session.intent}, revision=${session.revision}, conversation=${session.conversation_name}.`;
     return {
       session,
