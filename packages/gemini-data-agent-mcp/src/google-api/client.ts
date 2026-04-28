@@ -1,12 +1,14 @@
 import { DataAgentMcpError } from '../types.js';
-import { parseGoogleApiError } from './errors.js';
+
 import {
   buildQueryDataUrl,
   buildA2ASendUrl,
   buildA2AStreamUrl,
   buildOperationUrl,
   extractDataAgentId,
+  normalizeDataAgentName,
 } from './endpoints.js';
+import { parseGoogleApiError } from './errors.js';
 
 import type { ResolvedCredentials } from '../auth/index.js';
 import type { ApiVersion, GoogleApiResponse } from '../types.js';
@@ -60,7 +62,11 @@ export class GeminiDataAgentClient {
     };
 
     if (options.dataAgent) {
-      requestBody['dataAgent'] = options.dataAgent;
+      requestBody['dataAgent'] = normalizeDataAgentName(
+        options.dataAgent,
+        options.project,
+        options.location,
+      );
     }
 
     if (options.generationOptions) {

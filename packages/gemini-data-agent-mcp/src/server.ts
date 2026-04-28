@@ -1,9 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { registerTools } from './mcp-surface/tools.js';
-import { registerResources } from './mcp-surface/resources.js';
 import { registerPrompts } from './mcp-surface/prompts.js';
+import { registerResources } from './mcp-surface/resources.js';
+import { registerTools } from './mcp-surface/tools.js';
 import { setLogLevel, logInfo, logError } from './observability/logging.js';
 
 import type { AppConfig } from './types.js';

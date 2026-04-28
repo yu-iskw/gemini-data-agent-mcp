@@ -1,6 +1,8 @@
 import { GoogleAuth } from 'google-auth-library';
 
 import { DataAgentMcpError } from '../types.js';
+
+import { normalizeHeaders } from './headers.js';
 import { createImpersonatedCredentials } from './impersonation.js';
 
 import type { AuthConfig } from '../types.js';
@@ -82,7 +84,8 @@ function wrapGoogleAuth(googleAuth: GoogleAuth): ResolvedCredentials {
     async getRequestHeaders(): Promise<Record<string, string>> {
       try {
         const client = await googleAuth.getClient();
-        return await client.getRequestHeaders();
+        const headers = await client.getRequestHeaders();
+        return normalizeHeaders(headers);
       } catch (err) {
         throw new DataAgentMcpError(
           'AUTH_FAILED',
@@ -99,7 +102,8 @@ function wrapImpersonated(impersonated: Impersonated): ResolvedCredentials {
   return {
     async getRequestHeaders(): Promise<Record<string, string>> {
       try {
-        return await impersonated.getRequestHeaders();
+        const headers = await impersonated.getRequestHeaders();
+        return normalizeHeaders(headers);
       } catch (err) {
         throw new DataAgentMcpError(
           'AUTH_FAILED',

@@ -1,69 +1,76 @@
-server:
-  name: gemini-data-agent-mcp
-  log_level: INFO
-  transport: stdio
-
-version_policy:
-  default: v1beta
-  allowed_versions: ["v1", "v1beta", "v1alpha"]
-  allow_tool_override: true
-  warn_on_v1alpha: true
-
-security:
-  redaction:
-    enabled: true
-    show_service_account: full
-    redact_headers: true
-    redact_tokens: true
-    redact_raw_request_body: false
-    redact_raw_response_body: false
-  audit:
-    enabled: true
-    include_prompt: false
-    include_response: false
-  persistence:
-    enabled: false
-  raw_passthrough:
-    enabled: false
-    allowed_methods: ["GET", "POST"]
-    allowed_path_patterns: []
-
-defaults:
-  api_version: v1beta
-  location: us-central1
-  timeout_seconds: 120
-  auth:
-    mode: adc
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
-
+# Minimal configuration (required baseline)
 agents:
   my-agent:
-    display_name: My Data Agent
-    description: Example Gemini Data Agent configuration.
     project: YOUR_GCP_PROJECT_ID
     location: us-central1
     api_version: v1beta
-    # Full resource name of the data agent
-    data_agent: projects/YOUR_GCP_PROJECT_ID/locations/us-central1/dataAgents/YOUR_AGENT_ID
+    data_agent: YOUR_AGENT_ID
     auth:
-      # For local development: use adc
-      # For production: use impersonation with a dedicated service account
       mode: adc
-      # mode: impersonation
-      # source: adc
-      # target_service_account: gda-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com
-      scopes:
-        - https://www.googleapis.com/auth/cloud-platform
-    capabilities:
-      query_data: true
-      a2a_send: false
-      a2a_stream: false
-      chat: false
-      raw_passthrough: false
-    generation_options:
-      generate_query: true
-      generate_query_result: true
-      generate_natural_language_answer: true
-      generate_explanation: true
-      generate_disambiguation_question: true
+
+# Optional advanced settings
+# server:
+#   name: gemini-data-agent-mcp
+#   log_level: INFO
+#   transport: stdio
+#
+# version_policy:
+#   default: v1beta
+#   allowed_versions: [v1, v1beta, v1alpha]
+#   allow_tool_override: true
+#   warn_on_v1alpha: true
+#
+# security:
+#   redaction:
+#     enabled: true
+#     show_service_account: full
+#     redact_headers: true
+#     redact_tokens: true
+#     redact_raw_request_body: false
+#     redact_raw_response_body: false
+#   audit:
+#     enabled: true
+#     include_prompt: false
+#     include_response: false
+#   persistence:
+#     enabled: false
+#   raw_passthrough:
+#     enabled: false
+#     allowed_methods: [GET, POST]
+#     allowed_path_patterns: []
+#
+# defaults:
+#   api_version: v1beta
+#   location: us-central1
+#   timeout_seconds: 120
+#   auth:
+#     mode: adc
+#     scopes:
+#       - https://www.googleapis.com/auth/cloud-platform
+#
+# agents:
+#   my-agent:
+#     display_name: My Data Agent
+#     description: Example Gemini Data Agent configuration.
+#     project: YOUR_GCP_PROJECT_ID
+#     location: us-central1
+#     api_version: v1beta
+#     data_agent: YOUR_AGENT_ID
+#     auth:
+#       mode: impersonation
+#       source: adc
+#       target_service_account: gda-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com
+#       scopes:
+#         - https://www.googleapis.com/auth/cloud-platform
+#     capabilities:
+#       query_data: true
+#       a2a_send: false
+#       a2a_stream: false
+#       chat: false
+#       raw_passthrough: false
+#     generation_options:
+#       generate_query: true
+#       generate_query_result: true
+#       generate_natural_language_answer: true
+#       generate_explanation: true
+#       generate_disambiguation_question: true

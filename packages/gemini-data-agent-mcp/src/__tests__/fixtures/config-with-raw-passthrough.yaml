@@ -4,9 +4,9 @@ server:
 security:
   raw_passthrough:
     enabled: true
-    allowed_methods: ["GET", "POST"]
+    allowed_methods: [GET, POST]
     allowed_path_patterns:
-      - "^v1beta/projects/[^/]+/locations/[^/]+:queryData$"
+      - ^v1beta/projects/[^/]+/locations/[^/]+:queryData$
 
 agents:
   dev-agent:

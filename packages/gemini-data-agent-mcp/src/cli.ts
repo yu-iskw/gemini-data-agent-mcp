@@ -3,10 +3,15 @@
 import { Command } from 'commander';
 
 import { loadConfig, validateConfig } from './config/loader.js';
+import { DEFAULT_LOG_LEVEL, LOG_LEVELS, parseLogLevel } from './observability/log-level.js';
 import { startServer } from './server.js';
 import { DataAgentMcpError } from './types.js';
 
 const program = new Command();
+const configPathOptionFlags = '-c, --config <path>';
+const defaultConfigPath = 'config.yaml';
+const configPathOptionDescription = 'Path to YAML configuration file';
+const logLevelOptionDescription = `Log level (${LOG_LEVELS.join(', ')})`;
 
 program
   .name('gemini-data-agent-mcp')
@@ -16,20 +21,15 @@ program
 program
   .command('start', { isDefault: true })
   .description('Start the MCP server (default command).')
-  .option('-c, --config <path>', 'Path to YAML configuration file', 'config.yaml')
-  .option(
-    '-l, --log-level <level>',
-    'Log level (DEBUG, INFO, WARN, ERROR)',
-    'INFO',
-  )
+  .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
+  .option('-l, --log-level <level>', logLevelOptionDescription, DEFAULT_LOG_LEVEL)
   .option('-t, --transport <type>', 'Transport type (stdio)', 'stdio')
   .action(async (options: { config: string; logLevel: string; transport: string }) => {
     try {
       const config = loadConfig(options.config);
 
       if (options.logLevel) {
-        const level = options.logLevel.toUpperCase() as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
-        config.server.log_level = level;
+        config.server.log_level = parseLogLevel(options.logLevel);
       }
 
       await startServer(config);
@@ -46,14 +46,12 @@ program
 program
   .command('validate-config')
   .description('Validate a YAML configuration file without starting the server.')
-  .option('-c, --config <path>', 'Path to YAML configuration file', 'config.yaml')
+  .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
   .action((options: { config: string }) => {
     try {
       const config = loadConfig(options.config);
       const agentCount = Object.keys(config.agents).length;
-      process.stdout.write(
-        `\nConfiguration valid. ${agentCount} agent(s) configured:\n`,
-      );
+      process.stdout.write(`\nConfiguration valid. ${agentCount} agent(s) configured:\n`);
       for (const [name, agent] of Object.entries(config.agents)) {
         process.stdout.write(`  - ${name}: ${agent.display_name ?? name} [${agent.api_version}]\n`);
       }
@@ -71,7 +69,7 @@ program
 program
   .command('inspect-config')
   .description('Display the resolved (parsed) configuration with redacted secrets.')
-  .option('-c, --config <path>', 'Path to YAML configuration file', 'config.yaml')
+  .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
   .action((options: { config: string }) => {
     try {
       const config = loadConfig(options.config);

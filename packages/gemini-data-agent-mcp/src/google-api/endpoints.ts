@@ -25,10 +25,7 @@ export function buildA2AStreamUrl(
 }
 
 export function buildOperationUrl(version: ApiVersion, operationName: string): string {
-  const normalized = operationName.startsWith('projects/')
-    ? operationName
-    : operationName;
-  return `${API_HOST}/${version}/${normalized}`;
+  return `${API_HOST}/${version}/${operationName}`;
 }
 
 export function buildRawUrl(version: ApiVersion, path: string): string {
@@ -39,6 +36,19 @@ export function buildRawUrl(version: ApiVersion, path: string): string {
 export function extractDataAgentId(dataAgent: string): string {
   const parts = dataAgent.split('/');
   return parts.at(-1) ?? dataAgent;
+}
+
+export function normalizeDataAgentName(
+  dataAgent: string,
+  project: string,
+  location: string,
+): string {
+  if (dataAgent.startsWith('projects/')) {
+    return dataAgent;
+  }
+
+  const dataAgentId = extractDataAgentId(dataAgent);
+  return `projects/${project}/locations/${location}/dataAgents/${dataAgentId}`;
 }
 
 export function extractProjectAndLocation(

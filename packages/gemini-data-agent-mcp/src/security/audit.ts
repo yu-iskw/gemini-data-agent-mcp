@@ -1,8 +1,8 @@
 import { structuredLog } from '../observability/logging.js';
+
 import { redactServiceAccount } from './redaction.js';
 
-import type { AuditEvent } from '../types.js';
-import type { SecurityConfig } from '../types.js';
+import type { AuditEvent, SecurityConfig } from '../types.js';
 
 export function emitAuditEvent(event: AuditEvent, security: SecurityConfig): void {
   if (!security.audit.enabled) return;

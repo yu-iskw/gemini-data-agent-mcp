@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
+const configuredAgentNameDescription = 'Name of the configured Gemini Data Agent.';
+
 export function registerPrompts(server: McpServer): void {
   registerAnalyzeDataQuestion(server);
   registerInvestigateDataIssue(server);
@@ -16,7 +18,7 @@ function registerAnalyzeDataQuestion(server: McpServer): void {
     'analyze_data_question',
     'Use a configured Gemini Data Agent to answer a direct analytical question.',
     {
-      agent: z.string().describe('Name of the configured Gemini Data Agent.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       question: z.string().describe('The analytical question to answer.'),
     },
     ({ agent, question }) => ({
@@ -47,7 +49,7 @@ function registerInvestigateDataIssue(server: McpServer): void {
     'investigate_data_issue',
     'Multi-step investigation of a data issue using a Gemini Data Agent.',
     {
-      agent: z.string().describe('Name of the configured Gemini Data Agent.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       issue: z.string().describe('The data issue to investigate.'),
     },
     ({ agent, issue }) => ({
@@ -102,7 +104,7 @@ function registerCompareSegments(server: McpServer): void {
     'compare_segments',
     'Compare two segments using a Gemini Data Agent.',
     {
-      agent: z.string().describe('Name of the configured Gemini Data Agent.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       segment_a: z.string().describe('First segment to compare.'),
       segment_b: z.string().describe('Second segment to compare.'),
       metric: z.string().describe('Metric to compare across segments.'),
@@ -134,7 +136,7 @@ function registerFindAnomalies(server: McpServer): void {
     'find_anomalies',
     'Identify anomalies in a metric using a Gemini Data Agent.',
     {
-      agent: z.string().describe('Name of the configured Gemini Data Agent.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       metric: z.string().describe('Metric to analyze for anomalies.'),
       time_period: z.string().describe('Time period to check.'),
       dimensions: z.string().describe('Dimensions to check for anomalies.'),

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { redact, isSensitiveKey, redactServiceAccount, redactHeaders } from '../security/redaction.js';
+
+import {
+  redact,
+  isSensitiveKey,
+  redactServiceAccount,
+  redactHeaders,
+} from '../security/redaction.js';
 
 describe('isSensitiveKey', () => {
   it('detects authorization key', () => {
@@ -32,7 +38,10 @@ describe('isSensitiveKey', () => {
 
 describe('redact', () => {
   it('redacts sensitive keys in flat objects', () => {
-    const result = redact({ project: 'my-project', token: 'secret-token' }) as Record<string, unknown>;
+    const result = redact({ project: 'my-project', token: 'secret-token' }) as Record<
+      string,
+      unknown
+    >;
     expect(result['project']).toBe('my-project');
     expect(result['token']).toBe('[REDACTED]');
   });

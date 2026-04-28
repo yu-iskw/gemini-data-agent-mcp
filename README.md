@@ -16,7 +16,7 @@ It is a thin MCP proxy that lets MCP clients invoke configured Gemini Data Agent
 
 ## Architecture
 
-```
+```text
 Coding Agent (Cursor / Claude Code / Codex)
         │  MCP
         ▼
@@ -65,31 +65,31 @@ agents:
     project: my-gcp-project
     location: us-central1
     api_version: v1beta
-    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    data_agent: my-agent
     auth:
       mode: adc
-    capabilities:
-      query_data: true
-      a2a_send: false
-      a2a_stream: false
-      chat: false
-      raw_passthrough: false
 ```
 
-2. Start the server:
+All omitted fields are resolved from schema defaults during config validation.
+
+1. Start the server:
 
 ```bash
 node packages/gemini-data-agent-mcp/dist/cli.js --config config.yaml
 ```
 
-3. Add to your MCP client (e.g., Claude Code `claude_desktop_config.json`):
+1. Add to your MCP client (e.g., Claude Code `claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "gemini-data-agent": {
       "command": "node",
-      "args": ["/path/to/packages/gemini-data-agent-mcp/dist/cli.js", "--config", "/path/to/config.yaml"]
+      "args": [
+        "/path/to/packages/gemini-data-agent-mcp/dist/cli.js",
+        "--config",
+        "/path/to/config.yaml"
+      ]
     }
   }
 }
@@ -99,66 +99,49 @@ node packages/gemini-data-agent-mcp/dist/cli.js --config config.yaml
 
 ## YAML Configuration
 
-Full example with two agents:
+### Minimal config (recommended starting point)
 
 ```yaml
-server:
-  name: gemini-data-agent-mcp
-  log_level: INFO      # DEBUG | INFO | WARN | ERROR
-  transport: stdio     # stdio (default) | http
+agents:
+  my-agent:
+    project: my-gcp-project
+    location: us-central1
+    api_version: v1beta
+    data_agent: my-agent
+    auth:
+      mode: adc
+```
 
+This is enough to start the server. Defaults are applied automatically for omitted sections (`server`, `version_policy`, `security`, `defaults`, `capabilities`).
+`data_agent` accepts either a full resource name or a bare data agent ID; the ID form is recommended for readability.
+
+### Advanced optional settings
+
+Use these only when you need extra control:
+
+- `version_policy`: constrain or override supported API versions.
+- `security.raw_passthrough`: allow explicit raw REST passthrough patterns.
+- `agents.<name>.capabilities`: enable/disable tool families per agent.
+- `agents.<name>.generation_options`: tune query/answer generation behavior.
+
+```yaml
 version_policy:
   default: v1beta
-  allowed_versions: ["v1", "v1beta", "v1alpha"]
-  allow_tool_override: true   # Allow tool call to override per-call
+  allowed_versions: [v1, v1beta, v1alpha]
+  allow_tool_override: true
   warn_on_v1alpha: true
 
 security:
-  redaction:
-    enabled: true
-    show_service_account: full   # full | partial | hidden
-    redact_headers: true
-    redact_tokens: true
-    redact_raw_request_body: false
-    redact_raw_response_body: false
-  audit:
-    enabled: true
-    include_prompt: false        # Do not log prompt text by default
-    include_response: false      # Do not log response text by default
-  persistence:
-    enabled: false               # Never persist results by default
   raw_passthrough:
-    enabled: false               # DISABLED by default — see security warning below
-    allowed_methods: ["GET", "POST"]
-    allowed_path_patterns:
-      - "^v1beta/projects/[^/]+/locations/[^/]+:queryData$"
-
-defaults:
-  api_version: v1beta
-  location: us-central1
-  timeout_seconds: 120
-  auth:
-    mode: adc
-    scopes:
-      - https://www.googleapis.com/auth/cloud-platform
+    enabled: false
+    allowed_methods: [GET, POST]
+    allowed_path_patterns: []
 
 agents:
-  sales-prod:
-    display_name: Sales Production Agent
-    description: Production sales analytics data agent.
-    project: my-prod-project
-    location: us-central1
-    api_version: v1beta
-    data_agent: projects/my-prod-project/locations/us-central1/dataAgents/sales-agent
-    auth:
-      mode: impersonation
-      source: adc
-      target_service_account: gda-sales-prod@my-prod-project.iam.gserviceaccount.com
-      scopes:
-        - https://www.googleapis.com/auth/cloud-platform
+  my-agent:
     capabilities:
       query_data: true
-      a2a_send: true
+      a2a_send: false
       a2a_stream: false
       chat: false
       raw_passthrough: false
@@ -168,35 +151,17 @@ agents:
       generate_natural_language_answer: true
       generate_explanation: true
       generate_disambiguation_question: true
-
-  finance-staging:
-    display_name: Finance Staging Agent
-    description: Staging finance data agent (v1alpha — early access).
-    project: my-staging-project
-    location: us-central1
-    api_version: v1alpha
-    data_agent: projects/my-staging-project/locations/us-central1/dataAgents/finance-agent
-    auth:
-      mode: impersonation
-      source: workload_identity
-      target_service_account: gda-finance-staging@my-staging-project.iam.gserviceaccount.com
-    capabilities:
-      query_data: true
-      a2a_send: true
-      a2a_stream: true
-      chat: true
-      raw_passthrough: true
 ```
 
 ### Validation rules
 
-| Rule | Behavior |
-|------|----------|
-| Missing `agents` or empty map | Startup failure |
-| Missing `project` | Startup failure |
-| Unsupported `api_version` | Startup failure |
-| `impersonation` without `target_service_account` | Startup failure |
-| Unknown `auth.mode` | Startup failure |
+| Rule                                                           | Behavior        |
+| -------------------------------------------------------------- | --------------- |
+| Missing `agents` or empty map                                  | Startup failure |
+| Missing `project`                                              | Startup failure |
+| Unsupported `api_version`                                      | Startup failure |
+| `impersonation` without `target_service_account`               | Startup failure |
+| Unknown `auth.mode`                                            | Startup failure |
 | `raw_passthrough.enabled=true` without `allowed_path_patterns` | Startup failure |
 
 ---
@@ -230,7 +195,7 @@ auth:
 ```yaml
 auth:
   mode: impersonation
-  source: adc                  # or workload_identity
+  source: adc # or workload_identity
   target_service_account: sa@project.iam.gserviceaccount.com
   scopes:
     - https://www.googleapis.com/auth/cloud-platform
@@ -242,14 +207,14 @@ Each agent can use a different target service account for least-privilege isolat
 
 ## MCP Tools
 
-| Tool | Description |
-|------|-------------|
-| `query_data_agent` | Ask a natural-language analytical question to a Gemini Data Agent |
-| `list_data_agents` | List configured agents from the YAML registry |
-| `get_data_agent_config` | Return redacted configuration for a named agent |
-| `send_data_agent_message` | Send a message to an A2A-compatible data agent |
-| `get_operation` | Retrieve a long-running operation |
-| `raw_data_agent_request` | Raw REST passthrough (disabled by default) |
+| Tool                      | Description                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| `query_data_agent`        | Ask a natural-language analytical question to a Gemini Data Agent |
+| `list_data_agents`        | List configured agents from the YAML registry                     |
+| `get_data_agent_config`   | Return redacted configuration for a named agent                   |
+| `send_data_agent_message` | Send a message to an A2A-compatible data agent                    |
+| `get_operation`           | Retrieve a long-running operation                                 |
+| `raw_data_agent_request`  | Raw REST passthrough (disabled by default)                        |
 
 ### `query_data_agent`
 
@@ -280,13 +245,13 @@ Requires `capabilities.a2a_send: true` in the agent config.
 
 ## MCP Resources
 
-| URI | Description |
-|-----|-------------|
-| `gemini-data-agent://agents` | List of all configured agents |
-| `gemini-data-agent://agents/{agent}` | Redacted config for a named agent |
-| `gemini-data-agent://agents/{agent}/capabilities` | Capabilities for a named agent |
-| `gemini-data-agent://agents/{agent}/auth-policy` | Non-secret auth posture for a named agent |
-| `gemini-data-agent://prompts` | List of available prompts |
+| URI                                               | Description                               |
+| ------------------------------------------------- | ----------------------------------------- |
+| `gemini-data-agent://agents`                      | List of all configured agents             |
+| `gemini-data-agent://agents/{agent}`              | Redacted config for a named agent         |
+| `gemini-data-agent://agents/{agent}/capabilities` | Capabilities for a named agent            |
+| `gemini-data-agent://agents/{agent}/auth-policy`  | Non-secret auth posture for a named agent |
+| `gemini-data-agent://prompts`                     | List of available prompts                 |
 
 All resources are safe to expose to models — secrets are redacted.
 
@@ -294,30 +259,31 @@ All resources are safe to expose to models — secrets are redacted.
 
 ## MCP Prompts
 
-| Prompt | Description |
-|--------|-------------|
-| `analyze_data_question` | Direct analytical question to a data agent |
-| `investigate_data_issue` | Multi-step data issue investigation |
-| `explain_generated_query` | Explain a generated query from a response |
-| `compare_segments` | Compare two segments on a metric |
-| `find_anomalies` | Identify anomalies in a metric |
+| Prompt                         | Description                                    |
+| ------------------------------ | ---------------------------------------------- |
+| `analyze_data_question`        | Direct analytical question to a data agent     |
+| `investigate_data_issue`       | Multi-step data issue investigation            |
+| `explain_generated_query`      | Explain a generated query from a response      |
+| `compare_segments`             | Compare two segments on a metric               |
+| `find_anomalies`               | Identify anomalies in a metric                 |
 | `prepare_data_analysis_report` | Prepare a structured report from agent outputs |
 
 ---
 
 ## Security defaults
 
-| Setting | Default |
-|---------|---------|
-| Secret redaction | **Enabled** |
-| Audit logging | **Enabled** |
+| Setting                 | Default      |
+| ----------------------- | ------------ |
+| Secret redaction        | **Enabled**  |
+| Audit logging           | **Enabled**  |
 | Prompt/response logging | **Disabled** |
-| Result persistence | **Disabled** |
-| Raw passthrough | **Disabled** |
+| Result persistence      | **Disabled** |
+| Raw passthrough         | **Disabled** |
 
 ### ⚠ Raw passthrough warning
 
 `raw_data_agent_request` is disabled by default. When enabled, it:
+
 - Requires explicit `allowed_methods` and `allowed_path_patterns`
 - Restricts the host to `geminidataanalytics.googleapis.com`
 - Emits audit log entries for every call
@@ -342,11 +308,11 @@ node dist/cli.js inspect-config --config config.yaml
 
 Options:
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--config`, `-c` | `config.yaml` | Path to YAML config file |
-| `--log-level`, `-l` | `INFO` | Log level (DEBUG/INFO/WARN/ERROR) |
-| `--transport`, `-t` | `stdio` | Transport type |
+| Flag                | Default       | Description                       |
+| ------------------- | ------------- | --------------------------------- |
+| `--config`, `-c`    | `config.yaml` | Path to YAML config file          |
+| `--log-level`, `-l` | `INFO`        | Log level (DEBUG/INFO/WARN/ERROR) |
+| `--transport`, `-t` | `stdio`       | Transport type                    |
 
 ---
 

@@ -45,8 +45,10 @@ export const AgentConfigSchema = z.object({
   project: z.string().min(1, 'project is required'),
   location: z.string().min(1, 'location is required'),
   api_version: ApiVersionSchema,
+  // Accept either full resource name or bare data agent ID.
   data_agent: z.string().min(1, 'data_agent is required'),
   auth: AuthConfigSchema,
+  // Agent capabilities are optional in user YAML and default to safe values.
   capabilities: AgentCapabilitiesSchema.default({
     query_data: true,
     a2a_send: false,
@@ -114,6 +116,7 @@ export const RawPassthroughSecurityConfigSchema = z
   });
 
 export const SecurityConfigSchema = z.object({
+  // Security defaults are intentionally safe-by-default when omitted.
   redaction: RedactionConfigSchema.default({}),
   audit: AuditConfigSchema.default({}),
   persistence: PersistenceConfigSchema.default({}),
@@ -129,6 +132,7 @@ export const ServerConfigSchema = z.object({
 });
 
 export const AppConfigSchema = z.object({
+  // Root sections are optional from user input and resolved from defaults.
   server: ServerConfigSchema.default({}),
   version_policy: VersionPolicySchema.default({}),
   security: SecurityConfigSchema.default({}),

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { validateConfig } from '../config/loader.js';
+
+import type * as GoogleAuthLibrary from 'google-auth-library';
 
 const mockHeaders = { Authorization: 'Bearer mock-token' };
 const mockClient = {
@@ -7,7 +10,7 @@ const mockClient = {
 };
 
 vi.mock('google-auth-library', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('google-auth-library')>();
+  const actual = await importOriginal<typeof GoogleAuthLibrary>();
   return {
     ...actual,
     GoogleAuth: vi.fn().mockImplementation(function () {
@@ -101,6 +104,54 @@ describe('query_data_agent tool behavior', () => {
 
     expect(result['naturalLanguageAnswer']).toBe('Revenue declined due to seasonal factors.');
     expect(result['generatedQuery']).toBeDefined();
+  });
+
+  it('expands bare data_agent ID to full resource name in queryData request', async () => {
+    const config = validateConfig({
+      agents: {
+        'test-agent': {
+          project: 'my-project',
+          location: 'us-central1',
+          api_version: 'v1beta',
+          data_agent: 'test-agent',
+          auth: { mode: 'adc' },
+          capabilities: {
+            query_data: true,
+            a2a_send: true,
+            a2a_stream: false,
+            chat: false,
+            raw_passthrough: false,
+          },
+        },
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ naturalLanguageAnswer: 'ok' }),
+    });
+
+    const { resolveCredentials } = await import('../auth/resolver.js');
+    const { createClient } = await import('../google-api/client.js');
+
+    const creds = await resolveCredentials(config.agents['test-agent']!.auth);
+    const client = createClient(creds);
+
+    await client.queryData({
+      project: 'my-project',
+      location: 'us-central1',
+      version: 'v1beta',
+      query: 'Why did revenue decline?',
+      dataAgent: config.agents['test-agent']!.data_agent,
+    });
+
+    const fetchCall = mockFetch.mock.calls.at(-1);
+    const body = JSON.parse(String(fetchCall?.[1]?.body));
+    expect(body['dataAgent']).toBe(
+      'projects/my-project/locations/us-central1/dataAgents/test-agent',
+    );
   });
 
   it('throws on API 403 error', async () => {

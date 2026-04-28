@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { enforceRawPassthroughPolicy, enforceHostRestriction, isPathAllowed } from '../security/allowlist.js';
+
 import { validateConfig } from '../config/loader.js';
+import {
+  enforceRawPassthroughPolicy,
+  enforceHostRestriction,
+  isPathAllowed,
+} from '../security/allowlist.js';
 import { DataAgentMcpError } from '../types.js';
 
 function makeConfig(rawPassthroughEnabled: boolean, agentRawPassthrough: boolean) {
@@ -37,9 +42,9 @@ describe('enforceRawPassthroughPolicy', () => {
   it('throws when raw passthrough is disabled globally', () => {
     const config = makeConfig(false, false);
     const agent = config.agents['test-agent']!;
-    expect(() => enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', '/v1beta/foo')).toThrow(
-      DataAgentMcpError,
-    );
+    expect(() =>
+      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', '/v1beta/foo'),
+    ).toThrow(DataAgentMcpError);
     try {
       enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', '/v1beta/foo');
     } catch (err) {
@@ -50,9 +55,9 @@ describe('enforceRawPassthroughPolicy', () => {
   it('throws when agent capability is disabled', () => {
     const config = makeConfig(true, false);
     const agent = config.agents['test-agent']!;
-    expect(() => enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1beta/foo')).toThrow(
-      DataAgentMcpError,
-    );
+    expect(() =>
+      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1beta/foo'),
+    ).toThrow(DataAgentMcpError);
     try {
       enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1beta/foo');
     } catch (err) {
@@ -108,13 +113,12 @@ describe('enforceHostRestriction', () => {
 });
 
 describe('isPathAllowed', () => {
-  const patterns = [
-    '^v1beta/projects/[^/]+/locations/[^/]+:queryData$',
-    '^v1beta/a2a/',
-  ];
+  const patterns = ['^v1beta/projects/[^/]+/locations/[^/]+:queryData$', '^v1beta/a2a/'];
 
   it('allows matching paths', () => {
-    expect(isPathAllowed('v1beta/projects/my-proj/locations/us-central1:queryData', patterns)).toBe(true);
+    expect(isPathAllowed('v1beta/projects/my-proj/locations/us-central1:queryData', patterns)).toBe(
+      true,
+    );
     expect(isPathAllowed('v1beta/a2a/projects/foo', patterns)).toBe(true);
   });
 

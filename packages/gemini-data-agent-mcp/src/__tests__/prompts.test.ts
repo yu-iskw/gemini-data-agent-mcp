@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
-type PromptCallback = (args: Record<string, string>) => { messages: Array<{ content: { text: string } }> };
+type PromptCallback = (args: Record<string, string>) => {
+  messages: Array<{ content: { text: string } }>;
+};
 type PromptRegistry = Record<string, { callback: PromptCallback } | undefined>;
 
 async function getPromptRegistry() {

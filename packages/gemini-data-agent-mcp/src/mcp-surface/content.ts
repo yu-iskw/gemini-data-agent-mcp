@@ -46,9 +46,7 @@ export function formatQueryDataResponse(
   const disambiguation = response['disambiguationQuestion'];
   if (disambiguation !== undefined && disambiguation !== null) {
     const disText =
-      typeof disambiguation === 'string'
-        ? disambiguation
-        : JSON.stringify(disambiguation, null, 2);
+      typeof disambiguation === 'string' ? disambiguation : JSON.stringify(disambiguation, null, 2);
     sections.push(`Disambiguation Questions\n------------------------\n${disText}`);
   } else {
     sections.push(`Disambiguation Questions\n------------------------\nNone returned.`);
@@ -131,14 +129,13 @@ export function formatOperationResponse(
   return sections.join('\n\n');
 }
 
-export function formatConfigResponse(
-  agentName: string,
-  config: Record<string, unknown>,
-): string {
+export function formatConfigResponse(agentName: string, config: Record<string, unknown>): string {
   return `Agent: ${agentName}\n\n${JSON.stringify(config, null, 2)}`;
 }
 
-export function formatAgentList(agents: Array<{ name: string; display_name?: string; description?: string; api_version: string }>): string {
+export function formatAgentList(
+  agents: Array<{ name: string; display_name?: string; description?: string; api_version: string }>,
+): string {
   if (agents.length === 0) {
     return 'No agents configured.';
   }

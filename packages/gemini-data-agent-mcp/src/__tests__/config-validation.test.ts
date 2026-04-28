@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+import { describe, it, expect } from 'vitest';
 
 import { loadConfig, validateConfig } from '../config/loader.js';
 import { DataAgentMcpError } from '../types.js';
@@ -17,6 +18,14 @@ describe('loadConfig', () => {
     expect(config.agents['finance-staging']).toBeDefined();
   });
 
+  it('loads a minimal YAML config and applies defaults', () => {
+    const config = loadConfig(path.join(fixturesDir, 'config-minimal.yaml'));
+    expect(config.server.log_level).toBe('INFO');
+    expect(config.version_policy.default).toBe('v1beta');
+    expect(config.security.raw_passthrough.enabled).toBe(false);
+    expect(config.agents['my-agent'].capabilities.query_data).toBe(true);
+  });
+
   it('throws CONFIG_NOT_FOUND for missing file', () => {
     expect(() => loadConfig('/nonexistent/path/config.yaml')).toThrow(DataAgentMcpError);
     try {
@@ -28,9 +37,9 @@ describe('loadConfig', () => {
   });
 
   it('throws CONFIG_NO_AGENTS for empty agents map', () => {
-    expect(() =>
-      loadConfig(path.join(fixturesDir, 'config-invalid-no-agents.yaml')),
-    ).toThrow(DataAgentMcpError);
+    expect(() => loadConfig(path.join(fixturesDir, 'config-invalid-no-agents.yaml'))).toThrow(
+      DataAgentMcpError,
+    );
     try {
       loadConfig(path.join(fixturesDir, 'config-invalid-no-agents.yaml'));
     } catch (err) {
@@ -40,9 +49,9 @@ describe('loadConfig', () => {
   });
 
   it('throws CONFIG_VALIDATION_ERROR for impersonation without target_service_account', () => {
-    expect(() =>
-      loadConfig(path.join(fixturesDir, 'config-invalid-impersonation.yaml')),
-    ).toThrow(DataAgentMcpError);
+    expect(() => loadConfig(path.join(fixturesDir, 'config-invalid-impersonation.yaml'))).toThrow(
+      DataAgentMcpError,
+    );
     try {
       loadConfig(path.join(fixturesDir, 'config-invalid-impersonation.yaml'));
     } catch (err) {

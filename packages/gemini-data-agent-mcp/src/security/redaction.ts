@@ -35,15 +35,12 @@ function redactValue(value: unknown): unknown {
 }
 
 function redactObject(obj: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(obj)) {
-    if (isSensitiveKey(key)) {
-      result[key] = REDACTED_PLACEHOLDER;
-    } else {
-      result[key] = redactValue(val);
-    }
-  }
-  return result;
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, val]) => [
+      key,
+      isSensitiveKey(key) ? REDACTED_PLACEHOLDER : redactValue(val),
+    ]),
+  );
 }
 
 export function redactServiceAccount(
@@ -63,13 +60,10 @@ export function redactServiceAccount(
 }
 
 export function redactHeaders(headers: Record<string, string>): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, val] of Object.entries(headers)) {
-    if (isSensitiveKey(key)) {
-      result[key] = REDACTED_PLACEHOLDER;
-    } else {
-      result[key] = val;
-    }
-  }
-  return result;
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, val]) => [
+      key,
+      isSensitiveKey(key) ? REDACTED_PLACEHOLDER : val,
+    ]),
+  );
 }

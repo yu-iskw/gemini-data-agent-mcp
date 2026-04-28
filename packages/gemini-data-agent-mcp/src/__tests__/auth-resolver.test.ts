@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { clearCredentialCache, resolveCredentials } from '../auth/resolver.js';
 import { DataAgentMcpError } from '../types.js';
 
+import type * as GoogleAuthLibrary from 'google-auth-library';
+
 vi.mock('google-auth-library', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('google-auth-library')>();
+  const actual = await importOriginal<typeof GoogleAuthLibrary>();
   const mockHeaders = { Authorization: 'Bearer mock-token' };
   const mockClient = {
     getRequestHeaders: vi.fn().mockResolvedValue(mockHeaders),
@@ -53,14 +56,12 @@ describe('resolveCredentials', () => {
   });
 
   it('throws for impersonation without target_service_account', async () => {
-    await expect(
-      resolveCredentials({ mode: 'impersonation' }),
-    ).rejects.toThrow(DataAgentMcpError);
+    await expect(resolveCredentials({ mode: 'impersonation' })).rejects.toThrow(DataAgentMcpError);
   });
 
   it('throws for unknown auth mode', async () => {
-    await expect(
-      resolveCredentials({ mode: 'unknown' as never }),
-    ).rejects.toThrow(DataAgentMcpError);
+    await expect(resolveCredentials({ mode: 'unknown' as never })).rejects.toThrow(
+      DataAgentMcpError,
+    );
   });
 });

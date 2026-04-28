@@ -1,13 +1,15 @@
 import { z } from 'zod';
 
-import { resolveAgentConfig, resolveApiVersion, resolveTimeout } from '../config/index.js';
 import { resolveCredentials } from '../auth/index.js';
-import { createClient, wrapNetworkError } from '../google-api/index.js';
+import { resolveAgentConfig, resolveApiVersion, resolveTimeout } from '../config/index.js';
 import { buildRawUrl } from '../google-api/endpoints.js';
-import { redact } from '../security/redaction.js';
+import { createClient, wrapNetworkError } from '../google-api/index.js';
+import { logWarn } from '../observability/logging.js';
 import { enforceRawPassthroughPolicy, enforceHostRestriction } from '../security/allowlist.js';
 import { emitAuditEvent, createAuditStartTime, calculateLatency } from '../security/audit.js';
+import { redact } from '../security/redaction.js';
 import { DataAgentMcpError } from '../types.js';
+
 import {
   formatQueryDataResponse,
   formatA2AResponse,
@@ -15,10 +17,11 @@ import {
   formatAgentList,
   formatConfigResponse,
 } from './content.js';
-import { logWarn } from '../observability/logging.js';
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppConfig } from '../types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+const configuredAgentNameDescription = 'Configured data agent name.';
 
 function makeErrorText(err: unknown): string {
   if (err instanceof DataAgentMcpError) {
@@ -80,7 +83,10 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
 
         if (apiVersion === 'v1alpha' && config.version_policy.warn_on_v1alpha) {
-          logWarn('tools', `Using v1alpha API version for agent "${agentName}" — this is an early-access version.`);
+          logWarn(
+            'tools',
+            `Using v1alpha API version for agent "${agentName}" — this is an early-access version.`,
+          );
         }
 
         const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
@@ -173,7 +179,15 @@ function registerListDataAgents(server: McpServer, config: AppConfig): void {
         location: agent.location,
         capabilities: agent.capabilities,
         ...(args.include_redacted_auth
-          ? { auth: redact({ mode: agent.auth.mode, target_service_account: agent.auth.target_service_account }, config.security.redaction.enabled) }
+          ? {
+              auth: redact(
+                {
+                  mode: agent.auth.mode,
+                  target_service_account: agent.auth.target_service_account,
+                },
+                config.security.redaction.enabled,
+              ),
+            }
           : {}),
       }));
 
@@ -188,7 +202,7 @@ function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void 
     'get_data_agent_config',
     'Return redacted configuration for a named Gemini Data Agent.',
     {
-      agent: z.string().describe('Configured data agent name.'),
+      agent: z.string().describe(configuredAgentNameDescription),
     },
     async (args) => {
       try {
@@ -226,7 +240,7 @@ function registerSendDataAgentMessage(server: McpServer, config: AppConfig): voi
     'send_data_agent_message',
     'Send a message to an A2A-compatible Gemini Data Agent endpoint.',
     {
-      agent: z.string().describe('Configured data agent name.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       message: z.string().describe('Message text to send to the data agent.'),
       api_version: z.enum(['v1', 'v1beta', 'v1alpha']).optional(),
       blocking: z.boolean().optional().default(true),
@@ -319,7 +333,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
     'get_operation',
     'Retrieve a long-running operation for a Gemini Data Agent.',
     {
-      agent: z.string().describe('Configured data agent name.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       operation_name: z.string().describe('Full operation resource name.'),
       api_version: z.enum(['v1', 'v1beta', 'v1alpha']).optional(),
     },
@@ -395,7 +409,7 @@ function registerRawDataAgentRequest(server: McpServer, config: AppConfig): void
     'raw_data_agent_request',
     'Controlled escape hatch for advanced Gemini Data Agent API calls. Disabled by default; requires explicit allowlist configuration.',
     {
-      agent: z.string().describe('Configured data agent name.'),
+      agent: z.string().describe(configuredAgentNameDescription),
       api_version: z.enum(['v1', 'v1beta', 'v1alpha']).optional(),
       method: z.enum(['GET', 'POST', 'PATCH', 'DELETE']).describe('HTTP method.'),
       path: z.string().describe('Path below the Gemini Data Agents API host.'),

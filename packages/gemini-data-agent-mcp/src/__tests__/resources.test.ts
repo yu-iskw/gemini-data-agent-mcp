@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { validateConfig } from '../config/loader.js';
 import { redact, redactServiceAccount } from '../security/redaction.js';
 

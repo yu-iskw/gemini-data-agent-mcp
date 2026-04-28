@@ -3,8 +3,12 @@ import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { redact, redactServiceAccount } from '../security/redaction.js';
 import { DataAgentMcpError } from '../types.js';
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppConfig } from '../types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+
+function getAgent(config: AppConfig, agentName: string) {
+  return Object.entries(config.agents).find(([name]) => name === agentName)?.[1];
+}
 
 export function registerResources(server: McpServer, config: AppConfig): void {
   registerAgentsListResource(server, config);
@@ -57,11 +61,15 @@ function registerAgentDetailResource(server: McpServer, config: AppConfig): void
   server.resource(
     'agent-detail',
     template,
-    { mimeType: 'application/json', description: 'Redacted configuration for a named Gemini Data Agent.' },
+    {
+      mimeType: 'application/json',
+      description: 'Redacted configuration for a named Gemini Data Agent.',
+    },
     async (uri, variables) => {
       const agentName = String(variables['agent'] ?? '');
+      const agent = getAgent(config, agentName);
 
-      if (!agentName || !config.agents[agentName]) {
+      if (!agentName || !agent) {
         const available = Object.keys(config.agents).join(', ');
         throw new DataAgentMcpError(
           'AGENT_NOT_FOUND',
@@ -70,7 +78,6 @@ function registerAgentDetailResource(server: McpServer, config: AppConfig): void
         );
       }
 
-      const agent = config.agents[agentName];
       const redacted = redact(
         {
           display_name: agent.display_name,
@@ -120,12 +127,11 @@ function registerAgentCapabilitiesResource(server: McpServer, config: AppConfig)
     { mimeType: 'application/json', description: 'Capabilities of a named Gemini Data Agent.' },
     async (uri, variables) => {
       const agentName = String(variables['agent'] ?? '');
+      const agent = getAgent(config, agentName);
 
-      if (!agentName || !config.agents[agentName]) {
+      if (!agentName || !agent) {
         throw new DataAgentMcpError('AGENT_NOT_FOUND', `Agent "${agentName}" not found.`, false);
       }
-
-      const agent = config.agents[agentName];
 
       return {
         contents: [
@@ -157,12 +163,11 @@ function registerAgentAuthPolicyResource(server: McpServer, config: AppConfig): 
     { mimeType: 'application/json', description: 'Non-secret auth posture for a named agent.' },
     async (uri, variables) => {
       const agentName = String(variables['agent'] ?? '');
+      const agent = getAgent(config, agentName);
 
-      if (!agentName || !config.agents[agentName]) {
+      if (!agentName || !agent) {
         throw new DataAgentMcpError('AGENT_NOT_FOUND', `Agent "${agentName}" not found.`, false);
       }
-
-      const agent = config.agents[agentName];
       const { redaction } = config.security;
 
       const authPolicy: Record<string, unknown> = {

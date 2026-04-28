@@ -2,7 +2,12 @@
   "name": "gemini-data-agent-mcp",
   "version": "0.1.0",
   "description": "Production-grade MCP server that proxies Google Gemini Data Agents for coding agents.",
-  "keywords": ["mcp", "gemini", "data-agents", "google-cloud"],
+  "keywords": [
+    "mcp",
+    "gemini",
+    "data-agents",
+    "google-cloud"
+  ],
   "license": "Apache-2.0",
   "author": "",
   "type": "module",
@@ -24,7 +29,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "commander": "^13.1.0",
-    "google-auth-library": "^9.15.1",
+    "google-auth-library": "^10.6.2",
     "js-yaml": "^4.1.0",
     "zod": "^3.24.3"
   },

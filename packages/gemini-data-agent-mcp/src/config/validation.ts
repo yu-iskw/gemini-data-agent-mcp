@@ -1,10 +1,7 @@
 import type { AppConfig, AgentConfig } from '../types.js';
 
-export function resolveAgentConfig(
-  config: AppConfig,
-  agentName: string,
-): AgentConfig {
-  const agent = config.agents[agentName];
+export function resolveAgentConfig(config: AppConfig, agentName: string): AgentConfig {
+  const agent = Object.entries(config.agents).find(([name]) => name === agentName)?.[1];
   if (!agent) {
     const available = Object.keys(config.agents).join(', ');
     throw new Error(
@@ -36,9 +33,6 @@ export function resolveApiVersion(
   return agent.api_version ?? config.defaults.api_version ?? policy.default;
 }
 
-export function resolveTimeout(
-  config: AppConfig,
-  requestedTimeout?: number,
-): number {
+export function resolveTimeout(config: AppConfig, requestedTimeout?: number): number {
   return requestedTimeout ?? config.defaults.timeout_seconds ?? 120;
 }

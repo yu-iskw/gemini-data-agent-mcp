@@ -1,14 +1,17 @@
 import { readFileSync, existsSync } from 'fs';
 
 import * as yaml from 'js-yaml';
-import { ZodError } from 'zod';
 
 import { DataAgentMcpError } from '../types.js';
+
 import { AppConfigSchema } from './schema.js';
 
 import type { AppConfig } from '../types.js';
+import type { ZodError } from 'zod';
 
 export function loadConfig(configPath: string): AppConfig {
+  // Config path is user-provided CLI input and intentionally dynamic.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!existsSync(configPath)) {
     throw new DataAgentMcpError(
       'CONFIG_NOT_FOUND',
@@ -20,6 +23,8 @@ export function loadConfig(configPath: string): AppConfig {
 
   let raw: string;
   try {
+    // Config path is user-provided CLI input and intentionally dynamic.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     raw = readFileSync(configPath, 'utf-8');
   } catch (err) {
     throw new DataAgentMcpError(
