@@ -275,6 +275,7 @@ function registerSendDataAgentMessage(server: McpServer, config: AppConfig): voi
           version: apiVersion as 'v1' | 'v1beta' | 'v1alpha',
           message: args.message,
           blocking: args.blocking ?? true,
+          returnLro: args.return_lro ?? false,
           timeoutMs,
         });
 

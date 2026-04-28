@@ -188,4 +188,68 @@ describe('query_data_agent tool behavior', () => {
     const noQueryAgent = config.agents['no-query-agent']!;
     expect(noQueryAgent.capabilities.query_data).toBe(false);
   });
+
+  it('forwards A2A send control flags in the request body', async () => {
+    const config = validateConfig(baseConfig);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ name: 'operations/test-op', done: false }),
+    });
+
+    const { resolveCredentials } = await import('../auth/resolver.js');
+    const { createClient } = await import('../google-api/client.js');
+
+    const creds = await resolveCredentials(config.agents['test-agent']!.auth);
+    const client = createClient(creds);
+
+    await client.sendA2AMessage({
+      project: 'my-project',
+      location: 'us-central1',
+      version: 'v1beta',
+      dataAgentId: config.agents['test-agent']!.data_agent,
+      message: 'Find anomalies',
+      blocking: false,
+      returnLro: true,
+    });
+
+    const fetchCall = mockFetch.mock.calls.at(-1);
+    const body = JSON.parse(String(fetchCall?.[1]?.body));
+    expect(body['message']).toEqual({
+      role: 'user',
+      parts: [{ text: 'Find anomalies' }],
+    });
+    expect(body['configuration']).toEqual({ blocking: false });
+    expect(body['return_lro']).toBe(true);
+  });
+
+  it('preserves raw DELETE passthrough bodies', async () => {
+    const config = validateConfig(baseConfig);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ deleted: true }),
+    });
+
+    const { resolveCredentials } = await import('../auth/resolver.js');
+    const { createClient } = await import('../google-api/client.js');
+
+    const creds = await resolveCredentials(config.agents['test-agent']!.auth);
+    const client = createClient(creds);
+
+    await client.rawRequest({
+      version: 'v1beta',
+      method: 'DELETE',
+      url: 'https://geminidataanalytics.googleapis.com/v1beta/projects/my-project/deleteTarget',
+      body: { force: true },
+      agent: 'test-agent',
+    });
+
+    const fetchCall = mockFetch.mock.calls.at(-1);
+    expect(fetchCall?.[1]?.body).toBe(JSON.stringify({ force: true }));
+  });
 });

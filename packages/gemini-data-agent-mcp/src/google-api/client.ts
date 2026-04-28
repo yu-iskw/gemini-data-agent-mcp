@@ -31,6 +31,7 @@ interface A2AMessageOptions {
   version: ApiVersion;
   message: string;
   blocking?: boolean;
+  returnLro?: boolean;
   timeoutMs?: number;
 }
 
@@ -89,6 +90,10 @@ class GeminiDataAgentClient {
         role: 'user',
         parts: [{ text: options.message }],
       },
+      configuration: {
+        blocking: options.blocking ?? true,
+      },
+      return_lro: options.returnLro ?? false,
     };
 
     return this.post(url, requestBody, options.version, 'unknown', options.timeoutMs);
@@ -132,7 +137,7 @@ class GeminiDataAgentClient {
       signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
     };
 
-    if (options.body && ['POST', 'PATCH', 'PUT'].includes(options.method)) {
+    if (options.body && ['POST', 'PATCH', 'PUT', 'DELETE'].includes(options.method)) {
       init.body = JSON.stringify(options.body);
     }
 
