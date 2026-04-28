@@ -39,6 +39,15 @@ interface AppendChatTurnInput {
   response_summary: string;
 }
 
+interface UpdateSessionWithRevisionInput {
+  sessionId: string;
+  actor: SessionActor;
+  expectedRevision: number;
+  eventType: SessionTimelineEvent['type'];
+  payload: Record<string, unknown>;
+  mutator: (session: SharedSession) => void;
+}
+
 export class SessionConflictError extends Error {
   readonly latest_revision: number;
 
@@ -168,35 +177,35 @@ export class InMemorySessionStore implements SessionStore {
   }
 
   switchIntent(input: SwitchIntentInput): SharedSession {
-    return this.updateSessionWithRevision(
-      input.session_id,
-      input.actor,
-      input.expected_revision,
-      'intent_switch',
-      {
+    return this.updateSessionWithRevision({
+      sessionId: input.session_id,
+      actor: input.actor,
+      expectedRevision: input.expected_revision,
+      eventType: 'intent_switch',
+      payload: {
         target_intent: input.target_intent,
         reason: input.reason ?? null,
       },
-      (session) => {
+      mutator: (session) => {
         session.intent = input.target_intent;
       },
-    );
+    });
   }
 
   appendChatTurn(input: AppendChatTurnInput): SharedSession {
-    return this.updateSessionWithRevision(
-      input.session_id,
-      input.actor,
-      input.expected_revision,
-      'chat_turn',
-      {
+    return this.updateSessionWithRevision({
+      sessionId: input.session_id,
+      actor: input.actor,
+      expectedRevision: input.expected_revision,
+      eventType: 'chat_turn',
+      payload: {
         prompt: input.prompt,
         response_summary: input.response_summary,
       },
-      () => {
+      mutator: () => {
         // No extra mutation besides revision/updated_at and timeline append.
       },
-    );
+    });
   }
 
   forkSession(input: ForkSessionInput): SharedSession {
@@ -242,20 +251,20 @@ export class InMemorySessionStore implements SessionStore {
   }
 
   resetSession(input: ResetSessionInput): SharedSession {
-    return this.updateSessionWithRevision(
-      input.session_id,
-      input.actor,
-      input.expected_revision,
-      'reset',
-      {
+    return this.updateSessionWithRevision({
+      sessionId: input.session_id,
+      actor: input.actor,
+      expectedRevision: input.expected_revision,
+      eventType: 'reset',
+      payload: {
         target_revision: input.target_revision,
       },
-      (session) => {
+      mutator: (session) => {
         const latestKnown = session.revision;
         const boundedTarget = Math.max(1, Math.min(input.target_revision, latestKnown));
         session.head_revision = boundedTarget;
       },
-    );
+    });
   }
 
   createHandoff(sessionId: string): SessionHandoff {
@@ -285,14 +294,8 @@ export class InMemorySessionStore implements SessionStore {
     return events.filter((event) => event.revision >= revision).map(cloneEvent);
   }
 
-  private updateSessionWithRevision(
-    sessionId: string,
-    actor: SessionActor,
-    expectedRevision: number,
-    eventType: SessionTimelineEvent['type'],
-    payload: Record<string, unknown>,
-    mutator: (session: SharedSession) => void,
-  ): SharedSession {
+  private updateSessionWithRevision(input: UpdateSessionWithRevisionInput): SharedSession {
+    const { sessionId, actor, expectedRevision, eventType, payload, mutator } = input;
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new SessionNotFoundError(`Session "${sessionId}" not found.`);

@@ -192,6 +192,12 @@ describe('query_data_agent tool behavior', () => {
     });
     expect(body['thinkingMode']).toBe('FAST');
   });
+});
+
+describe('query_data_agent tool behavior (conversation and a2a paths)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('creates and lists conversation messages via dedicated endpoints', async () => {
     const config = validateConfig(baseConfig);

@@ -34,6 +34,8 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 const configuredAgentNameDescription = 'Configured data agent name.';
 const sessionActorDescription = 'Identity envelope for session ACL and audit.';
+const unknownValue = 'unknown';
+const sessionLocalValue = 'session-local';
 
 function makeErrorText(err: unknown): string {
   if (err instanceof DataAgentMcpError) {
@@ -234,8 +236,8 @@ function registerSessionCreate(
             event: 'mcp_tool_invocation',
             tool: 'session_create',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -344,15 +346,15 @@ function registerSessionChat(
           ],
         };
       } catch (err) {
-        const wrapped = wrapSessionError(err, 'unknown');
+        const wrapped = wrapSessionError(err, unknownValue);
         const latency = calculateLatency(startTime);
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
             tool: 'session_chat',
-            agent: 'unknown',
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            agent: unknownValue,
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -407,8 +409,8 @@ function registerSessionSwitchIntent(
             event: 'mcp_tool_invocation',
             tool: 'session_switch_intent',
             agent: updated.agent,
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: true,
             session_id: updated.session_id,
@@ -424,15 +426,15 @@ function registerSessionSwitchIntent(
         );
         return { content: [{ type: 'text', text: JSON.stringify({ session: updated }, null, 2) }] };
       } catch (err) {
-        const wrapped = wrapSessionError(err, 'unknown');
+        const wrapped = wrapSessionError(err, unknownValue);
         const latency = calculateLatency(startTime);
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
             tool: 'session_switch_intent',
-            agent: 'unknown',
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            agent: unknownValue,
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -484,8 +486,8 @@ function registerSessionFork(
             event: 'mcp_tool_invocation',
             tool: 'session_fork',
             agent: child.agent,
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: true,
             session_id: child.session_id,
@@ -499,15 +501,15 @@ function registerSessionFork(
         );
         return { content: [{ type: 'text', text: JSON.stringify({ session: child }, null, 2) }] };
       } catch (err) {
-        const wrapped = wrapSessionError(err, 'unknown');
+        const wrapped = wrapSessionError(err, unknownValue);
         const latency = calculateLatency(startTime);
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
             tool: 'session_fork',
-            agent: 'unknown',
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            agent: unknownValue,
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -559,8 +561,8 @@ function registerSessionReset(
             event: 'mcp_tool_invocation',
             tool: 'session_reset',
             agent: updated.agent,
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: true,
             session_id: updated.session_id,
@@ -574,15 +576,15 @@ function registerSessionReset(
         );
         return { content: [{ type: 'text', text: JSON.stringify({ session: updated }, null, 2) }] };
       } catch (err) {
-        const wrapped = wrapSessionError(err, 'unknown');
+        const wrapped = wrapSessionError(err, unknownValue);
         const latency = calculateLatency(startTime);
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
             tool: 'session_reset',
-            agent: 'unknown',
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            agent: unknownValue,
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -627,8 +629,8 @@ function registerSessionHandoff(
             event: 'mcp_tool_invocation',
             tool: 'session_handoff',
             agent: handoff.session.agent,
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: true,
             session_id: handoff.session.session_id,
@@ -642,15 +644,15 @@ function registerSessionHandoff(
         );
         return { content: [{ type: 'text', text: JSON.stringify(handoff, null, 2) }] };
       } catch (err) {
-        const wrapped = wrapSessionError(err, 'unknown');
+        const wrapped = wrapSessionError(err, unknownValue);
         const latency = calculateLatency(startTime);
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
             tool: 'session_handoff',
-            agent: 'unknown',
-            api_version: 'session-local',
-            auth_mode: 'session-local',
+            agent: unknownValue,
+            api_version: sessionLocalValue,
+            auth_mode: sessionLocalValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -784,8 +786,8 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
             event: 'mcp_tool_invocation',
             tool: 'query_data_agent',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -883,8 +885,8 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
             event: 'mcp_tool_invocation',
             tool: 'chat_data_agent',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -974,8 +976,8 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
             event: 'mcp_tool_invocation',
             tool: 'create_data_agent_conversation',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -1062,8 +1064,8 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
             event: 'mcp_tool_invocation',
             tool: 'list_conversation_messages',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -1231,8 +1233,8 @@ function registerSendDataAgentMessage(server: McpServer, config: AppConfig): voi
             event: 'mcp_tool_invocation',
             tool: 'send_data_agent_message',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -1307,8 +1309,8 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
             event: 'mcp_tool_invocation',
             tool: 'get_operation',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,
@@ -1391,8 +1393,8 @@ function registerRawDataAgentRequest(server: McpServer, config: AppConfig): void
             event: 'mcp_tool_invocation',
             tool: 'raw_data_agent_request',
             agent: agentName,
-            api_version: args.api_version ?? 'unknown',
-            auth_mode: 'unknown',
+            api_version: args.api_version ?? unknownValue,
+            auth_mode: unknownValue,
             latency_ms: latency,
             success: false,
             error_code: wrapped.code,

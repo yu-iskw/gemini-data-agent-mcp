@@ -335,24 +335,21 @@ function normalizeGenerationOptions(
   generationOptions: Record<string, unknown>,
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = {};
-  const knownMappings: Record<string, string> = {
-    generate_query_result: 'generateQueryResult',
-    generate_natural_language_answer: 'generateNaturalLanguageAnswer',
-    generate_explanation: 'generateExplanation',
-    generate_disambiguation_question: 'generateDisambiguationQuestion',
-  };
-
-  for (const [key, value] of Object.entries(generationOptions)) {
-    if (key in knownMappings) {
-      normalized[knownMappings[key]!] = value;
-      continue;
-    }
-
-    if (key === 'generate_query') {
-      continue;
-    }
-
-    normalized[key] = value;
+  const generateQueryResult = generationOptions['generate_query_result'];
+  if (generateQueryResult !== undefined) {
+    normalized['generateQueryResult'] = generateQueryResult;
+  }
+  const generateNaturalLanguageAnswer = generationOptions['generate_natural_language_answer'];
+  if (generateNaturalLanguageAnswer !== undefined) {
+    normalized['generateNaturalLanguageAnswer'] = generateNaturalLanguageAnswer;
+  }
+  const generateExplanation = generationOptions['generate_explanation'];
+  if (generateExplanation !== undefined) {
+    normalized['generateExplanation'] = generateExplanation;
+  }
+  const generateDisambiguationQuestion = generationOptions['generate_disambiguation_question'];
+  if (generateDisambiguationQuestion !== undefined) {
+    normalized['generateDisambiguationQuestion'] = generateDisambiguationQuestion;
   }
 
   return normalized;

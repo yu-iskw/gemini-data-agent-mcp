@@ -14,7 +14,7 @@ async function getPromptRegistry() {
 }
 
 function requirePrompt(prompts: PromptRegistry, name: string): { callback: PromptCallback } {
-  const prompt = prompts[name];
+  const prompt = Object.entries(prompts).find(([promptName]) => promptName === name)?.[1];
   expect(prompt).toBeDefined();
   return prompt as { callback: PromptCallback };
 }

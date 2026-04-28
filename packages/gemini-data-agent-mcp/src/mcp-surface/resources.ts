@@ -280,6 +280,14 @@ function registerPromptsResource(server: McpServer, config: AppConfig): void {
 }
 
 function registerSessionResources(server: McpServer, sessionStore: SessionStore): void {
+  registerSessionsListResource(server, sessionStore);
+  registerSessionStateResource(server, sessionStore);
+  registerSessionTimelineResource(server, sessionStore);
+  registerSessionIntentResource(server, sessionStore);
+  registerSessionParticipantsResource(server, sessionStore);
+}
+
+function registerSessionsListResource(server: McpServer, sessionStore: SessionStore): void {
   server.resource(
     'sessions-list',
     'gemini-data-agent://sessions',
@@ -302,7 +310,9 @@ function registerSessionResources(server: McpServer, sessionStore: SessionStore)
       };
     },
   );
+}
 
+function registerSessionStateResource(server: McpServer, sessionStore: SessionStore): void {
   const stateTemplate = new ResourceTemplate('gemini-data-agent://sessions/{sessionId}', {
     list: async () => ({
       resources: sessionStore.listSessions().map((session) => ({
@@ -336,7 +346,9 @@ function registerSessionResources(server: McpServer, sessionStore: SessionStore)
       };
     },
   );
+}
 
+function registerSessionTimelineResource(server: McpServer, sessionStore: SessionStore): void {
   const timelineTemplate = new ResourceTemplate(
     'gemini-data-agent://sessions/{sessionId}/timeline',
     {
@@ -373,7 +385,9 @@ function registerSessionResources(server: McpServer, sessionStore: SessionStore)
       };
     },
   );
+}
 
+function registerSessionIntentResource(server: McpServer, sessionStore: SessionStore): void {
   const intentTemplate = new ResourceTemplate('gemini-data-agent://sessions/{sessionId}/intent', {
     list: async () => ({
       resources: sessionStore.listSessions().map((session) => ({
@@ -416,7 +430,9 @@ function registerSessionResources(server: McpServer, sessionStore: SessionStore)
       };
     },
   );
+}
 
+function registerSessionParticipantsResource(server: McpServer, sessionStore: SessionStore): void {
   const participantsTemplate = new ResourceTemplate(
     'gemini-data-agent://sessions/{sessionId}/participants',
     {
