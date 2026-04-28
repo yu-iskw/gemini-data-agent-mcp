@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +11,22 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(currentDir, '../..');
 const fixturePath = resolve(currentDir, './fixtures/config-minimal.yaml');
 const cliPath = resolve(packageRoot, 'dist/cli.js');
+
+function ensureBuildArtifacts(): void {
+  if (existsSync(cliPath)) {
+    return;
+  }
+
+  const buildResult = spawnSync('pnpm', ['build'], {
+    cwd: packageRoot,
+    encoding: 'utf-8',
+  });
+  if (buildResult.status !== 0) {
+    throw new Error(
+      `Failed to build package for MCP conformance test.\n${buildResult.stderr || buildResult.stdout}`,
+    );
+  }
+}
 
 async function runCliWithArgs(
   args: string[],
@@ -48,6 +65,8 @@ describe.sequential('MCP stdio conformance', () => {
   const stderrChunks: string[] = [];
 
   beforeAll(async () => {
+    ensureBuildArtifacts();
+
     transport = new StdioClientTransport({
       command: process.execPath,
       args: [cliPath, '--config', fixturePath],
