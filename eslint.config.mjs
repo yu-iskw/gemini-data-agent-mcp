@@ -71,7 +71,7 @@ const sharedTsRules = Object.assign({}, tseslint.configs.recommended.rules, {
   'no-implied-eval': 'error',
   'no-new-func': 'error',
   'prefer-const': 'error',
-  'max-lines-per-function': ['error', { max: 280 }],
+  'max-lines-per-function': ['error', { max: 150 }],
   'max-depth': ['error', { max: 6 }],
   'max-params': ['error', { max: 5 }],
   'max-nested-callbacks': ['error', { max: 4 }],
@@ -158,7 +158,7 @@ export default [
       // Tests often repeat string literals and use conditional expects; keep signal without noise.
       'vitest/no-conditional-expect': 'off',
       'sonarjs/no-duplicate-string': 'off',
-      'max-lines-per-function': ['error', { max: 300 }],
+      'max-lines-per-function': ['error', { max: 250 }],
       'unicorn/filename-case': unicornFilenameCase,
     },
   },

@@ -2,11 +2,15 @@ import { describe, it, expect } from 'vitest';
 
 import {
   buildQueryDataUrl,
+  buildChatUrl,
+  buildCreateConversationUrl,
+  buildConversationMessagesUrl,
   buildA2ASendUrl,
   buildA2AStreamUrl,
   buildOperationUrl,
   extractDataAgentId,
   normalizeDataAgentName,
+  normalizeConversationName,
   extractProjectAndLocation,
 } from '../google-api/endpoints.js';
 import { API_HOST } from '../google-api/versions.js';
@@ -28,20 +32,72 @@ describe('buildQueryDataUrl', () => {
   });
 });
 
+describe('buildChatUrl', () => {
+  it('builds correct URL for v1beta', () => {
+    const url = buildChatUrl('v1beta', 'my-project', 'us-central1');
+    expect(url).toBe(`${API_HOST}/v1beta/projects/my-project/locations/us-central1:chat`);
+  });
+});
+
+describe('buildCreateConversationUrl', () => {
+  it('builds URL without optional query params', () => {
+    const url = buildCreateConversationUrl('v1beta', 'my-project', 'global');
+    expect(url).toBe(`${API_HOST}/v1beta/projects/my-project/locations/global/conversations`);
+  });
+
+  it('adds optional query params', () => {
+    const url = buildCreateConversationUrl('v1beta', 'my-project', 'global', 'conv-1', 'request-1');
+    expect(url).toContain('conversationId=conv-1');
+    expect(url).toContain('requestId=request-1');
+  });
+});
+
+describe('buildConversationMessagesUrl', () => {
+  it('builds conversation messages URL', () => {
+    const url = buildConversationMessagesUrl(
+      'v1beta',
+      'projects/my-project/locations/global/conversations/conv-1',
+      20,
+      'next-token',
+      'createTime>\"2026-01-01T00:00:00Z\"',
+    );
+    expect(url).toContain(
+      `${API_HOST}/v1beta/projects/my-project/locations/global/conversations/conv-1/messages`,
+    );
+    expect(url).toContain('pageSize=20');
+    expect(url).toContain('pageToken=next-token');
+    expect(url).toContain('filter=');
+  });
+});
+
 describe('buildA2ASendUrl', () => {
-  it('builds correct A2A send URL', () => {
+  it('builds correct A2A send URL for v1beta dataAgents', () => {
     const url = buildA2ASendUrl('v1beta', 'my-project', 'us-central1', 'my-agent');
     expect(url).toBe(
       `${API_HOST}/v1beta/a2a/projects/my-project/locations/us-central1/dataAgents/my-agent/v1/message:send`,
     );
   });
+
+  it('builds correct A2A send URL for v1 agents', () => {
+    const url = buildA2ASendUrl('v1', 'my-project', 'us-central1', 'my-agent');
+    expect(url).toBe(
+      `${API_HOST}/v1/a2a/projects/my-project/locations/us-central1/agents/my-agent/v1/message:send`,
+    );
+  });
 });
 
 describe('buildA2AStreamUrl', () => {
-  it('builds correct A2A stream URL', () => {
+  it('builds correct A2A stream URL for v1beta dataAgents', () => {
     const url = buildA2AStreamUrl('v1beta', 'my-project', 'us-central1', 'my-agent');
     expect(url).toBe(
       `${API_HOST}/v1beta/a2a/projects/my-project/locations/us-central1/dataAgents/my-agent/v1/message:stream`,
+    );
+  });
+
+  it('builds correct A2A stream URL for v1 agents', () => {
+    const url = buildA2AStreamUrl('v1', 'my-project', 'us-central1', 'my-agent');
+    expect(url).toBe(
+      `${API_HOST}/v1/a2a/projects/my-project/locations/us-central1/agents/my-agent/v1/message:stream`,
     );
   });
 });
@@ -96,6 +152,24 @@ describe('normalizeDataAgentName', () => {
   it('expands bare agent ID into full data agent name', () => {
     expect(normalizeDataAgentName('my-agent', 'my-project', 'us-central1')).toBe(
       'projects/my-project/locations/us-central1/dataAgents/my-agent',
+    );
+  });
+});
+
+describe('normalizeConversationName', () => {
+  it('returns full conversation name unchanged', () => {
+    expect(
+      normalizeConversationName(
+        'projects/my-project/locations/global/conversations/conv-1',
+        'my-project',
+        'global',
+      ),
+    ).toBe('projects/my-project/locations/global/conversations/conv-1');
+  });
+
+  it('expands bare conversation ID into full name', () => {
+    expect(normalizeConversationName('conv-1', 'my-project', 'global')).toBe(
+      'projects/my-project/locations/global/conversations/conv-1',
     );
   });
 });

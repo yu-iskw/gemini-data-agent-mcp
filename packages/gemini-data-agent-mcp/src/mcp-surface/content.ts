@@ -11,31 +11,32 @@ export function formatQueryDataResponse(
   response: GoogleApiResponse,
   diagnostics: DiagnosticsInfo,
 ): string {
+  const normalizedResponse = normalizeQueryLikeResponse(response);
   const sections: string[] = [];
 
-  const answer = response['naturalLanguageAnswer'] as string | undefined;
+  const answer = normalizedResponse['naturalLanguageAnswer'] as string | undefined;
   if (answer) {
     sections.push(`Answer\n------\n${answer}`);
   }
 
-  const query = response['generatedQuery'] as string | undefined;
+  const query = normalizedResponse['generatedQuery'] as string | undefined;
   if (query) {
     sections.push(`Generated Query\n---------------\n${query}`);
   }
 
-  const explanation = response['intentExplanation'] as string | undefined;
+  const explanation = normalizedResponse['intentExplanation'] as string | undefined;
   if (explanation) {
     sections.push(`Intent Explanation\n------------------\n${explanation}`);
   }
 
-  const queryResult = response['queryResult'];
+  const queryResult = normalizedResponse['queryResult'];
   if (queryResult !== undefined && queryResult !== null) {
     const resultText =
       typeof queryResult === 'string' ? queryResult : JSON.stringify(queryResult, null, 2);
     sections.push(`Result\n------\n${resultText}`);
   }
 
-  const disambiguation = response['disambiguationQuestion'];
+  const disambiguation = normalizedResponse['disambiguationQuestion'];
   if (disambiguation !== undefined && disambiguation !== null) {
     const disText =
       typeof disambiguation === 'string' ? disambiguation : JSON.stringify(disambiguation, null, 2);
@@ -53,27 +54,80 @@ export function formatQueryDataResponse(
   return sections.join('\n\n');
 }
 
+function normalizeQueryLikeResponse(response: GoogleApiResponse): GoogleApiResponse {
+  if (!Array.isArray(response)) {
+    return response;
+  }
+
+  const chatEvents = response as Array<Record<string, unknown>>;
+  const textParts: string[] = [];
+
+  for (const event of chatEvents) {
+    const systemMessage = event['systemMessage'] as Record<string, unknown> | undefined;
+    const text = systemMessage?.['text'] as Record<string, unknown> | undefined;
+    const parts = text?.['parts'] as unknown[] | undefined;
+    if (!parts) {
+      continue;
+    }
+    for (const part of parts) {
+      if (typeof part === 'string' && part.length > 0) {
+        textParts.push(part);
+      }
+    }
+  }
+
+  return {
+    naturalLanguageAnswer: textParts.join('\n').trim(),
+    queryResult: chatEvents,
+  };
+}
+
 export function formatA2AResponse(
   response: GoogleApiResponse,
   diagnostics: DiagnosticsInfo,
 ): string {
   const sections: string[] = [];
 
+  const task = response['task'] as Record<string, unknown> | undefined;
+  if (task) {
+    const taskId = (task['taskId'] as string | undefined) ?? (task['id'] as string | undefined);
+    if (taskId) {
+      sections.push(`Task\n----\n${taskId}`);
+    }
+  }
+
+  const message = response['message'] as Record<string, unknown> | undefined;
+  if (message) {
+    const content = message['content'] as Array<Record<string, unknown>> | undefined;
+    const textParts =
+      content
+        ?.map((part) => part['text'])
+        .filter((part): part is string => typeof part === 'string' && part.length > 0) ?? [];
+    if (textParts.length > 0) {
+      sections.push(`Message\n-------\n${textParts.join('\n')}`);
+    }
+  }
+
   const name = response['name'] as string | undefined;
+  const done = response['done'] as boolean | undefined;
+  const responseData = response['response'] ?? response['result'];
+  const error = response['error'];
+
+  const statusFromTask = (task?.['status'] as Record<string, unknown> | undefined)?.['state'] as
+    | string
+    | undefined;
+  const statusFromDone = done === true ? 'completed' : done === false ? 'in progress' : undefined;
+  const state = statusFromTask ?? statusFromDone ?? 'unknown';
+  sections.push(`Status\n------\n${state}`);
+
   if (name) {
     sections.push(`Operation\n---------\n${name}`);
   }
 
-  const done = response['done'] as boolean | undefined;
-  const state = done === true ? 'completed' : done === false ? 'in progress' : 'unknown';
-  sections.push(`Status\n------\n${state}`);
-
-  const responseData = response['response'] ?? response['result'];
   if (responseData) {
     sections.push(`Response\n--------\n${JSON.stringify(responseData, null, 2)}`);
   }
 
-  const error = response['error'];
   if (error) {
     sections.push(`Error\n-----\n${JSON.stringify(error, null, 2)}`);
   }
@@ -139,4 +193,40 @@ export function formatAgentList(
   });
 
   return `Configured Agents (${agents.length})\n\n${lines.join('\n')}`;
+}
+
+export function formatConversationCreated(
+  response: GoogleApiResponse,
+  diagnostics: DiagnosticsInfo,
+): string {
+  const conversationName = response['name'] as string | undefined;
+  const sections: string[] = [];
+
+  if (conversationName) {
+    sections.push(`Conversation\n------------\n${conversationName}`);
+  }
+  sections.push(`Response\n--------\n${JSON.stringify(response, null, 2)}`);
+  sections.push(
+    `Diagnostics\n-----------\nagent: ${diagnostics.agent}\napi_version: ${diagnostics.api_version}\nlatency_ms: ${diagnostics.latency_ms}`,
+  );
+  return sections.join('\n\n');
+}
+
+export function formatConversationMessages(
+  response: GoogleApiResponse,
+  diagnostics: DiagnosticsInfo,
+): string {
+  const messages = (response['messages'] as unknown[]) ?? [];
+  const nextPageToken = response['nextPageToken'] as string | undefined;
+  const sections: string[] = [];
+
+  sections.push(`Message Count\n-------------\n${messages.length}`);
+  sections.push(`Messages\n--------\n${JSON.stringify(messages, null, 2)}`);
+  if (nextPageToken) {
+    sections.push(`Next Page Token\n---------------\n${nextPageToken}`);
+  }
+  sections.push(
+    `Diagnostics\n-----------\nagent: ${diagnostics.agent}\napi_version: ${diagnostics.api_version}\nlatency_ms: ${diagnostics.latency_ms}`,
+  );
+  return sections.join('\n\n');
 }

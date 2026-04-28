@@ -22,6 +22,31 @@ export function emitAuditEvent(event: AuditEvent, security: SecurityConfig): voi
     entry['operation_name'] = event.operation_name;
   }
 
+  if (event.session_id !== undefined) {
+    entry['session_id'] = event.session_id;
+  }
+  if (event.tenant_id !== undefined) {
+    entry['tenant_id'] = event.tenant_id;
+  }
+  if (event.user_id !== undefined) {
+    entry['user_id'] = event.user_id;
+  }
+  if (event.workspace_id !== undefined) {
+    entry['workspace_id'] = event.workspace_id;
+  }
+  if (event.client_name !== undefined) {
+    entry['client_name'] = event.client_name;
+  }
+  if (event.intent_from !== undefined) {
+    entry['intent_from'] = event.intent_from;
+  }
+  if (event.intent_to !== undefined) {
+    entry['intent_to'] = event.intent_to;
+  }
+  if (event.revision !== undefined) {
+    entry['revision'] = event.revision;
+  }
+
   if (event.error_code) {
     entry['error_code'] = event.error_code;
     entry['error_category'] = event.error_category;

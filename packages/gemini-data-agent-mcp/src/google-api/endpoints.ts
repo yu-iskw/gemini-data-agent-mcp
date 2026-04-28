@@ -6,13 +6,57 @@ export function buildQueryDataUrl(version: ApiVersion, project: string, location
   return `${API_HOST}/${version}/projects/${project}/locations/${location}:queryData`;
 }
 
+export function buildChatUrl(version: ApiVersion, project: string, location: string): string {
+  return `${API_HOST}/${version}/projects/${project}/locations/${location}:chat`;
+}
+
+export function buildCreateConversationUrl(
+  version: ApiVersion,
+  project: string,
+  location: string,
+  conversationId?: string,
+  requestId?: string,
+): string {
+  const url = new URL(
+    `${API_HOST}/${version}/projects/${project}/locations/${location}/conversations`,
+  );
+  if (conversationId) {
+    url.searchParams.set('conversationId', conversationId);
+  }
+  if (requestId) {
+    url.searchParams.set('requestId', requestId);
+  }
+  return url.toString();
+}
+
+export function buildConversationMessagesUrl(
+  version: ApiVersion,
+  conversationName: string,
+  pageSize?: number,
+  pageToken?: string,
+  filter?: string,
+): string {
+  const url = new URL(`${API_HOST}/${version}/${conversationName}/messages`);
+  if (pageSize !== undefined) {
+    url.searchParams.set('pageSize', String(pageSize));
+  }
+  if (pageToken) {
+    url.searchParams.set('pageToken', pageToken);
+  }
+  if (filter) {
+    url.searchParams.set('filter', filter);
+  }
+  return url.toString();
+}
+
 export function buildA2ASendUrl(
   version: ApiVersion,
   project: string,
   location: string,
   dataAgentId: string,
 ): string {
-  return `${API_HOST}/${version}/a2a/projects/${project}/locations/${location}/dataAgents/${dataAgentId}/v1/message:send`;
+  const agentCollection = version === 'v1' ? 'agents' : 'dataAgents';
+  return `${API_HOST}/${version}/a2a/projects/${project}/locations/${location}/${agentCollection}/${dataAgentId}/v1/message:send`;
 }
 
 export function buildA2AStreamUrl(
@@ -21,7 +65,8 @@ export function buildA2AStreamUrl(
   location: string,
   dataAgentId: string,
 ): string {
-  return `${API_HOST}/${version}/a2a/projects/${project}/locations/${location}/dataAgents/${dataAgentId}/v1/message:stream`;
+  const agentCollection = version === 'v1' ? 'agents' : 'dataAgents';
+  return `${API_HOST}/${version}/a2a/projects/${project}/locations/${location}/${agentCollection}/${dataAgentId}/v1/message:stream`;
 }
 
 export function buildOperationUrl(version: ApiVersion, operationName: string): string {
@@ -49,6 +94,17 @@ export function normalizeDataAgentName(
 
   const dataAgentId = extractDataAgentId(dataAgent);
   return `projects/${project}/locations/${location}/dataAgents/${dataAgentId}`;
+}
+
+export function normalizeConversationName(
+  conversation: string,
+  project: string,
+  location: string,
+): string {
+  if (conversation.startsWith('projects/')) {
+    return conversation;
+  }
+  return `projects/${project}/locations/${location}/conversations/${conversation}`;
 }
 
 export function extractProjectAndLocation(
