@@ -1,0 +1,81 @@
+server:
+  name: gemini-data-agent-mcp
+  log_level: INFO
+  transport: stdio
+
+version_policy:
+  default: v1beta
+  allowed_versions: [v1, v1beta, v1alpha]
+  allow_tool_override: true
+  warn_on_v1alpha: true
+
+security:
+  redaction:
+    enabled: true
+    show_service_account: full
+    redact_headers: true
+    redact_tokens: true
+    redact_raw_request_body: false
+    redact_raw_response_body: false
+  audit:
+    enabled: true
+    include_prompt: false
+    include_response: false
+  persistence:
+    enabled: false
+  raw_passthrough:
+    enabled: false
+    allowed_methods: [GET, POST]
+    allowed_path_patterns: []
+
+defaults:
+  api_version: v1beta
+  location: us-central1
+  timeout_seconds: 120
+  auth:
+    mode: adc
+    scopes:
+      - https://www.googleapis.com/auth/cloud-platform
+
+agents:
+  sales-prod:
+    display_name: Sales Production Agent
+    description: Production sales analytics data agent.
+    project: my-prod-project
+    location: us-central1
+    api_version: v1beta
+    data_agent: projects/my-prod-project/locations/us-central1/dataAgents/sales-agent
+    auth:
+      mode: impersonation
+      source: adc
+      impersonate_service_account: gda-sales-prod@my-prod-project.iam.gserviceaccount.com
+      scopes:
+        - https://www.googleapis.com/auth/cloud-platform
+    capabilities:
+      query_data: true
+      chat: false
+      raw_passthrough: false
+    generation_options:
+      generate_query: true
+      generate_query_result: true
+      generate_natural_language_answer: true
+      generate_explanation: true
+      generate_disambiguation_question: true
+
+  finance-staging:
+    display_name: Finance Staging Agent
+    description: Staging finance analytics data agent.
+    project: my-staging-project
+    location: us-central1
+    api_version: v1alpha
+    data_agent: projects/my-staging-project/locations/us-central1/dataAgents/finance-agent
+    auth:
+      mode: impersonation
+      source: adc
+      impersonate_service_account: gda-finance-staging@my-staging-project.iam.gserviceaccount.com
+      scopes:
+        - https://www.googleapis.com/auth/cloud-platform
+    capabilities:
+      query_data: true
+      chat: true
+      raw_passthrough: true

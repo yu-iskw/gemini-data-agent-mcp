@@ -1,92 +1,85 @@
 # gemini-data-agent-mcp
 
-Production-grade **MCP server** that acts as a thin proxy to Google Gemini Data Agents / Data Analytics API with Gemini.
+Monorepo for **Gemini Data Agents** MCP tooling: a shared TypeScript library plus two role-separated MCP servers (**analyst** vs **admin**).
 
-Designed for use with coding agents — Cursor, Claude Code, Codex, and any other MCP-capable client.
+Designed for use with coding agents (Cursor, Claude Code, Codex) and any MCP-capable client.
 
-## What this is not
+## Repository layout
 
-This is not a CRUD-focused data-agent management console.
-This is not a replacement for Gemini Data Agents.
-This is not a data warehouse client.
-This is not a separate planning or analysis agent.
-It is a thin MCP proxy that lets MCP clients invoke configured Gemini Data Agents.
-
----
+| Package                                                                        | Role                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`packages/gemini-data-agent-core`](packages/gemini-data-agent-core)           | Shared config (Zod), YAML load/validate, registry YAML serialize/diff, ADC/impersonation auth, Gemini Data Agents REST client, redaction, audit logging helpers. **No MCP runtime.**                                                                                                                    |
+| [`packages/gemini-data-analyst-mcp`](packages/gemini-data-analyst-mcp)         | **Data analysts.** MCP server with analytical tools, session collaboration tools, resources, and prompts. Reads a **static YAML registry** only; **no** `raw_data_agent_request`; **no** registry-generation tools. CLI binary: **`gemini-data-analyst-mcp`**.                                          |
+| [`packages/gemini-data-agent-admin-mcp`](packages/gemini-data-agent-admin-mcp) | **Administrators.** Local control-plane MCP server: generate/validate/diff analyst registry YAML (text returned to the client), auth inspection, dry-run validation, and **not implemented** remote lifecycle stubs. **No** GitHub commit/PR automation. CLI binary: **`gemini-data-agent-admin-mcp`**. |
 
 ## Architecture
 
 ```text
-Coding Agent (Cursor / Claude Code / Codex)
-        │  MCP
-        ▼
-gemini-data-agent-mcp
-  ├── MCP Tools   (query_data_agent, chat_data_agent, …)
-  ├── MCP Resources (gemini-data-agent://agents/…)
-  └── MCP Prompts (analyze_data_question, investigate_data_issue, …)
-        │
-        ▼
-  YAML Agent Registry
-        │
-        ├── Credential Resolver
-        │     ├── ADC
-        │     ├── Workload Identity
-        │     └── Service Account Impersonation
-        │
-        └── Gemini Data Agents REST Client
-                │
-                ▼
-        geminidataanalytics.googleapis.com
+                    ┌─────────────────────────────┐
+                    │  gemini-data-agent-core     │
+                    │  config · client · security │
+                    │  registry YAML helpers      │
+                    └──────────────┬──────────────┘
+           ┌───────────────────────┼───────────────────────┐
+           ▼                       ▼
+┌────────────────────┐   ┌────────────────────┐
+│ gemini-data-       │   │ gemini-data-agent- │
+│ analyst-mcp        │   │ admin-mcp          │
+│ (read-only registry│   │ (YAML artifacts,  │
+│  + sessions)       │   │  lifecycle stubs)│
+└─────────┬──────────┘   └─────────┬──────────┘
+          │ stdio MCP             │ stdio MCP
+          ▼                       ▼
+   Static YAML file          Human copies YAML
+   on disk                   to Git / PR manually
+          │
+          ▼
+   geminidataanalytics.googleapis.com
 ```
+
+### Non-goals (current scope)
+
+- **No GitHub automation** from the admin server (no commit, push, or PR APIs).
+- **No HTTP MCP transport** expansion unless added later (`stdio` is supported).
+- Analyst server **does not** expose raw REST passthrough or admin-only lifecycle tools.
 
 ---
 
 ## Installation
 
 ```bash
-# Clone and install dependencies
 git clone https://github.com/yu-iskw/gemini-data-agent-mcp.git
 cd gemini-data-agent-mcp
 pnpm install
 pnpm build
 ```
 
-The CLI is available as `gemini-data-agent-mcp` after building.
+Binaries (after build):
+
+- `packages/gemini-data-analyst-mcp/dist/cli.js` → **`gemini-data-analyst-mcp`**
+- `packages/gemini-data-agent-admin-mcp/dist/cli.js` → **`gemini-data-agent-admin-mcp`**
 
 ---
 
-## Quickstart
+## Quickstart: analyst server (data users)
 
-1. Create a configuration file (see [YAML configuration](#yaml-configuration)):
+1. Use a static registry file. See [examples/analyst.config.yaml](examples/analyst.config.yaml) and [YAML configuration](#yaml-configuration).
 
-```yaml
-agents:
-  my-agent:
-    project: my-gcp-project
-    location: us-central1
-    api_version: v1beta
-    data_agent: my-agent
-    auth:
-      mode: adc
-```
-
-All omitted fields are resolved from schema defaults during config validation.
-
-1. Start the server:
+2. Start the analyst MCP server:
 
 ```bash
-node packages/gemini-data-agent-mcp/dist/cli.js --config config.yaml
+node packages/gemini-data-analyst-mcp/dist/cli.js --config config.yaml
 ```
 
-1. Add to your MCP client (e.g., Claude Code `claude_desktop_config.json`):
+3. MCP client configuration example:
 
 ```json
 {
   "mcpServers": {
-    "gemini-data-agent": {
+    "gemini-data-analyst": {
       "command": "node",
       "args": [
-        "/path/to/packages/gemini-data-agent-mcp/dist/cli.js",
+        "/path/to/repo/packages/gemini-data-analyst-mcp/dist/cli.js",
         "--config",
         "/path/to/config.yaml"
       ]
@@ -95,11 +88,31 @@ node packages/gemini-data-agent-mcp/dist/cli.js --config config.yaml
 }
 ```
 
+Analyst tools include `query_data_agent`, `chat_data_agent`, conversation helpers, `list_data_agents`, redacted `get_data_agent_config`, `get_operation`, and **`session_*`** tools for shared sessions. **`raw_data_agent_request` is not exposed.**
+
 ---
 
-## YAML Configuration
+## Quickstart: admin server (operators)
 
-### Minimal config (recommended starting point)
+Run locally when generating or validating registry YAML for humans to commit:
+
+```bash
+node packages/gemini-data-agent-admin-mcp/dist/cli.js --config admin-config.yaml
+```
+
+Admin MCP tools include `generate_analyst_registry_yaml`, `validate_analyst_registry_yaml`, `diff_analyst_registry_yaml`, `inspect_admin_auth`, `dry_run_data_agent_change`, and remote lifecycle tools that currently return **NOT_IMPLEMENTED** until wired to the Gemini client.
+
+Workflow: call **`generate_analyst_registry_yaml`** → copy YAML into your repo → open PR / merge → analysts point **`--config`** at the committed file path.
+
+See [examples/admin.config.yaml](examples/admin.config.yaml). Sample generated shape: [examples/generated.registry.yaml](examples/generated.registry.yaml).
+
+---
+
+## YAML configuration
+
+Shared **`AppConfig`** schema lives in **core** and applies to both servers for agent definitions.
+
+### Minimal config
 
 ```yaml
 agents:
@@ -112,204 +125,76 @@ agents:
       mode: adc
 ```
 
-This is enough to start the server. Defaults are applied automatically for omitted sections (`server`, `version_policy`, `security`, `defaults`, `capabilities`).
-`data_agent` accepts either a full resource name or a bare data agent ID; the ID form is recommended for readability.
+Omitted sections receive safe defaults (`server`, `version_policy`, `security`, `defaults`, per-agent `capabilities`).
 
-### Advanced optional settings
+### Advanced options
 
-Use these only when you need extra control:
-
-- `version_policy`: constrain or override supported API versions.
-- `security.raw_passthrough`: allow explicit raw REST passthrough patterns.
-- `agents.<name>.capabilities`: enable/disable tool families per agent.
-- `agents.<name>.generation_options`: tune query/answer generation behavior.
-
-```yaml
-version_policy:
-  default: v1beta
-  allowed_versions: [v1, v1beta, v1alpha]
-  allow_tool_override: true
-  warn_on_v1alpha: true
-
-security:
-  raw_passthrough:
-    enabled: false
-    allowed_methods: [GET, POST]
-    allowed_path_patterns: []
-
-agents:
-  my-agent:
-    capabilities:
-      query_data: true
-      chat: false
-      raw_passthrough: false
-    generation_options:
-      generate_query: true
-      generate_query_result: true
-      generate_natural_language_answer: true
-      generate_explanation: true
-      generate_disambiguation_question: true
-```
+- **`version_policy`**: constrain API versions and tool overrides.
+- **`security`**: redaction, audit, persistence, raw passthrough policy (for **config validation**; analyst server does not expose raw passthrough tool).
+- **`agents.<name>.capabilities`**: enable `query_data`, `chat`; `raw_passthrough` is forced **false** in **generated** analyst registry YAML from the admin serializer.
 
 ### Validation rules
 
-| Rule                                                           | Behavior        |
-| -------------------------------------------------------------- | --------------- |
-| Missing `agents` or empty map                                  | Startup failure |
-| Missing `project`                                              | Startup failure |
-| Unsupported `api_version`                                      | Startup failure |
-| `impersonation` without `impersonate_service_account`          | Startup failure |
-| Unknown `auth.mode`                                            | Startup failure |
-| Unknown capability keys (for example `a2a_send`)               | Startup failure |
-| `raw_passthrough.enabled=true` without `allowed_path_patterns` | Startup failure |
+| Rule                                                           | Behavior |
+| -------------------------------------------------------------- | -------- |
+| Missing or empty `agents`                                      | Failure  |
+| Missing `project`                                              | Failure  |
+| `api_version` not in `version_policy.allowed_versions`         | Failure  |
+| `impersonation` without `impersonate_service_account`          | Failure  |
+| `raw_passthrough.enabled=true` without `allowed_path_patterns` | Failure  |
 
 ---
 
-## Authentication modes
+## Authentication
 
-### `adc` — Application Default Credentials
-
-For local development:
-
-```bash
-gcloud auth application-default login
-```
-
-```yaml
-auth:
-  mode: adc
-```
-
-### `impersonation` — Service account impersonation (recommended for production)
-
-```yaml
-auth:
-  mode: impersonation
-  source: adc
-  impersonate_service_account: sa@project.iam.gserviceaccount.com
-  scopes:
-    - https://www.googleapis.com/auth/cloud-platform
-```
-
-Prerequisites:
-
-- Enable IAM Credentials API: `iamcredentials.googleapis.com`
-- Grant `roles/iam.serviceAccountTokenCreator` on the target service account
-
-Each agent can use a different target service account for least-privilege isolation.
+Same credential model as before (**ADC** or **service account impersonation**). See [examples/analyst.config.yaml](examples/analyst.config.yaml) comments and Google Cloud docs for IAM and `iamcredentials.googleapis.com`.
 
 ---
 
-## MCP Tools
+## MCP surfaces
 
-| Tool                             | Description                                                       |
-| -------------------------------- | ----------------------------------------------------------------- |
-| `query_data_agent`               | Ask a natural-language analytical question to a Gemini Data Agent |
-| `chat_data_agent`                | Run conversational turns with a configured Gemini Data Agent      |
-| `create_data_agent_conversation` | Create a managed conversation for multi-turn chat                 |
-| `list_conversation_messages`     | List persisted messages for a managed conversation                |
-| `list_data_agents`               | List configured agents from the YAML registry                     |
-| `get_data_agent_config`          | Return redacted configuration for a named agent                   |
-| `get_operation`                  | Retrieve a long-running operation                                 |
-| `raw_data_agent_request`         | Raw REST passthrough (disabled by default)                        |
+### Analyst (`gemini-data-analyst-mcp`)
 
-### `query_data_agent`
+**Tools (representative):** `query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`, `list_data_agents`, `get_data_agent_config`, `get_operation`, `session_create`, `session_chat`, `session_switch_intent`, `session_fork`, `session_reset`, `session_handoff`.
 
-```json
-{
-  "agent": "sales-prod",
-  "prompt": "Why did revenue decline last week? Identify top contributing products.",
-  "api_version": "v1beta",
-  "timeout_seconds": 120
-}
-```
+**Resources:** `gemini-data-agent://agents`, `gemini-data-agent://agents/{agent}`, `gemini-data-agent://agents/{agent}/capabilities`, `gemini-data-agent://agents/{agent}/auth-policy`, `gemini-data-agent://prompts`.
 
-Response includes natural-language answer, generated query, intent explanation, query result, disambiguation questions, and diagnostics.
+**Prompts:** session-oriented prompts plus `analyze_data_question`, `investigate_data_issue`, `explain_generated_query`, `compare_segments`, `find_anomalies`, `prepare_data_analysis_report`.
 
----
+### Admin (`gemini-data-agent-admin-mcp`)
 
-## MCP Resources
-
-| URI                                               | Description                               |
-| ------------------------------------------------- | ----------------------------------------- |
-| `gemini-data-agent://agents`                      | List of all configured agents             |
-| `gemini-data-agent://agents/{agent}`              | Redacted config for a named agent         |
-| `gemini-data-agent://agents/{agent}/capabilities` | Capabilities for a named agent            |
-| `gemini-data-agent://agents/{agent}/auth-policy`  | Non-secret auth posture for a named agent |
-| `gemini-data-agent://prompts`                     | List of available prompts                 |
-
-All resources are safe to expose to models — secrets are redacted.
-
----
-
-## MCP Prompts
-
-| Prompt                         | Description                                    |
-| ------------------------------ | ---------------------------------------------- |
-| `analyze_data_question`        | Direct analytical question to a data agent     |
-| `investigate_data_issue`       | Multi-step data issue investigation            |
-| `explain_generated_query`      | Explain a generated query from a response      |
-| `compare_segments`             | Compare two segments on a metric               |
-| `find_anomalies`               | Identify anomalies in a metric                 |
-| `prepare_data_analysis_report` | Prepare a structured report from agent outputs |
+**Tools:** YAML generation/validation/diff, `inspect_admin_auth`, `dry_run_data_agent_change`, remote lifecycle stubs (`NOT_IMPLEMENTED`).
 
 ---
 
 ## Security defaults
 
-| Setting                 | Default      |
-| ----------------------- | ------------ |
-| Secret redaction        | **Enabled**  |
-| Audit logging           | **Enabled**  |
-| Prompt/response logging | **Disabled** |
-| Result persistence      | **Disabled** |
-| Raw passthrough         | **Disabled** |
+| Setting                      | Default            |
+| ---------------------------- | ------------------ |
+| Secret redaction             | **Enabled**        |
+| Audit logging                | **Enabled**        |
+| Prompt/response in audit     | **Disabled**       |
+| Result persistence           | **Disabled**       |
+| Analyst raw passthrough tool | **Not registered** |
 
-### ⚠ Raw passthrough warning
-
-`raw_data_agent_request` is disabled by default. When enabled, it:
-
-- Requires explicit `allowed_methods` and `allowed_path_patterns`
-- Restricts the host to `geminidataanalytics.googleapis.com`
-- Emits audit log entries for every call
-- Requires `capabilities.raw_passthrough: true` per agent
-
-Do not enable raw passthrough without a reviewed allowlist.
+Operational logs use **stderr**; MCP JSON-RPC stays on **stdout** for `stdio` transport.
 
 ---
 
-## CLI
+## CLI (both MCP packages)
 
 ```bash
-# Start the server (stdio transport, default)
-node dist/cli.js --config config.yaml
+# Analyst
+node packages/gemini-data-analyst-mcp/dist/cli.js --config config.yaml
+node packages/gemini-data-analyst-mcp/dist/cli.js validate-config --config config.yaml
+node packages/gemini-data-analyst-mcp/dist/cli.js inspect-config --config config.yaml
 
-# Validate config without starting
-node dist/cli.js validate-config --config config.yaml
-
-# Print resolved config (secrets redacted)
-node dist/cli.js inspect-config --config config.yaml
+# Admin
+node packages/gemini-data-agent-admin-mcp/dist/cli.js --config admin-config.yaml
+node packages/gemini-data-agent-admin-mcp/dist/cli.js validate-config --config admin-config.yaml
 ```
 
-Options:
-
-| Flag                | Default       | Description                       |
-| ------------------- | ------------- | --------------------------------- |
-| `--config`, `-c`    | `config.yaml` | Path to YAML config file          |
-| `--log-level`, `-l` | `INFO`        | Log level (DEBUG/INFO/WARN/ERROR) |
-| `--transport`, `-t` | `stdio`       | Transport type                    |
-
-### Transport support
-
-- `stdio` is the supported runtime transport.
-- `http` is parsed for forward compatibility but currently fails fast at startup with an explicit error.
-
-### stdio protocol contract
-
-When running as an MCP stdio server:
-
-- JSON-RPC protocol messages are written to `stdout` by the MCP SDK transport layer.
-- Operational logs are written to `stderr` to avoid corrupting the protocol stream.
+Supported transport: **`stdio`**. **`http`** is rejected at startup with a clear error.
 
 ---
 
@@ -317,59 +202,30 @@ When running as an MCP stdio server:
 
 ```bash
 pnpm install
-pnpm build        # Build all packages
-pnpm test         # Run Vitest tests
-pnpm lint         # Trunk linters
-pnpm format       # Trunk formatters
-```
-
-Package-specific commands:
-
-```bash
-pnpm --filter gemini-data-agent-mcp build
-pnpm --filter gemini-data-agent-mcp test
-```
-
----
-
-## Testing
-
-All tests are under `packages/gemini-data-agent-mcp/src/__tests__/`.
-
-```bash
+pnpm build
 pnpm test
+pnpm lint
+pnpm format
 ```
 
-Integration tests (opt-in, require live GCP credentials):
+Package filters:
 
 ```bash
-RUN_GDA_INTEGRATION_TESTS=1 GDA_MCP_TEST_CONFIG=./config.integration.yaml pnpm test
+pnpm --filter gemini-data-agent-core build
+pnpm --filter gemini-data-analyst-mcp build
+pnpm --filter gemini-data-agent-admin-mcp build
 ```
+
+Tests live under `packages/*/src/**/*.test.ts`.
 
 ---
 
 ## Troubleshooting
 
-**Server fails to start with CONFIG_NOT_FOUND**
-: Check the `--config` path. Run `validate-config` first.
-
-**Server fails with CONFIG_VALIDATION_ERROR**
-: Run `validate-config` for a human-readable error. Impersonation requires `impersonate_service_account`.
-
-**AUTH_FAILED: Failed to obtain Google credentials**
-: Run `gcloud auth application-default login` for local ADC. For impersonation, verify IAM Credentials API is enabled and the caller has `roles/iam.serviceAccountTokenCreator` on the target service account.
-
-**PERMISSION_DENIED from Google API**
-: The service account lacks access to the data agent or its data sources.
-
-**Raw passthrough denied**
-: Enable `security.raw_passthrough.enabled` and add matching `allowed_path_patterns`. Also set `capabilities.raw_passthrough: true` for the agent.
-
-**Transport "http" is not yet supported**
-: Use `--transport stdio` (default). `http` is reserved for future support and currently exits with a deterministic startup error.
-
-**MCP client reports malformed stdio protocol**
-: Ensure no custom code writes non-JSON output to `stdout`. Keep diagnostics/logging on `stderr`.
+- **`CONFIG_NOT_FOUND` / `CONFIG_VALIDATION_ERROR`:** Run `validate-config` on the same file you pass to `--config`.
+- **`AUTH_FAILED`:** Check ADC (`gcloud auth application-default login`) or impersonation IAM setup.
+- **`Transport "http" is not yet supported`:** Use `--transport stdio`.
+- **Malformed stdio:** Ensure nothing writes non-protocol text to **stdout**; logs belong on **stderr**.
 
 ---
 

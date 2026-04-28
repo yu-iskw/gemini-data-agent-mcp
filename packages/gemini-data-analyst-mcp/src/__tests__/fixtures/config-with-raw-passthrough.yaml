@@ -1,0 +1,22 @@
+server:
+  name: gemini-data-agent-mcp
+
+security:
+  raw_passthrough:
+    enabled: true
+    allowed_methods: [GET, POST]
+    allowed_path_patterns:
+      - ^v1beta/projects/[^/]+/locations/[^/]+:queryData$
+
+agents:
+  dev-agent:
+    project: my-project
+    location: us-central1
+    api_version: v1beta
+    data_agent: projects/my-project/locations/us-central1/dataAgents/dev-agent
+    auth:
+      mode: adc
+    capabilities:
+      query_data: true
+      chat: false
+      raw_passthrough: true
