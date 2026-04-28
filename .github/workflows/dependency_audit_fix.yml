@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@v2.16.0
         with:
           egress-policy: audit
 
