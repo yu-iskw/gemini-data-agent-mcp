@@ -109,3 +109,19 @@ When you want durable fixes (not one-off chat advice):
 - Do not install Trunk-managed linters globally; versions live in `.trunk/trunk.yaml`
 - Commit **`pnpm-lock.yaml`**
 - After `pnpm install`, Trunk is under `node_modules/.bin`; pin is in `.trunk/trunk.yaml` (`cli.version`). Run `pnpm exec trunk install` if formatters/linters are missing
+
+## Learned User Preferences
+
+- Prefer disciplined, self-improving agent behavior and propose reusable workflow improvements; ask before making persistent rule/skill/convention changes.
+- Prefer simple, direct, maintainable solutions over clever abstractions.
+- Prefer state-based tests with real collaborators (or simple fakes/stubs), and avoid mocks/monkey patches unless explicitly approved.
+- When using plan-driven execution, keep the plan file unchanged, reuse existing TODOs, and advance work sequentially to completion.
+- Value explicit verification loops (`/verifier`, lint/security scans, and trial-and-error fixes) until behavior is confirmed working end to end.
+
+## Learned Workspace Facts
+
+- Core implementation focus is the MCP server in `packages/gemini-data-agent-mcp`.
+- This workspace repeatedly validates MCP server behavior against official MCP and Google Gemini Data Agent documentation.
+- Security and quality hardening commonly includes `pnpm knip`, `osv-scanner`, and `grype` in addition to standard lint/test checks.
+- The MCP server intentionally removed A2A-related tools and concentrates on MCP-native flows.
+- Authentication strategy is ADC-first with optional service account impersonation configuration.
