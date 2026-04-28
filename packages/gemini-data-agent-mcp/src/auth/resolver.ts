@@ -20,7 +20,7 @@ function cacheKey(auth: AuthConfig): string {
   return JSON.stringify({
     mode: auth.mode,
     source: auth.source,
-    target: auth.target_service_account,
+    target: auth.impersonate_service_account,
     scopes: auth.scopes,
   });
 }
@@ -44,16 +44,11 @@ async function buildCredentials(auth: AuthConfig): Promise<ResolvedCredentials> 
       return wrapGoogleAuth(googleAuth);
     }
 
-    case 'workload_identity': {
-      const googleAuth = new GoogleAuth({ scopes });
-      return wrapGoogleAuth(googleAuth);
-    }
-
     case 'impersonation': {
-      if (!auth.target_service_account) {
+      if (!auth.impersonate_service_account) {
         throw new DataAgentMcpError(
           'AUTH_MISSING_TARGET',
-          'target_service_account is required for impersonation auth mode',
+          'impersonate_service_account is required for impersonation auth mode',
           false,
           { auth_mode: 'impersonation' },
         );
@@ -63,7 +58,7 @@ async function buildCredentials(auth: AuthConfig): Promise<ResolvedCredentials> 
       const sourceAuth = new GoogleAuth({ scopes: sourceScopes });
       const impersonated = await createImpersonatedCredentials(
         sourceAuth,
-        auth.target_service_account,
+        auth.impersonate_service_account,
         scopes,
       );
       return wrapImpersonated(impersonated);

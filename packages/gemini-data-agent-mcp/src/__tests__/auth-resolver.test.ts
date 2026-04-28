@@ -40,27 +40,27 @@ describe('resolveCredentials', () => {
     expect(headers['Authorization']).toBe('Bearer mock-token');
   });
 
-  it('resolves workload_identity credentials', async () => {
-    const creds = await resolveCredentials({ mode: 'workload_identity' });
-    const headers = await creds.getRequestHeaders();
-    expect(headers['Authorization']).toBe('Bearer mock-token');
-  });
-
   it('resolves impersonation credentials', async () => {
     const creds = await resolveCredentials({
       mode: 'impersonation',
-      target_service_account: 'sa@project.iam.gserviceaccount.com',
+      impersonate_service_account: 'sa@project.iam.gserviceaccount.com',
     });
     const headers = await creds.getRequestHeaders();
     expect(headers['Authorization']).toBe('Bearer impersonated-token');
   });
 
-  it('throws for impersonation without target_service_account', async () => {
+  it('throws for impersonation without impersonate_service_account', async () => {
     await expect(resolveCredentials({ mode: 'impersonation' })).rejects.toThrow(DataAgentMcpError);
   });
 
   it('throws for unknown auth mode', async () => {
     await expect(resolveCredentials({ mode: 'unknown' as never })).rejects.toThrow(
+      DataAgentMcpError,
+    );
+  });
+
+  it('rejects removed workload_identity auth mode', async () => {
+    await expect(resolveCredentials({ mode: 'workload_identity' as never })).rejects.toThrow(
       DataAgentMcpError,
     );
   });

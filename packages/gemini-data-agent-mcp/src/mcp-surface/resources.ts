@@ -89,7 +89,7 @@ function registerAgentDetailResource(server: McpServer, config: AppConfig): void
           auth: {
             mode: agent.auth.mode,
             source: agent.auth.source,
-            target_service_account: agent.auth.target_service_account,
+            impersonate_service_account: agent.auth.impersonate_service_account,
           },
           capabilities: agent.capabilities,
           generation_options: agent.generation_options,
@@ -175,10 +175,13 @@ function registerAgentAuthPolicyResource(server: McpServer, config: AppConfig): 
         source: agent.auth.source ?? null,
       };
 
-      if (agent.auth.target_service_account) {
-        authPolicy['target_service_account'] = redaction.enabled
-          ? redactServiceAccount(agent.auth.target_service_account, redaction.show_service_account)
-          : agent.auth.target_service_account;
+      if (agent.auth.impersonate_service_account) {
+        authPolicy['impersonate_service_account'] = redaction.enabled
+          ? redactServiceAccount(
+              agent.auth.impersonate_service_account,
+              redaction.show_service_account,
+            )
+          : agent.auth.impersonate_service_account;
       }
 
       return {

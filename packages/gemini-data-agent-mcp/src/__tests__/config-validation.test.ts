@@ -48,7 +48,7 @@ describe('loadConfig', () => {
     }
   });
 
-  it('throws CONFIG_VALIDATION_ERROR for impersonation without target_service_account', () => {
+  it('throws CONFIG_VALIDATION_ERROR for impersonation without impersonate_service_account', () => {
     expect(() => loadConfig(path.join(fixturesDir, 'config-invalid-impersonation.yaml'))).toThrow(
       DataAgentMcpError,
     );

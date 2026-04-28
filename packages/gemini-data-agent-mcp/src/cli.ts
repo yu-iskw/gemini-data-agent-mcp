@@ -7,11 +7,26 @@ import { DEFAULT_LOG_LEVEL, LOG_LEVELS, parseLogLevel } from './observability/lo
 import { startServer } from './server.js';
 import { DataAgentMcpError } from './types.js';
 
+import type { ServerConfig } from './types.js';
+
 const program = new Command();
 const configPathOptionFlags = '-c, --config <path>';
 const defaultConfigPath = 'config.yaml';
 const configPathOptionDescription = 'Path to YAML configuration file';
 const logLevelOptionDescription = `Log level (${LOG_LEVELS.join(', ')})`;
+const SUPPORTED_TRANSPORTS: ServerConfig['transport'][] = ['stdio', 'http'];
+const transportOptionDescription = `Transport type (${SUPPORTED_TRANSPORTS.join(', ')})`;
+
+function parseTransport(value: string): ServerConfig['transport'] {
+  const normalized = value.toLowerCase();
+  if (SUPPORTED_TRANSPORTS.includes(normalized as ServerConfig['transport'])) {
+    return normalized as ServerConfig['transport'];
+  }
+
+  throw new Error(
+    `Invalid transport "${value}". Allowed values: ${SUPPORTED_TRANSPORTS.join(', ')}`,
+  );
+}
 
 program
   .name('gemini-data-agent-mcp')
@@ -23,13 +38,16 @@ program
   .description('Start the MCP server (default command).')
   .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
   .option('-l, --log-level <level>', logLevelOptionDescription, DEFAULT_LOG_LEVEL)
-  .option('-t, --transport <type>', 'Transport type (stdio)', 'stdio')
+  .option('-t, --transport <type>', transportOptionDescription, 'stdio')
   .action(async (options: { config: string; logLevel: string; transport: string }) => {
     try {
       const config = loadConfig(options.config);
 
       if (options.logLevel) {
         config.server.log_level = parseLogLevel(options.logLevel);
+      }
+      if (options.transport) {
+        config.server.transport = parseTransport(options.transport);
       }
 
       await startServer(config);
@@ -87,7 +105,7 @@ program
               auth: {
                 mode: agent.auth.mode,
                 source: agent.auth.source,
-                target_service_account: agent.auth.target_service_account
+                impersonate_service_account: agent.auth.impersonate_service_account
                   ? '[REDACTED]'
                   : undefined,
               },

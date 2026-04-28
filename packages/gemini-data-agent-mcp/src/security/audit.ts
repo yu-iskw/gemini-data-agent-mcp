@@ -27,13 +27,13 @@ export function emitAuditEvent(event: AuditEvent, security: SecurityConfig): voi
     entry['error_category'] = event.error_category;
   }
 
-  if (event.target_service_account && redactionConfig.enabled) {
-    entry['target_service_account'] = redactServiceAccount(
-      event.target_service_account,
+  if (event.impersonate_service_account && redactionConfig.enabled) {
+    entry['impersonate_service_account'] = redactServiceAccount(
+      event.impersonate_service_account,
       redactionConfig.show_service_account,
     );
-  } else if (event.target_service_account) {
-    entry['target_service_account'] = event.target_service_account;
+  } else if (event.impersonate_service_account) {
+    entry['impersonate_service_account'] = event.impersonate_service_account;
   }
 
   structuredLog('INFO', 'audit', entry);

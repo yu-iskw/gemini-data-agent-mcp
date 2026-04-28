@@ -1,4 +1,3 @@
-export { resolveCredentials, clearCredentialCache } from './resolver.js';
-export { createImpersonatedCredentials } from './impersonation.js';
+export { resolveCredentials } from './resolver.js';
 
 export type { ResolvedCredentials } from './resolver.js';

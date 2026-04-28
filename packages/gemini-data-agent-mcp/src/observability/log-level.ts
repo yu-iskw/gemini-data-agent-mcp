@@ -2,7 +2,7 @@ export const LOG_LEVELS = ['DEBUG', 'INFO', 'WARN', 'ERROR'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 export const DEFAULT_LOG_LEVEL: LogLevel = 'INFO';
 
-export function isLogLevel(value: string): value is LogLevel {
+function isLogLevel(value: string): value is LogLevel {
   return LOG_LEVELS.some((level) => level === value);
 }
 

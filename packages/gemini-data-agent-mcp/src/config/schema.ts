@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
-export const ApiVersionSchema = z.enum(['v1', 'v1beta', 'v1alpha']);
+const ApiVersionSchema = z.enum(['v1', 'v1beta', 'v1alpha']);
 
-export const AuthModeSchema = z.enum(['adc', 'workload_identity', 'impersonation']);
+const AuthModeSchema = z.enum(['adc', 'impersonation']);
 
-export const AuthSourceSchema = z.enum(['adc', 'workload_identity']);
+const AuthSourceSchema = z.enum(['adc']);
 
-export const AgentCapabilitiesSchema = z.object({
+const AgentCapabilitiesSchema = z.object({
   query_data: z.boolean().default(true),
   a2a_send: z.boolean().default(false),
   a2a_stream: z.boolean().default(false),
@@ -14,7 +14,7 @@ export const AgentCapabilitiesSchema = z.object({
   raw_passthrough: z.boolean().default(false),
 });
 
-export const AgentGenerationOptionsSchema = z.object({
+const AgentGenerationOptionsSchema = z.object({
   generate_query: z.boolean().optional(),
   generate_query_result: z.boolean().optional(),
   generate_natural_language_answer: z.boolean().optional(),
@@ -22,24 +22,24 @@ export const AgentGenerationOptionsSchema = z.object({
   generate_disambiguation_question: z.boolean().optional(),
 });
 
-export const AuthConfigSchema = z
+const AuthConfigSchema = z
   .object({
     mode: AuthModeSchema,
     source: AuthSourceSchema.optional(),
-    target_service_account: z.string().optional(),
+    impersonate_service_account: z.string().optional(),
     scopes: z.array(z.string()).optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.mode === 'impersonation' && !data.target_service_account) {
+    if (data.mode === 'impersonation' && !data.impersonate_service_account) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'target_service_account is required when auth mode is impersonation',
-        path: ['target_service_account'],
+        message: 'impersonate_service_account is required when auth mode is impersonation',
+        path: ['impersonate_service_account'],
       });
     }
   });
 
-export const AgentConfigSchema = z.object({
+const AgentConfigSchema = z.object({
   display_name: z.string().optional(),
   description: z.string().optional(),
   project: z.string().min(1, 'project is required'),
@@ -59,7 +59,7 @@ export const AgentConfigSchema = z.object({
   generation_options: AgentGenerationOptionsSchema.optional(),
 });
 
-export const DefaultsConfigSchema = z.object({
+const DefaultsConfigSchema = z.object({
   api_version: ApiVersionSchema.optional(),
   location: z.string().optional(),
   timeout_seconds: z.number().int().positive().optional(),
@@ -71,14 +71,14 @@ export const DefaultsConfigSchema = z.object({
     .optional(),
 });
 
-export const VersionPolicySchema = z.object({
+const VersionPolicySchema = z.object({
   default: ApiVersionSchema.default('v1beta'),
   allowed_versions: z.array(ApiVersionSchema).default(['v1', 'v1beta', 'v1alpha']),
   allow_tool_override: z.boolean().default(true),
   warn_on_v1alpha: z.boolean().default(true),
 });
 
-export const RedactionConfigSchema = z.object({
+const RedactionConfigSchema = z.object({
   enabled: z.boolean().default(true),
   show_service_account: z.enum(['full', 'partial', 'hidden']).default('full'),
   redact_headers: z.boolean().default(true),
@@ -87,17 +87,17 @@ export const RedactionConfigSchema = z.object({
   redact_raw_response_body: z.boolean().default(false),
 });
 
-export const AuditConfigSchema = z.object({
+const AuditConfigSchema = z.object({
   enabled: z.boolean().default(true),
   include_prompt: z.boolean().default(false),
   include_response: z.boolean().default(false),
 });
 
-export const PersistenceConfigSchema = z.object({
+const PersistenceConfigSchema = z.object({
   enabled: z.boolean().default(false),
 });
 
-export const RawPassthroughSecurityConfigSchema = z
+const RawPassthroughSecurityConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     allowed_methods: z.array(z.string()).default(['GET', 'POST']),
@@ -115,7 +115,7 @@ export const RawPassthroughSecurityConfigSchema = z
     }
   });
 
-export const SecurityConfigSchema = z.object({
+const SecurityConfigSchema = z.object({
   // Security defaults are intentionally safe-by-default when omitted.
   redaction: RedactionConfigSchema.default({}),
   audit: AuditConfigSchema.default({}),
@@ -123,7 +123,7 @@ export const SecurityConfigSchema = z.object({
   raw_passthrough: RawPassthroughSecurityConfigSchema.default({}),
 });
 
-export const ServerConfigSchema = z.object({
+const ServerConfigSchema = z.object({
   name: z.string().default('gemini-data-agent-mcp'),
   log_level: z.enum(['DEBUG', 'INFO', 'WARN', 'ERROR']).default('INFO'),
   transport: z.enum(['stdio', 'http']).default('stdio'),
@@ -139,6 +139,3 @@ export const AppConfigSchema = z.object({
   defaults: DefaultsConfigSchema.default({}),
   agents: z.record(z.string(), AgentConfigSchema),
 });
-
-export type AppConfigInput = z.input<typeof AppConfigSchema>;
-export type AppConfigOutput = z.output<typeof AppConfigSchema>;

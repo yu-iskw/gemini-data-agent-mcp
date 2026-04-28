@@ -24,6 +24,7 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "vitest run",
+    "test:mcp": "pnpm build && pnpm --workspace-root exec vitest run packages/gemini-data-agent-mcp/src/__tests__/mcp-stdio-conformance.test.ts",
     "validate-config": "node dist/cli.js validate-config"
   },
   "dependencies": {

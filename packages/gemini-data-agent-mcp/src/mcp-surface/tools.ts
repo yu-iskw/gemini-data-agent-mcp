@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 import { resolveCredentials } from '../auth/index.js';
 import { resolveAgentConfig, resolveApiVersion, resolveTimeout } from '../config/index.js';
+import { createClient, wrapNetworkError } from '../google-api/client.js';
 import { buildRawUrl } from '../google-api/endpoints.js';
-import { createClient, wrapNetworkError } from '../google-api/index.js';
 import { logWarn } from '../observability/logging.js';
 import { enforceRawPassthroughPolicy, enforceHostRestriction } from '../security/allowlist.js';
 import { emitAuditEvent, createAuditStartTime, calculateLatency } from '../security/audit.js';
@@ -118,7 +118,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
-            target_service_account: agentConfig.auth.target_service_account,
+            impersonate_service_account: agentConfig.auth.impersonate_service_account,
             latency_ms: latency,
             success: true,
             operation_name: null,
@@ -183,7 +183,7 @@ function registerListDataAgents(server: McpServer, config: AppConfig): void {
               auth: redact(
                 {
                   mode: agent.auth.mode,
-                  target_service_account: agent.auth.target_service_account,
+                  impersonate_service_account: agent.auth.impersonate_service_account,
                 },
                 config.security.redaction.enabled,
               ),
@@ -218,7 +218,7 @@ function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void 
             auth: {
               mode: agentConfig.auth.mode,
               source: agentConfig.auth.source,
-              target_service_account: agentConfig.auth.target_service_account,
+              impersonate_service_account: agentConfig.auth.impersonate_service_account,
             },
             capabilities: agentConfig.capabilities,
             generation_options: agentConfig.generation_options,
@@ -288,7 +288,7 @@ function registerSendDataAgentMessage(server: McpServer, config: AppConfig): voi
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
-            target_service_account: agentConfig.auth.target_service_account,
+            impersonate_service_account: agentConfig.auth.impersonate_service_account,
             latency_ms: latency,
             success: true,
             operation_name: operationName ?? null,
@@ -364,7 +364,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
-            target_service_account: agentConfig.auth.target_service_account,
+            impersonate_service_account: agentConfig.auth.impersonate_service_account,
             latency_ms: latency,
             success: true,
             operation_name: args.operation_name,
@@ -454,7 +454,7 @@ function registerRawDataAgentRequest(server: McpServer, config: AppConfig): void
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
-            target_service_account: agentConfig.auth.target_service_account,
+            impersonate_service_account: agentConfig.auth.impersonate_service_account,
             latency_ms: latency,
             success: true,
           },

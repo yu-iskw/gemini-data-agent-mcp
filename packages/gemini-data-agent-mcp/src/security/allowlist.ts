@@ -1,4 +1,3 @@
-import { API_HOST } from '../google-api/versions.js';
 import { DataAgentMcpError } from '../types.js';
 
 import type { AppConfig, AgentConfig } from '../types.js';
@@ -82,9 +81,4 @@ export function isPathAllowed(path: string, patterns: string[]): boolean {
       return false;
     }
   });
-}
-
-export function buildAllowedRawUrl(version: string, path: string): string {
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return `${API_HOST}/${version}/${cleanPath}`;
 }

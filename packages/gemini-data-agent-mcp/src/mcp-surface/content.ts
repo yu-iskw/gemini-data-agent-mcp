@@ -1,14 +1,6 @@
 import type { GoogleApiResponse } from '../types.js';
 
-export interface QueryDataResult {
-  naturalLanguageAnswer?: string;
-  generatedQuery?: string;
-  intentExplanation?: string;
-  queryResult?: unknown;
-  disambiguationQuestion?: unknown;
-}
-
-export interface DiagnosticsInfo {
+interface DiagnosticsInfo {
   agent: string;
   api_version: string;
   latency_ms: number;

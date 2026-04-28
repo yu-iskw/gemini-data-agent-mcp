@@ -1,6 +1,6 @@
 import { DataAgentMcpError } from '../types.js';
 
-export interface GoogleApiErrorResponse {
+interface GoogleApiErrorResponse {
   error?: {
     code?: number;
     message?: string;

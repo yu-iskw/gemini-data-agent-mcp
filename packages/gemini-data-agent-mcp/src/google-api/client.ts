@@ -13,7 +13,7 @@ import { parseGoogleApiError } from './errors.js';
 import type { ResolvedCredentials } from '../auth/index.js';
 import type { ApiVersion, GoogleApiResponse } from '../types.js';
 
-export interface QueryDataOptions {
+interface QueryDataOptions {
   project: string;
   location: string;
   version: ApiVersion;
@@ -24,7 +24,7 @@ export interface QueryDataOptions {
   timeoutMs?: number;
 }
 
-export interface A2AMessageOptions {
+interface A2AMessageOptions {
   project: string;
   location: string;
   dataAgentId: string;
@@ -34,14 +34,14 @@ export interface A2AMessageOptions {
   timeoutMs?: number;
 }
 
-export interface GetOperationOptions {
+interface GetOperationOptions {
   version: ApiVersion;
   operationName: string;
   agent: string;
   timeoutMs?: number;
 }
 
-export interface RawRequestOptions {
+interface RawRequestOptions {
   version: ApiVersion;
   method: string;
   url: string;
@@ -51,7 +51,7 @@ export interface RawRequestOptions {
   timeoutMs?: number;
 }
 
-export class GeminiDataAgentClient {
+class GeminiDataAgentClient {
   constructor(private readonly credentials: ResolvedCredentials) {}
 
   async queryData(options: QueryDataOptions): Promise<GoogleApiResponse> {

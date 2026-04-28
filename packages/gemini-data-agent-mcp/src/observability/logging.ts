@@ -30,12 +30,7 @@ export function structuredLog(
   };
 
   const line = JSON.stringify(entry);
-
-  if (level === 'ERROR' || level === 'WARN') {
-    process.stderr.write(line + '\n');
-  } else {
-    process.stderr.write(line + '\n');
-  }
+  process.stderr.write(line + '\n');
 }
 
 export function logInfo(component: string, message: string, extra?: Record<string, unknown>): void {
@@ -52,12 +47,4 @@ export function logError(
   extra?: Record<string, unknown>,
 ): void {
   structuredLog('ERROR', component, { message, ...extra });
-}
-
-export function logDebug(
-  component: string,
-  message: string,
-  extra?: Record<string, unknown>,
-): void {
-  structuredLog('DEBUG', component, { message, ...extra });
 }

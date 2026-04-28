@@ -15,7 +15,7 @@ const config = validateConfig({
       auth: {
         mode: 'impersonation',
         source: 'adc',
-        target_service_account: 'my-sa@my-project.iam.gserviceaccount.com',
+        impersonate_service_account: 'my-sa@my-project.iam.gserviceaccount.com',
       },
       capabilities: {
         query_data: true,
@@ -36,7 +36,7 @@ describe('Resource content safety', () => {
         auth: {
           mode: agentConfig.auth.mode,
           token: 'should-be-redacted',
-          target_service_account: agentConfig.auth.target_service_account,
+          impersonate_service_account: agentConfig.auth.impersonate_service_account,
         },
       },
       true,
@@ -44,7 +44,7 @@ describe('Resource content safety', () => {
 
     expect(redacted.auth['token']).toBe('[REDACTED]');
     expect(redacted.auth['mode']).toBe('impersonation');
-    expect(redacted.auth['target_service_account']).toBe(
+    expect(redacted.auth['impersonate_service_account']).toBe(
       'my-sa@my-project.iam.gserviceaccount.com',
     );
   });

@@ -160,7 +160,7 @@ agents:
 | Missing `agents` or empty map                                  | Startup failure |
 | Missing `project`                                              | Startup failure |
 | Unsupported `api_version`                                      | Startup failure |
-| `impersonation` without `target_service_account`               | Startup failure |
+| `impersonation` without `impersonate_service_account`          | Startup failure |
 | Unknown `auth.mode`                                            | Startup failure |
 | `raw_passthrough.enabled=true` without `allowed_path_patterns` | Startup failure |
 
@@ -181,25 +181,21 @@ auth:
   mode: adc
 ```
 
-### `workload_identity` — Metadata server credentials
-
-For GKE, Cloud Run, GCE:
-
-```yaml
-auth:
-  mode: workload_identity
-```
-
 ### `impersonation` — Service account impersonation (recommended for production)
 
 ```yaml
 auth:
   mode: impersonation
-  source: adc # or workload_identity
-  target_service_account: sa@project.iam.gserviceaccount.com
+  source: adc
+  impersonate_service_account: sa@project.iam.gserviceaccount.com
   scopes:
     - https://www.googleapis.com/auth/cloud-platform
 ```
+
+Prerequisites:
+
+- Enable IAM Credentials API: `iamcredentials.googleapis.com`
+- Grant `roles/iam.serviceAccountTokenCreator` on the target service account
 
 Each agent can use a different target service account for least-privilege isolation.
 
@@ -314,6 +310,18 @@ Options:
 | `--log-level`, `-l` | `INFO`        | Log level (DEBUG/INFO/WARN/ERROR) |
 | `--transport`, `-t` | `stdio`       | Transport type                    |
 
+### Transport support
+
+- `stdio` is the supported runtime transport.
+- `http` is parsed for forward compatibility but currently fails fast at startup with an explicit error.
+
+### stdio protocol contract
+
+When running as an MCP stdio server:
+
+- JSON-RPC protocol messages are written to `stdout` by the MCP SDK transport layer.
+- Operational logs are written to `stderr` to avoid corrupting the protocol stream.
+
 ---
 
 ## Development
@@ -357,16 +365,22 @@ RUN_GDA_INTEGRATION_TESTS=1 GDA_MCP_TEST_CONFIG=./config.integration.yaml pnpm t
 : Check the `--config` path. Run `validate-config` first.
 
 **Server fails with CONFIG_VALIDATION_ERROR**
-: Run `validate-config` for a human-readable error. Impersonation requires `target_service_account`.
+: Run `validate-config` for a human-readable error. Impersonation requires `impersonate_service_account`.
 
 **AUTH_FAILED: Failed to obtain Google credentials**
-: Run `gcloud auth application-default login` for local ADC. On GKE/Cloud Run, verify workload identity.
+: Run `gcloud auth application-default login` for local ADC. For impersonation, verify IAM Credentials API is enabled and the caller has `roles/iam.serviceAccountTokenCreator` on the target service account.
 
 **PERMISSION_DENIED from Google API**
 : The service account lacks access to the data agent or its data sources.
 
 **Raw passthrough denied**
 : Enable `security.raw_passthrough.enabled` and add matching `allowed_path_patterns`. Also set `capabilities.raw_passthrough: true` for the agent.
+
+**Transport "http" is not yet supported**
+: Use `--transport stdio` (default). `http` is reserved for future support and currently exits with a deterministic startup error.
+
+**MCP client reports malformed stdio protocol**
+: Ensure no custom code writes non-JSON output to `stdout`. Keep diagnostics/logging on `stderr`.
 
 ---
 

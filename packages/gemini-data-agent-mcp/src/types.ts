@@ -1,8 +1,8 @@
 export type ApiVersion = 'v1' | 'v1beta' | 'v1alpha';
 
-export type AuthMode = 'adc' | 'workload_identity' | 'impersonation';
+export type AuthMode = 'adc' | 'impersonation';
 
-export type AuthSource = 'adc' | 'workload_identity';
+export type AuthSource = 'adc';
 
 export interface AgentCapabilities {
   query_data: boolean;
@@ -23,7 +23,7 @@ export interface AgentGenerationOptions {
 export interface AuthConfig {
   mode: AuthMode;
   source?: AuthSource;
-  target_service_account?: string;
+  impersonate_service_account?: string;
   scopes?: string[];
 }
 
@@ -101,7 +101,7 @@ export interface AppConfig {
   agents: Record<string, AgentConfig>;
 }
 
-export interface DataAgentMcpErrorDetails {
+interface DataAgentMcpErrorDetails {
   agent?: string;
   api_version?: string;
   auth_mode?: string;
@@ -134,26 +134,12 @@ export interface AuditEvent {
   agent: string;
   api_version: string;
   auth_mode: string;
-  target_service_account?: string;
+  impersonate_service_account?: string;
   latency_ms: number;
   success: boolean;
   error_code?: string;
   error_category?: string;
   operation_name?: string | null;
-}
-
-export interface QueryDataRequest {
-  query: string;
-  dataAgent?: string;
-  generationOptions?: Record<string, unknown>;
-  context?: Record<string, unknown>;
-}
-
-export interface A2AMessageRequest {
-  message: {
-    role: string;
-    parts: Array<{ text: string }>;
-  };
 }
 
 export interface GoogleApiResponse {

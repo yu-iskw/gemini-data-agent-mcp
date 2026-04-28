@@ -48,7 +48,7 @@ agents:
     auth:
       mode: impersonation
       source: adc
-      target_service_account: gda-sales-prod@my-prod-project.iam.gserviceaccount.com
+      impersonate_service_account: gda-sales-prod@my-prod-project.iam.gserviceaccount.com
       scopes:
         - https://www.googleapis.com/auth/cloud-platform
     capabilities:
@@ -73,8 +73,8 @@ agents:
     data_agent: projects/my-staging-project/locations/us-central1/dataAgents/finance-agent
     auth:
       mode: impersonation
-      source: workload_identity
-      target_service_account: gda-finance-staging@my-staging-project.iam.gserviceaccount.com
+      source: adc
+      impersonate_service_account: gda-finance-staging@my-staging-project.iam.gserviceaccount.com
       scopes:
         - https://www.googleapis.com/auth/cloud-platform
     capabilities:

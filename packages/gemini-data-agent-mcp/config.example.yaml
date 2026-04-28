@@ -59,7 +59,7 @@ agents:
 #     auth:
 #       mode: impersonation
 #       source: adc
-#       target_service_account: gda-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com
+#       impersonate_service_account: gda-sa@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com
 #       scopes:
 #         - https://www.googleapis.com/auth/cloud-platform
 #     capabilities:
