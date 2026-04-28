@@ -103,6 +103,11 @@ describe.sequential('MCP stdio conformance', () => {
     expect(tools.tools.length).toBeGreaterThan(0);
     expect(tools.tools.some((tool) => tool.name === 'list_data_agents')).toBe(true);
     expect(resources.resources.length).toBeGreaterThan(0);
+    expect(
+      resources.resources.some((resource) =>
+        resource.uri.startsWith('gemini-data-agent://sessions'),
+      ),
+    ).toBe(false);
     expect(prompts.prompts.length).toBeGreaterThan(0);
   });
 

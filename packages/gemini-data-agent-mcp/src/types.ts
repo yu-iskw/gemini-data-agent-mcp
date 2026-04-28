@@ -6,8 +6,6 @@ export type AuthSource = 'adc';
 
 export interface AgentCapabilities {
   query_data: boolean;
-  a2a_send: boolean;
-  a2a_stream: boolean;
   chat: boolean;
   raw_passthrough: boolean;
 }
@@ -135,6 +133,14 @@ export interface AuditEvent {
   api_version: string;
   auth_mode: string;
   impersonate_service_account?: string;
+  session_id?: string;
+  tenant_id?: string;
+  user_id?: string;
+  workspace_id?: string;
+  client_name?: string;
+  intent_from?: string;
+  intent_to?: string;
+  revision?: number;
   latency_ms: number;
   success: boolean;
   error_code?: string;

@@ -207,6 +207,26 @@ function registerPromptsResource(server: McpServer, config: AppConfig): void {
 
       const prompts = [
         {
+          name: 'switch_intent',
+          description: 'Prepare an explicit session intent transition.',
+          arguments: ['current_intent', 'target_intent', 'constraints'],
+        },
+        {
+          name: 'fork_session',
+          description: 'Prepare a session branch with rationale.',
+          arguments: ['session_id', 'branch_goal', 'branch_name_hint'],
+        },
+        {
+          name: 'resume_session',
+          description: 'Resume a session with recap and next action.',
+          arguments: ['session_id', 'latest_intent', 'latest_revision'],
+        },
+        {
+          name: 'handoff_summary',
+          description: 'Generate a handoff summary for another client.',
+          arguments: ['session_id', 'handoff_payload'],
+        },
+        {
           name: 'analyze_data_question',
           description: 'Use a configured Gemini Data Agent to answer a direct analytical question.',
           arguments: ['agent', 'question'],

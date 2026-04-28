@@ -19,8 +19,6 @@ const config = validateConfig({
       },
       capabilities: {
         query_data: true,
-        a2a_send: false,
-        a2a_stream: false,
         chat: false,
         raw_passthrough: false,
       },
@@ -63,7 +61,7 @@ describe('Resource content safety', () => {
   it('capabilities resource shows all capabilities', () => {
     const caps = config.agents['my-agent']!.capabilities;
     expect(caps.query_data).toBe(true);
-    expect(caps.a2a_send).toBe(false);
+    expect(caps.chat).toBe(false);
   });
 
   it('agents list does not include auth tokens', () => {

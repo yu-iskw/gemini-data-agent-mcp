@@ -28,8 +28,6 @@ function makeConfig(rawPassthroughEnabled: boolean, agentRawPassthrough: boolean
         auth: { mode: 'adc' },
         capabilities: {
           query_data: true,
-          a2a_send: false,
-          a2a_stream: false,
           chat: false,
           raw_passthrough: agentRawPassthrough,
         },
@@ -113,13 +111,18 @@ describe('enforceHostRestriction', () => {
 });
 
 describe('isPathAllowed', () => {
-  const patterns = ['^v1beta/projects/[^/]+/locations/[^/]+:queryData$', '^v1beta/a2a/'];
+  const patterns = [
+    '^v1beta/projects/[^/]+/locations/[^/]+:queryData$',
+    '^v1beta/projects/[^/]+/locations/[^/]+:chat$',
+  ];
 
   it('allows matching paths', () => {
     expect(isPathAllowed('v1beta/projects/my-proj/locations/us-central1:queryData', patterns)).toBe(
       true,
     );
-    expect(isPathAllowed('v1beta/a2a/projects/foo', patterns)).toBe(true);
+    expect(isPathAllowed('v1beta/projects/my-proj/locations/us-central1:chat', patterns)).toBe(
+      true,
+    );
   });
 
   it('rejects non-matching paths', () => {

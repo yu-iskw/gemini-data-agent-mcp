@@ -53,8 +53,6 @@ agents:
         - https://www.googleapis.com/auth/cloud-platform
     capabilities:
       query_data: true
-      a2a_send: true
-      a2a_stream: false
       chat: false
       raw_passthrough: false
     generation_options:
@@ -79,7 +77,5 @@ agents:
         - https://www.googleapis.com/auth/cloud-platform
     capabilities:
       query_data: true
-      a2a_send: true
-      a2a_stream: true
       chat: true
       raw_passthrough: true

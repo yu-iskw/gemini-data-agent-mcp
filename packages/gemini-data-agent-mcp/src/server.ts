@@ -5,18 +5,20 @@ import { registerPrompts } from './mcp-surface/prompts.js';
 import { registerResources } from './mcp-surface/resources.js';
 import { registerTools } from './mcp-surface/tools.js';
 import { setLogLevel, logInfo, logError } from './observability/logging.js';
+import { InMemorySessionStore } from './session/store.js';
 
 import type { AppConfig } from './types.js';
 
 export async function startServer(config: AppConfig): Promise<void> {
   setLogLevel(config.server.log_level);
 
+  const sessionStore = new InMemorySessionStore();
   const server = new McpServer({
     name: config.server.name,
     version: '0.1.0',
   });
 
-  registerTools(server, config);
+  registerTools(server, config, sessionStore);
   registerResources(server, config);
   registerPrompts(server);
 
@@ -37,12 +39,13 @@ export async function startServer(config: AppConfig): Promise<void> {
 }
 
 export function createMcpServer(config: AppConfig): McpServer {
+  const sessionStore = new InMemorySessionStore();
   const server = new McpServer({
     name: config.server.name,
     version: '0.1.0',
   });
 
-  registerTools(server, config);
+  registerTools(server, config, sessionStore);
   registerResources(server, config);
   registerPrompts(server);
 

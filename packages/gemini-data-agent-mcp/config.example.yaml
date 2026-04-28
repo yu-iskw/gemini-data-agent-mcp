@@ -64,8 +64,6 @@ agents:
 #         - https://www.googleapis.com/auth/cloud-platform
 #     capabilities:
 #       query_data: true
-#       a2a_send: false
-#       a2a_stream: false
 #       chat: false
 #       raw_passthrough: false
 #     generation_options:

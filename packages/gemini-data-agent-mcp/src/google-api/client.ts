@@ -2,11 +2,12 @@ import { DataAgentMcpError } from '../types.js';
 
 import {
   buildQueryDataUrl,
-  buildA2ASendUrl,
-  buildA2AStreamUrl,
+  buildChatUrl,
+  buildCreateConversationUrl,
+  buildConversationMessagesUrl,
   buildOperationUrl,
-  extractDataAgentId,
   normalizeDataAgentName,
+  normalizeConversationName,
 } from './endpoints.js';
 import { parseGoogleApiError } from './errors.js';
 
@@ -17,21 +18,42 @@ interface QueryDataOptions {
   project: string;
   location: string;
   version: ApiVersion;
-  query: string;
-  dataAgent?: string;
+  prompt: string;
   generationOptions?: Record<string, unknown>;
   context?: Record<string, unknown>;
   timeoutMs?: number;
 }
 
-interface A2AMessageOptions {
+interface ChatWithDataAgentOptions {
   project: string;
   location: string;
-  dataAgentId: string;
   version: ApiVersion;
-  message: string;
-  blocking?: boolean;
-  returnLro?: boolean;
+  prompt: string;
+  dataAgent: string;
+  conversation?: string;
+  contextVersion?: 'CONTEXT_VERSION_UNSPECIFIED' | 'STAGING' | 'PUBLISHED';
+  thinkingMode?: 'THINKING_MODE_UNSPECIFIED' | 'FAST' | 'THINKING';
+  timeoutMs?: number;
+}
+
+interface CreateConversationOptions {
+  project: string;
+  location: string;
+  version: ApiVersion;
+  dataAgent: string;
+  conversationId?: string;
+  requestId?: string;
+  timeoutMs?: number;
+}
+
+interface ListConversationMessagesOptions {
+  version: ApiVersion;
+  project: string;
+  location: string;
+  conversation: string;
+  pageSize?: number;
+  pageToken?: string;
+  filter?: string;
   timeoutMs?: number;
 }
 
@@ -59,19 +81,11 @@ class GeminiDataAgentClient {
     const url = buildQueryDataUrl(options.version, options.project, options.location);
 
     const requestBody: Record<string, unknown> = {
-      query: options.query,
+      prompt: options.prompt,
     };
 
-    if (options.dataAgent) {
-      requestBody['dataAgent'] = normalizeDataAgentName(
-        options.dataAgent,
-        options.project,
-        options.location,
-      );
-    }
-
     if (options.generationOptions) {
-      requestBody['generationOptions'] = options.generationOptions;
+      requestBody['generationOptions'] = normalizeGenerationOptions(options.generationOptions);
     }
 
     if (options.context) {
@@ -81,36 +95,73 @@ class GeminiDataAgentClient {
     return this.post(url, requestBody, options.version, 'unknown', options.timeoutMs);
   }
 
-  async sendA2AMessage(options: A2AMessageOptions): Promise<GoogleApiResponse> {
-    const dataAgentId = extractDataAgentId(options.dataAgentId);
-    const url = buildA2ASendUrl(options.version, options.project, options.location, dataAgentId);
+  async chatWithDataAgent(options: ChatWithDataAgentOptions): Promise<GoogleApiResponse> {
+    const url = buildChatUrl(options.version, options.project, options.location);
+    const dataAgent = normalizeDataAgentName(options.dataAgent, options.project, options.location);
 
-    const requestBody = {
-      message: {
-        role: 'user',
-        parts: [{ text: options.message }],
-      },
-      configuration: {
-        blocking: options.blocking ?? true,
-      },
-      return_lro: options.returnLro ?? false,
+    const requestBody: Record<string, unknown> = {
+      messages: [{ userMessage: { text: options.prompt } }],
+      ...(options.conversation
+        ? {
+            conversationReference: {
+              conversation: normalizeConversationName(
+                options.conversation,
+                options.project,
+                options.location,
+              ),
+              dataAgentContext: {
+                dataAgent,
+                ...(options.contextVersion ? { contextVersion: options.contextVersion } : {}),
+              },
+            },
+          }
+        : {
+            dataAgentContext: {
+              dataAgent,
+              ...(options.contextVersion ? { contextVersion: options.contextVersion } : {}),
+            },
+          }),
+      ...(options.thinkingMode ? { thinkingMode: options.thinkingMode } : {}),
     };
 
     return this.post(url, requestBody, options.version, 'unknown', options.timeoutMs);
   }
 
-  async streamA2AMessage(options: A2AMessageOptions): Promise<GoogleApiResponse> {
-    const dataAgentId = extractDataAgentId(options.dataAgentId);
-    const url = buildA2AStreamUrl(options.version, options.project, options.location, dataAgentId);
-
-    const requestBody = {
-      message: {
-        role: 'user',
-        parts: [{ text: options.message }],
+  async createConversation(options: CreateConversationOptions): Promise<GoogleApiResponse> {
+    const url = buildCreateConversationUrl(
+      options.version,
+      options.project,
+      options.location,
+      options.conversationId,
+      options.requestId,
+    );
+    return this.post(
+      url,
+      {
+        agents: [normalizeDataAgentName(options.dataAgent, options.project, options.location)],
       },
-    };
+      options.version,
+      'unknown',
+      options.timeoutMs,
+    );
+  }
 
-    return this.post(url, requestBody, options.version, 'unknown', options.timeoutMs);
+  async listConversationMessages(
+    options: ListConversationMessagesOptions,
+  ): Promise<GoogleApiResponse> {
+    const conversation = normalizeConversationName(
+      options.conversation,
+      options.project,
+      options.location,
+    );
+    const url = buildConversationMessagesUrl(
+      options.version,
+      conversation,
+      options.pageSize,
+      options.pageToken,
+      options.filter,
+    );
+    return this.get(url, options.version, 'unknown', options.timeoutMs);
   }
 
   async getOperation(options: GetOperationOptions): Promise<GoogleApiResponse> {
@@ -230,4 +281,28 @@ export function wrapNetworkError(err: unknown, agent: string): DataAgentMcpError
   }
 
   return new DataAgentMcpError('NETWORK_ERROR', `Network error: ${message}`, true, { agent });
+}
+
+function normalizeGenerationOptions(
+  generationOptions: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {};
+  const generateQueryResult = generationOptions['generate_query_result'];
+  if (generateQueryResult !== undefined) {
+    normalized['generateQueryResult'] = generateQueryResult;
+  }
+  const generateNaturalLanguageAnswer = generationOptions['generate_natural_language_answer'];
+  if (generateNaturalLanguageAnswer !== undefined) {
+    normalized['generateNaturalLanguageAnswer'] = generateNaturalLanguageAnswer;
+  }
+  const generateExplanation = generationOptions['generate_explanation'];
+  if (generateExplanation !== undefined) {
+    normalized['generateExplanation'] = generateExplanation;
+  }
+  const generateDisambiguationQuestion = generationOptions['generate_disambiguation_question'];
+  if (generateDisambiguationQuestion !== undefined) {
+    normalized['generateDisambiguationQuestion'] = generateDisambiguationQuestion;
+  }
+
+  return normalized;
 }
