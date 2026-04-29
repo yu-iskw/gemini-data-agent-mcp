@@ -33,10 +33,6 @@ security:
     redact_raw_response_body: false
     redact_tokens: true
     show_service_account: full
-server:
-  log_level: INFO
-  name: gemini-data-agent
-  transport: stdio
 version_policy:
   allow_tool_override: true
   allowed_versions:

@@ -28,6 +28,33 @@ describe('analyst registry YAML', () => {
     expect(reparsed.agents['a1']?.capabilities.raw_passthrough).toBe(false);
   });
 
+  it('omits admin server identity from generated analyst registry YAML', () => {
+    const config = validateConfig({
+      server: {
+        name: 'gemini-data-agent-admin-mcp',
+        log_level: 'DEBUG',
+        transport: 'stdio',
+      },
+      agents: {
+        a1: {
+          project: 'p1',
+          location: 'us-central1',
+          api_version: 'v1beta',
+          data_agent: 'a1',
+          auth: { mode: 'adc' },
+        },
+      },
+    });
+
+    const yaml = serializeAnalystRegistryYaml(config);
+
+    expect(yaml).not.toContain('gemini-data-agent-admin-mcp');
+    expect(yaml).not.toMatch(/^server:/m);
+
+    const reparsed = parseAndValidateAnalystRegistryYaml(yaml);
+    expect(reparsed.server.name).toBe('gemini-data-agent');
+  });
+
   it('diffAnalystRegistryYaml reports no differences for identical input', () => {
     const d = diffAnalystRegistryYaml('a:\n  b: 1', 'a:\n  b: 1');
     expect(d).toContain('no differences');

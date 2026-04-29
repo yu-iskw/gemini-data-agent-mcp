@@ -60,7 +60,6 @@ function buildAnalystRegistryDocument(
 
   doc.version_policy = config.version_policy;
   doc.security = sanitizeSecurityForExport(config);
-  doc.server = config.server;
 
   if (minimal) {
     return stripUndefinedDeep(doc) as Record<string, unknown>;
