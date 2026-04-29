@@ -1,8 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { validateConfig } from 'gemini-data-agent-core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMcpServer } from '../server.js';
 
@@ -35,7 +34,7 @@ function jsonResponse(body: unknown) {
 }
 
 function setupFetchRouter(): ReturnType<typeof vi.fn> {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  return vi.fn(async (input: string | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : String(input);
     const method = init?.method ?? 'GET';
 

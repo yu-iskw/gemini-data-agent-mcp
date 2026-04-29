@@ -126,6 +126,14 @@ export class DataAgentMcpError extends Error {
   }
 }
 
+/** Format an unknown error for MCP tool `text` responses (analyst and admin servers). */
+export function formatMcpToolError(err: unknown): string {
+  if (err instanceof DataAgentMcpError) {
+    return `Error [${err.code}]: ${err.message}`;
+  }
+  return `Error: ${String(err)}`;
+}
+
 export interface AuditEvent {
   event: string;
   tool: string;

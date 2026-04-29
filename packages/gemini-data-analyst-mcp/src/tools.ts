@@ -13,6 +13,7 @@ import {
   calculateLatency,
   redact,
   DataAgentMcpError,
+  formatMcpToolError,
   formatQueryDataResponse,
   formatOperationResponse,
   formatAgentList,
@@ -37,13 +38,6 @@ const configuredAgentNameDescription = 'Configured data agent name.';
 const sessionActorDescription = 'Identity envelope for session ACL and audit.';
 const unknownValue = 'unknown';
 const sessionLocalValue = 'session-local';
-
-function makeErrorText(err: unknown): string {
-  if (err instanceof DataAgentMcpError) {
-    return `Error [${err.code}]: ${err.message}`;
-  }
-  return `Error: ${String(err)}`;
-}
 
 function toSessionActor(args: {
   tenant_id: string;
@@ -248,7 +242,7 @@ function registerSessionCreate(
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -366,7 +360,7 @@ function registerSessionChat(
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -446,7 +440,7 @@ function registerSessionSwitchIntent(
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -521,7 +515,7 @@ function registerSessionFork(
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -596,7 +590,7 @@ function registerSessionReset(
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -664,7 +658,7 @@ function registerSessionHandoff(
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -795,7 +789,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
           config.security,
         );
 
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -893,7 +887,7 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -984,7 +978,7 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -1072,7 +1066,7 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -1149,7 +1143,7 @@ function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void 
         const text = formatConfigResponse(args.agent, redacted as Record<string, unknown>);
         return { content: [{ type: 'text', text }] };
       } catch (err) {
-        return { content: [{ type: 'text', text: makeErrorText(err) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(err) }], isError: true };
       }
     },
   );
@@ -1225,7 +1219,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
           config.security,
         );
 
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );

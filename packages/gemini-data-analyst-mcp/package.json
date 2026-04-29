@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node ../../scripts/rm-dist-tests.mjs",
     "start": "node dist/cli.js",
     "test": "pnpm --workspace-root exec vitest run packages/gemini-data-analyst-mcp/src",
     "validate-config": "node dist/cli.js validate-config"

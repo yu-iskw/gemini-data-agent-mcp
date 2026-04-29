@@ -4,6 +4,7 @@ import {
   createAuditStartTime,
   DataAgentMcpError,
   diffAnalystRegistryYaml,
+  formatMcpToolError,
   emitAuditEvent,
   parseAndValidateAnalystRegistryYaml,
   resolveAgentConfig,
@@ -16,13 +17,6 @@ import { z } from 'zod';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppConfig } from 'gemini-data-agent-core';
-
-function makeErrorText(err: unknown): string {
-  if (err instanceof DataAgentMcpError) {
-    return `Error [${err.code}]: ${err.message}`;
-  }
-  return `Error: ${String(err)}`;
-}
 
 export function registerAdminTools(server: McpServer, config: AppConfig): void {
   registerGenerateAnalystRegistryYaml(server, config);
@@ -54,7 +48,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
             content: [
               {
                 type: 'text',
-                text: makeErrorText(
+                text: formatMcpToolError(
                   new DataAgentMcpError(
                     'UNSUPPORTED',
                     'Inline-only generation is not implemented; keep use_loaded_config true.',
@@ -98,7 +92,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
           },
           config.security,
         );
-        return { content: [{ type: 'text', text: makeErrorText(err) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(err) }], isError: true };
       }
     },
   );
@@ -128,7 +122,7 @@ function registerValidateAnalystRegistryYaml(server: McpServer): void {
         };
       } catch (err) {
         return {
-          content: [{ type: 'text', text: makeErrorText(err) }],
+          content: [{ type: 'text', text: formatMcpToolError(err) }],
           isError: true,
         };
       }
@@ -200,7 +194,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
       } catch (err) {
         const wrapped =
           err instanceof DataAgentMcpError ? err : wrapNetworkError(err, args.agent ?? '');
-        return { content: [{ type: 'text', text: makeErrorText(wrapped) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(wrapped) }], isError: true };
       }
     },
   );
@@ -253,7 +247,7 @@ function registerDryRunDataAgentChange(server: McpServer, config: AppConfig): vo
           ],
         };
       } catch (err) {
-        return { content: [{ type: 'text', text: makeErrorText(err) }], isError: true };
+        return { content: [{ type: 'text', text: formatMcpToolError(err) }], isError: true };
       }
     },
   );
@@ -269,7 +263,7 @@ function registerRemoteLifecycleStubs(server: McpServer): void {
       content: [
         {
           type: 'text',
-          text: makeErrorText(
+          text: formatMcpToolError(
             new DataAgentMcpError(
               'NOT_IMPLEMENTED',
               `Remote lifecycle call "${name}" is not implemented yet in the Gemini Data Agents REST client.`,

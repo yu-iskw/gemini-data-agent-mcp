@@ -71,19 +71,19 @@ sequenceDiagram
 
 ## Consequences
 
-**Positive**
+### Positive
 
 - Clear **trust boundaries**: analyst MCP surface excludes raw passthrough and admin-only tools by construction.
 - **Single schema** for analyst registry YAML: admin generation and analyst consumption share `gemini-data-agent-core` validation.
 - **Core library** enables focused unit tests without spinning up MCP.
 
-**Negative / trade-offs**
+### Negative / trade-offs
 
 - **Two MCP processes** to configure when both roles are needed (separate MCP server entries in the client).
 - **Breaking change** for anyone tied to the removed package name or old paths; mitigated by README and examples.
 - Remote lifecycle behavior remains **stubbed** on the admin server until Gemini REST coverage exists; callers must handle `NOT_IMPLEMENTED`.
 
-**Follow-ups**
+### Follow-ups
 
 - Wire remote lifecycle tools to real APIs when available.
 - Optionally publish npm package boundaries (`private` flags vs public publish) per release strategy.

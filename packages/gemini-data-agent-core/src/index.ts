@@ -47,6 +47,7 @@ export type { SerializeAnalystRegistryOptions } from './registry/analyst-registr
 
 export {
   DataAgentMcpError,
+  formatMcpToolError,
   type AgentConfig,
   type ApiVersion,
   type AppConfig,

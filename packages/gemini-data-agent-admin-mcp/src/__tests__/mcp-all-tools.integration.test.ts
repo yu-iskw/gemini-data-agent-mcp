@@ -1,12 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { serializeAnalystRegistryYaml, validateConfig } from 'gemini-data-agent-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import {
-  DataAgentMcpError,
-  serializeAnalystRegistryYaml,
-  validateConfig,
-} from 'gemini-data-agent-core';
 
 import { createMcpServer } from '../server.js';
 
@@ -153,7 +148,9 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
         request_header_keys?: string[];
       };
       expect(payload.auth_mode).toBe('adc');
-      expect(payload.request_header_keys).toContain('authorization');
+      expect(payload.request_header_keys?.some((k) => k.toLowerCase() === 'authorization')).toBe(
+        true,
+      );
     } finally {
       await close();
     }
