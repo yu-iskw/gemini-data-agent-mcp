@@ -1,0 +1,5 @@
+server:
+  name: gemini-data-agent-mcp
+  log_level: INFO
+
+agents: {}

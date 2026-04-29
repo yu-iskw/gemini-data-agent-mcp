@@ -1,0 +1,31 @@
+{
+  "name": "gemini-data-analyst-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for data analysts: Gemini Data Agents with session collaboration and read-only YAML registry.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "gemini-data-analyst-mcp": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && node ../../scripts/rm-dist-tests.mjs",
+    "start": "node dist/cli.js",
+    "test": "pnpm --workspace-root exec vitest run packages/gemini-data-analyst-mcp/src",
+    "validate-config": "node dist/cli.js validate-config"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "commander": "^13.1.0",
+    "gemini-data-agent-core": "workspace:*",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "google-auth-library": "^10.6.2"
+  }
+}

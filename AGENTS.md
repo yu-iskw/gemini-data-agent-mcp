@@ -52,7 +52,7 @@ Split so agents and CI get consistent, low-conflict feedback:
 - **Knip** (`knip.json`): unused deps, exports, workspace entrypoints. Run `pnpm knip` before large refactors or when adding packages.
 - **Trunk:** ESLint, Prettier, **Trivy**, **OSV-scanner**, etc. Use `pnpm lint:security` for security-scoped checks.
 
-**Suggested pre-commit gate:** `pnpm lint:eslint && pnpm knip && pnpm lint && pnpm test` (or `pnpm lint` alone for Trunk-only). Prefer **`pnpm format`** / `trunk fmt`; use **`pnpm format:eslint`** when you want ESLint `--fix` only.
+**Suggested pre-commit gate:** `pnpm lint:eslint && pnpm knip && pnpm lint && pnpm test` (or `pnpm lint` alone for Trunk-only). Prefer `**pnpm format`** / `trunk fmt`; use `**pnpm format:eslint\*\*`when you want ESLint`--fix` only.
 
 ## Code style
 
@@ -84,16 +84,16 @@ Coding agents should **learn from failures and surprises** and turn that into du
 
 **When to skip:** When the session was **trivial overall** (typo, one-line fix, pure format pass) **unless** something went wrong (unexpected failure, surprise breakage).
 
-**How:** In **Claude Code**, invoke **`/postmortem`** (skill: `.claude/skills/postmortem/`). On other surfaces, open that skill’s `SKILL.md` and follow the same steps in prose or in your handoff before closing.
+**How:** In **Claude Code**, invoke `**/postmortem`\*\* (skill: `.claude/skills/postmortem/`). On other surfaces, open that skill’s `SKILL.md` and follow the same steps in prose or in your handoff before closing.
 
 ## Improving agent behavior
 
 When you want durable fixes (not one-off chat advice):
 
-1. **Classify** what to add: **rule** (guidance in **`AGENTS.md`** or **`.cursor/rules/`**), **hook** (mandatory guard in **`.claude/settings.json`**), **skill** (repeatable workflow under **`.claude/skills/`**), or **agent** (Task subagent under **`.claude/agents/`**).
-2. **Prefer the narrowest shared surface:** edit **`AGENTS.md`** when every coding agent should follow the change; use **`.cursor/rules/`** for editor-scoped guidance; use **`.claude/`** when the behavior is Claude Code–specific (hooks, slash skills, subagent definitions).
+1. **Classify** what to add: **rule** (guidance in `**AGENTS.md`** or `**.cursor/rules/**`), **hook** (mandatory guard in `**.claude/settings.json`**), **skill** (repeatable workflow under `**.claude/skills/`**), or **agent** (Task subagent under `**.claude/agents/`\*\*).
+2. **Prefer the narrowest shared surface:** edit `**AGENTS.md`** when every coding agent should follow the change; use `**.cursor/rules/**`for editor-scoped guidance; use`**.claude/\*\*` when the behavior is Claude Code–specific (hooks, slash skills, subagent definitions).
 3. **Stay minimal** — only codify patterns that actually recur.
-4. In **Claude Code**, use **`/improve-claude-config`** to drive changes under **`.claude/`** (settings, hooks, skills, agents).
+4. In **Claude Code**, use `**/improve-claude-config`** to drive changes under `**.claude/\*\*` (settings, hooks, skills, agents).
 
 ## Architecture
 
@@ -107,7 +107,7 @@ When you want durable fixes (not one-off chat advice):
 
 - Always use **pnpm**, not npm or yarn
 - Do not install Trunk-managed linters globally; versions live in `.trunk/trunk.yaml`
-- Commit **`pnpm-lock.yaml`**
+- Commit `**pnpm-lock.yaml`\*\*
 - After `pnpm install`, Trunk is under `node_modules/.bin`; pin is in `.trunk/trunk.yaml` (`cli.version`). Run `pnpm exec trunk install` if formatters/linters are missing
 
 ## Learned User Preferences
@@ -120,7 +120,7 @@ When you want durable fixes (not one-off chat advice):
 
 ## Learned Workspace Facts
 
-- Core implementation focus is the MCP server in `packages/gemini-data-agent-mcp`.
+- Core implementation focus is `packages/gemini-data-agent-core` plus MCP servers `packages/gemini-data-analyst-mcp` and `packages/gemini-data-agent-admin-mcp`.
 - This workspace repeatedly validates MCP server behavior against official MCP and Google Gemini Data Agent documentation.
 - Security and quality hardening commonly includes `pnpm knip`, `osv-scanner`, and `grype` in addition to standard lint/test checks.
 - The MCP server intentionally removed A2A-related tools and concentrates on MCP-native flows.

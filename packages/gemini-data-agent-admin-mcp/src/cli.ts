@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+
+import { Command } from 'commander';
+import {
+  DataAgentMcpError,
+  loadConfig,
+  validateConfig,
+  DEFAULT_LOG_LEVEL,
+  LOG_LEVELS,
+  parseLogLevel,
+} from 'gemini-data-agent-core';
+
+import { startServer } from './server.js';
+
+import type { ServerConfig } from 'gemini-data-agent-core';
+
+const program = new Command();
+const configPathOptionFlags = '-c, --config <path>';
+const defaultConfigPath = 'config.yaml';
+const configPathOptionDescription = 'Path to YAML configuration file';
+const logLevelOptionDescription = `Log level (${LOG_LEVELS.join(', ')})`;
+const SUPPORTED_TRANSPORTS: ServerConfig['transport'][] = ['stdio', 'http'];
+const transportOptionDescription = `Transport type (${SUPPORTED_TRANSPORTS.join(', ')})`;
+
+function parseTransport(value: string): ServerConfig['transport'] {
+  const normalized = value.toLowerCase();
+  if (SUPPORTED_TRANSPORTS.includes(normalized as ServerConfig['transport'])) {
+    return normalized as ServerConfig['transport'];
+  }
+
+  throw new Error(
+    `Invalid transport "${value}". Allowed values: ${SUPPORTED_TRANSPORTS.join(', ')}`,
+  );
+}
+
+program
+  .name('gemini-data-agent-admin-mcp')
+  .description('MCP server for data-agent administrators: registry YAML and control-plane tools.')
+  .version('0.1.0');
+
+program
+  .command('start', { isDefault: true })
+  .description('Start the admin MCP server (default command).')
+  .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
+  .option('-l, --log-level <level>', logLevelOptionDescription, DEFAULT_LOG_LEVEL)
+  .option('-t, --transport <type>', transportOptionDescription, 'stdio')
+  .action(async (options: { config: string; logLevel: string; transport: string }) => {
+    try {
+      const config = loadConfig(options.config);
+
+      if (options.logLevel) {
+        config.server.log_level = parseLogLevel(options.logLevel);
+      }
+      if (options.transport) {
+        config.server.transport = parseTransport(options.transport);
+      }
+
+      await startServer(config);
+    } catch (err) {
+      if (err instanceof DataAgentMcpError) {
+        process.stderr.write(`\nFatal error [${err.code}]: ${err.message}\n`);
+      } else {
+        process.stderr.write(`\nFatal error: ${String(err)}\n`);
+      }
+      process.exit(1);
+    }
+  });
+
+program
+  .command('validate-config')
+  .description('Validate a YAML configuration file without starting the server.')
+  .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
+  .action((options: { config: string }) => {
+    try {
+      const config = loadConfig(options.config);
+      const agentCount = Object.keys(config.agents).length;
+      process.stdout.write(`\nConfiguration valid. ${agentCount} agent(s) configured:\n`);
+      for (const [name, agent] of Object.entries(config.agents)) {
+        process.stdout.write(`  - ${name}: ${agent.display_name ?? name} [${agent.api_version}]\n`);
+      }
+      process.stdout.write('\n');
+    } catch (err) {
+      if (err instanceof DataAgentMcpError) {
+        process.stderr.write(`\nConfiguration invalid [${err.code}]:\n${err.message}\n`);
+      } else {
+        process.stderr.write(`\nConfiguration invalid: ${String(err)}\n`);
+      }
+      process.exit(1);
+    }
+  });
+
+program
+  .command('inspect-config')
+  .description('Display the resolved (parsed) configuration with redacted secrets.')
+  .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
+  .action((options: { config: string }) => {
+    try {
+      const config = loadConfig(options.config);
+
+      const redactedConfig = {
+        server: config.server,
+        version_policy: config.version_policy,
+        security: config.security,
+        defaults: config.defaults,
+        agents: Object.fromEntries(
+          Object.entries(config.agents).map(([name, agent]) => [
+            name,
+            {
+              ...agent,
+              auth: {
+                mode: agent.auth.mode,
+                source: agent.auth.source,
+                impersonate_service_account: agent.auth.impersonate_service_account
+                  ? '[REDACTED]'
+                  : undefined,
+              },
+            },
+          ]),
+        ),
+      };
+
+      process.stdout.write(JSON.stringify(redactedConfig, null, 2) + '\n');
+    } catch (err) {
+      if (err instanceof DataAgentMcpError) {
+        process.stderr.write(`\nError [${err.code}]: ${err.message}\n`);
+      } else {
+        process.stderr.write(`\nError: ${String(err)}\n`);
+      }
+      process.exit(1);
+    }
+  });
+
+program.parse(process.argv);
+
+export { validateConfig };
