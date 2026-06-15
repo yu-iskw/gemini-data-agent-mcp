@@ -1,7 +1,7 @@
+import { validateConfig } from '@gemini-data-agents/core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { validateConfig } from 'gemini-data-agent-core';
 import { describe, expect, it, vi } from 'vitest';
 
 import { InMemorySessionStore } from '../session/store.js';

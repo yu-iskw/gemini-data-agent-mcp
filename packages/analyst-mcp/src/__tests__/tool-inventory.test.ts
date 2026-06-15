@@ -1,14 +1,14 @@
+import { validateConfig } from '@gemini-data-agents/core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { validateConfig } from 'gemini-data-agent-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createMcpServer } from '../server.js';
 import { InMemorySessionStore } from '../session/store.js';
 import { registerTools } from '../tools.js';
 
-import type { AppConfig } from 'gemini-data-agent-core';
+import type { AppConfig } from '@gemini-data-agents/core';
 
 const minimalConfig: AppConfig = validateConfig({
   agents: {

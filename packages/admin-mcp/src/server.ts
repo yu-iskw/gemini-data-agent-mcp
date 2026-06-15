@@ -1,10 +1,10 @@
+import { logError, logInfo, setLogLevel } from '@gemini-data-agents/core';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { logError, logInfo, setLogLevel } from 'gemini-data-agent-core';
 
 import { registerAdminTools } from './admin-tools.js';
 
-import type { AppConfig } from 'gemini-data-agent-core';
+import type { AppConfig } from '@gemini-data-agents/core';
 
 export async function startServer(config: AppConfig): Promise<void> {
   setLogLevel(config.server.log_level);

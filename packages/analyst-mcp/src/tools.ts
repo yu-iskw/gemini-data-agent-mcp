@@ -20,7 +20,7 @@ import {
   formatConfigResponse,
   formatConversationCreated,
   formatConversationMessages,
-} from 'gemini-data-agent-core';
+} from '@gemini-data-agents/core';
 import { z } from 'zod';
 
 import {
@@ -31,8 +31,8 @@ import {
 
 import type { SessionStore } from './session/store.js';
 import type { SessionActor, SessionIntent } from './session/types.js';
+import type { AppConfig } from '@gemini-data-agents/core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { AppConfig } from 'gemini-data-agent-core';
 
 const configuredAgentNameDescription = 'Configured data agent name.';
 const sessionActorDescription = 'Identity envelope for session ACL and audit.';

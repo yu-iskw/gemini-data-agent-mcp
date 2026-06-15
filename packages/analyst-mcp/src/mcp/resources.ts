@@ -1,8 +1,8 @@
+import { DataAgentMcpError, redact, redactServiceAccount } from '@gemini-data-agents/core';
 import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { DataAgentMcpError, redact, redactServiceAccount } from 'gemini-data-agent-core';
 
+import type { AppConfig } from '@gemini-data-agents/core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { AppConfig } from 'gemini-data-agent-core';
 
 function getAgent(config: AppConfig, agentName: string) {
   return Object.entries(config.agents).find(([name]) => name === agentName)?.[1];

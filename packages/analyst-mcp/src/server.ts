@@ -1,13 +1,13 @@
+import { setLogLevel, logInfo, logError } from '@gemini-data-agents/core';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { setLogLevel, logInfo, logError } from 'gemini-data-agent-core';
 
 import { registerPrompts } from './mcp/prompts.js';
 import { registerResources } from './mcp/resources.js';
 import { InMemorySessionStore } from './session/store.js';
 import { registerTools } from './tools.js';
 
-import type { AppConfig } from 'gemini-data-agent-core';
+import type { AppConfig } from '@gemini-data-agents/core';
 
 export async function startServer(config: AppConfig): Promise<void> {
   setLogLevel(config.server.log_level);

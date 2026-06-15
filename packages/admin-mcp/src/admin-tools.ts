@@ -12,11 +12,11 @@ import {
   serializeAnalystRegistryYaml,
   validateConfig,
   wrapNetworkError,
-} from 'gemini-data-agent-core';
+} from '@gemini-data-agents/core';
 import { z } from 'zod';
 
+import type { AppConfig } from '@gemini-data-agents/core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { AppConfig } from 'gemini-data-agent-core';
 
 export function registerAdminTools(server: McpServer, config: AppConfig): void {
   registerGenerateAnalystRegistryYaml(server, config);

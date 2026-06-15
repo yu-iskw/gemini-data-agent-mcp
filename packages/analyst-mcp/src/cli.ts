@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
 import {
   DataAgentMcpError,
   loadConfig,
@@ -8,11 +7,12 @@ import {
   DEFAULT_LOG_LEVEL,
   LOG_LEVELS,
   parseLogLevel,
-} from 'gemini-data-agent-core';
+} from '@gemini-data-agents/core';
+import { Command } from 'commander';
 
 import { startServer } from './server.js';
 
-import type { ServerConfig } from 'gemini-data-agent-core';
+import type { ServerConfig } from '@gemini-data-agents/core';
 
 const program = new Command();
 const configPathOptionFlags = '-c, --config <path>';
@@ -34,13 +34,15 @@ function parseTransport(value: string): ServerConfig['transport'] {
 }
 
 program
-  .name('gemini-data-agent-admin-mcp')
-  .description('MCP server for data-agent administrators: registry YAML and control-plane tools.')
+  .name('gemini-data-analyst-mcp')
+  .description(
+    'MCP server for data analysts: Gemini Data Agents with read-only registry and session tools.',
+  )
   .version('0.1.0');
 
 program
   .command('start', { isDefault: true })
-  .description('Start the admin MCP server (default command).')
+  .description('Start the MCP server (default command).')
   .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
   .option('-l, --log-level <level>', logLevelOptionDescription, DEFAULT_LOG_LEVEL)
   .option('-t, --transport <type>', transportOptionDescription, 'stdio')

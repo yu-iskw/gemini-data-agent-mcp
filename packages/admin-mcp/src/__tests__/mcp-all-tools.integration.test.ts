@@ -1,6 +1,6 @@
+import { serializeAnalystRegistryYaml, validateConfig } from '@gemini-data-agents/core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { serializeAnalystRegistryYaml, validateConfig } from 'gemini-data-agent-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMcpServer } from '../server.js';

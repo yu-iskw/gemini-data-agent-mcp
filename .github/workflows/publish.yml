@@ -28,23 +28,86 @@ permissions:
   id-token: write
 
 jobs:
-  check-token:
-    name: Check if the NPM_TOKEN is set
+  validate:
+    name: Validate MCP packages
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Check if the NPM_TOKEN is set
-        env:
-          NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}'
+      - name: Checkout
+        uses: actions/checkout@v6
+      - uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install dependencies
         run: |
-          if [ -z "${NODE_AUTH_TOKEN}" ]; then
-            echo "NPM_TOKEN is not set"
+          pnpm install --frozen-lockfile
+      - name: Build packages
+        run: |
+          pnpm build
+      - name: Run tests
+        run: |
+          pnpm test
+      - name: Dry-run analyst-mcp publish tarball (hoisted linker)
+        run: |
+          set -euo pipefail
+          pnpm config set node-linker hoisted
+          pnpm install --frozen-lockfile
+          pnpm build
+          out=$(pnpm publish --filter @gemini-data-agents/analyst-mcp --dry-run --no-git-checks 2>&1)
+          echo "$out"
+          echo "$out" | grep -q 'package size:'
+          echo "$out" | grep -q 'total files:'
+          echo "$out" | grep -q 'Bundled Dependencies'
+          if echo "$out" | grep -qE 'package size: [0-9]+\.[0-9]+ MB'; then
+            echo "::error::Publish tarball exceeds MB threshold — check bundledDependencies layout"
             exit 1
           fi
-  publish:
-    needs:
-      - check-token
-    name: Publish to npm
+          if echo "$out" | grep -q 'dist/__tests__'; then
+            echo "::error::Tarball lists dist/__tests__ from bundled core"
+            exit 1
+          fi
+      - name: Smoke-test analyst-mcp tarball outside workspace
+        run: |
+          set -euo pipefail
+          pack_dir=$(mktemp -d)
+          pnpm --filter @gemini-data-agents/analyst-mcp pack --pack-destination "$pack_dir"
+          tgz=$(ls "$pack_dir"/*.tgz)
+          smoke_dir=$(mktemp -d)
+          npm install --prefix "$smoke_dir" "$tgz"
+          "$smoke_dir/node_modules/.bin/gemini-data-analyst-mcp" validate-config \
+            --config "${GITHUB_WORKSPACE}/examples/analyst.config.yaml"
+      - name: Require npm CLI for OIDC trusted publishing
+        run: |
+          set -euo pipefail
+          v=$(npm --version)
+          echo "npm version: ${v}"
+          IFS='.-' read -r major minor patch _ <<<"${v}"
+          major=${major:-0}
+          minor=${minor:-0}
+          patch=${patch:-0}
+          if [ "${major}" -lt 11 ] \
+          || { [ "${major}" -eq 11 ] && [ "${minor}" -lt 5 ]; } \
+          || { [ "${major}" -eq 11 ] && [ "${minor}" -eq 5 ] && [ "${patch}" -lt 1 ]; }; then
+            echo "::error::npm must be >= 11.5.1 for trusted publishing (https://docs.npmjs.com/trusted-publishers)"
+            exit 1
+          fi
+
+  publish-analyst-mcp:
+    name: Publish @gemini-data-agents/analyst-mcp to npm
     runs-on: ubuntu-latest
+    needs: validate
     permissions:
       contents: read
       id-token: write
@@ -57,26 +120,22 @@ jobs:
       - uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
           egress-policy: audit
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
+          cache: pnpm
           registry-url: https://registry.npmjs.org
-          # TODO: Replace with your scope
-          scope: ''
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          scope: '@gemini-data-agents'
       - name: Install dependencies
         run: |
+          pnpm config set node-linker hoisted
           pnpm install --frozen-lockfile
-      - name: Build package
+      - name: Build packages
         run: |
           pnpm build
-      - name: Run tests
-        run: |
-          pnpm test
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: '${{ secrets.NPM_TOKEN }}'
         run: |
-          pnpm -r publish --no-git-checks --access public
+          pnpm publish --filter @gemini-data-agents/analyst-mcp --no-git-checks --access public

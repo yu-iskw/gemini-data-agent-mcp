@@ -120,7 +120,7 @@ When you want durable fixes (not one-off chat advice):
 
 ## Learned Workspace Facts
 
-- Core implementation focus is `packages/gemini-data-agent-core` plus MCP servers `packages/gemini-data-analyst-mcp` and `packages/gemini-data-agent-admin-mcp`.
+- Core implementation focus is `packages/core` plus MCP servers `packages/analyst-mcp` and `packages/admin-mcp`.
 - This workspace repeatedly validates MCP server behavior against official MCP and Google Gemini Data Agent documentation.
 - Security and quality hardening commonly includes `pnpm knip`, `osv-scanner`, and `grype` in addition to standard lint/test checks.
 - The MCP server intentionally removed A2A-related tools and concentrates on MCP-native flows.

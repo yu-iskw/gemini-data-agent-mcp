@@ -8,6 +8,12 @@
     },
     "packages/*": {
       "project": ["src/**/*.ts"]
+    },
+    "packages/analyst-mcp": {
+      "ignoreDependencies": ["js-yaml"]
+    },
+    "packages/admin-mcp": {
+      "ignoreDependencies": ["js-yaml"]
     }
   }
 }

@@ -1,17 +1,21 @@
 {
-  "name": "gemini-data-agent-core",
+  "name": "@gemini-data-agents/core",
   "version": "0.1.0",
+  "private": true,
   "description": "Shared config, Gemini Data Agents REST client, security, and registry helpers for Gemini Data Agent MCP servers.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
-    "test": "pnpm --workspace-root exec vitest run packages/gemini-data-agent-core/src"
+    "build": "tsc && node ../../scripts/rm-dist-tests.mjs",
+    "test": "pnpm --workspace-root exec vitest run packages/core/src"
   },
   "dependencies": {
     "google-auth-library": "^10.6.2",

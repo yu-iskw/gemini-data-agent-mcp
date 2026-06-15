@@ -1,11 +1,11 @@
+import { validateConfig } from '@gemini-data-agents/core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { validateConfig } from 'gemini-data-agent-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createMcpServer } from '../server.js';
 
-import type { AppConfig } from 'gemini-data-agent-core';
+import type { AppConfig } from '@gemini-data-agents/core';
 
 const adminConfig: AppConfig = validateConfig({
   agents: {
