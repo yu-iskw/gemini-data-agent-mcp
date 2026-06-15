@@ -5,12 +5,7 @@ import * as yaml from 'js-yaml';
 import { extractProjectAndLocation } from '../google-api/endpoints.js';
 import { DataAgentMcpError } from '../types.js';
 
-import {
-  ALLOWED_API_VERSIONS,
-  DATA_AGENT_RESOURCE_PATTERN,
-  DEFAULT_SECURITY,
-  DEFAULT_SERVER,
-} from './defaults.js';
+import { ALLOWED_API_VERSIONS, DEFAULT_SECURITY, DEFAULT_SERVER } from './defaults.js';
 import { AppConfigInputSchema } from './schema.js';
 
 import type { AgentConfig, AppConfig, AuthConfig } from '../types.js';
@@ -106,16 +101,6 @@ function normalizeAgent(
   agentInput: AppConfigInput['agents'][string],
   rootApiVersion: AppConfig['api_version'],
 ): AgentConfig {
-  if (!DATA_AGENT_RESOURCE_PATTERN.test(agentInput.data_agent)) {
-    throw new DataAgentMcpError(
-      'CONFIG_INVALID_DATA_AGENT',
-      `Agent "${name}" data_agent must be a full resource name matching ` +
-        'projects/{project}/locations/{location}/dataAgents/{id}',
-      false,
-      { agent: name },
-    );
-  }
-
   const derived = extractProjectAndLocation(agentInput.data_agent);
   if (!derived) {
     throw new DataAgentMcpError(

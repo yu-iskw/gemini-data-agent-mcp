@@ -1,5 +1,5 @@
-# Example admin MCP server configuration (gemini-data-agent-admin-mcp).
-# Uses the same v2 AppConfig schema as the analyst registry.
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Minimal admin MCP config (same v2 schema as analyst registry).
 
 api_version: v1beta
 
@@ -13,6 +13,3 @@ agents:
     data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
     tools:
       - query_data_agent
-      - chat_data_agent
-      - create_data_agent_conversation
-      - list_conversation_messages

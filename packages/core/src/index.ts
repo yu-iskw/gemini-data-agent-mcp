@@ -7,6 +7,7 @@ export {
   shouldWarnOnV1Alpha,
 } from './config/validation.js';
 export { AppConfigInputSchema } from './config/schema.js';
+export { exportAppConfigJsonSchema, APP_CONFIG_JSON_SCHEMA_ID } from './config/json-schema.js';
 export {
   ALLOWED_AGENT_TOOLS,
   ALLOWED_API_VERSIONS,

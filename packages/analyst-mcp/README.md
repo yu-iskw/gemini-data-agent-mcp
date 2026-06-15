@@ -34,11 +34,16 @@ Transport: **stdio** only (default). Logs go to **stderr**; MCP JSON-RPC stays o
 
 ## Configuration
 
-Point `--config` at a YAML file listing your agents. See [examples/analyst.config.yaml](../../examples/analyst.config.yaml).
+Point `--config` at a YAML file listing your agents.
+
+- Minimal: [examples/analyst.config.minimal.yaml](../../examples/analyst.config.minimal.yaml)
+- Full: [examples/analyst.config.full.yaml](../../examples/analyst.config.full.yaml)
+- JSON Schema: [schemas/app-config.v2.schema.json](../../schemas/app-config.v2.schema.json) (regenerate with `pnpm schema:export`)
 
 Minimal shape:
 
 ```yaml
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
 api_version: v1beta
 
 agents:
@@ -46,9 +51,6 @@ agents:
     data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
     tools:
       - query_data_agent
-      - chat_data_agent
-      - create_data_agent_conversation
-      - list_conversation_messages
 ```
 
 Per-agent **`tools`** gate which data-agent API tools succeed. Session and registry tools are always available. The analyst server does **not** register raw REST passthrough.

@@ -49,7 +49,7 @@ describe('loadConfig', () => {
     }
   });
 
-  it('throws CONFIG_INVALID_DATA_AGENT for bare agent id', () => {
+  it('throws CONFIG_VALIDATION_ERROR for bare data_agent id', () => {
     expect(() => loadConfig(path.join(fixturesDir, 'config-invalid-data-agent.yaml'))).toThrow(
       DataAgentMcpError,
     );
@@ -57,7 +57,7 @@ describe('loadConfig', () => {
       loadConfig(path.join(fixturesDir, 'config-invalid-data-agent.yaml'));
     } catch (err) {
       expect(err).toBeInstanceOf(DataAgentMcpError);
-      expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID_DATA_AGENT');
+      expect((err as DataAgentMcpError).code).toBe('CONFIG_VALIDATION_ERROR');
     }
   });
 });

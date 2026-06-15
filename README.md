@@ -38,7 +38,7 @@ gemini-data-analyst-mcp --help
 
 ## Quickstart: analyst server
 
-1. Create a config file. Start from [examples/analyst.config.yaml](examples/analyst.config.yaml).
+1. Create a config file. Start from [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml) or see [examples/analyst.config.full.yaml](examples/analyst.config.full.yaml) for all optional fields.
 
 2. Authenticate with Google Cloud (ADC):
 
@@ -99,7 +99,7 @@ Typical workflow:
 3. Open a PR, review, and merge.
 4. Point analyst **`--config`** at the committed file path.
 
-See [examples/admin.config.yaml](examples/admin.config.yaml) and [examples/generated.registry.yaml](examples/generated.registry.yaml).
+See [examples/admin.config.minimal.yaml](examples/admin.config.minimal.yaml), [examples/admin.config.full.yaml](examples/admin.config.full.yaml), and [examples/generated.registry.yaml](examples/generated.registry.yaml).
 
 ## YAML configuration
 
@@ -107,7 +107,10 @@ Both servers share the same v2 agent definition schema.
 
 ### Minimal config
 
+See [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml):
+
 ```yaml
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
 api_version: v1beta
 
 agents:
@@ -118,6 +121,35 @@ agents:
 ```
 
 Omit `impersonate_service_account` for ADC (local dev). Optional `server` block configures MCP server identity and logging.
+
+### Full config
+
+See [examples/analyst.config.full.yaml](examples/analyst.config.full.yaml) for a multi-agent setup with:
+
+- `server` (`name`, `log_level`, `transport`)
+- `display_name`, `description`, `generation_options`
+- Per-agent `api_version` override
+- Per-agent `impersonate_service_account` (multi-project)
+- Optional `client: { project, location }` when API routing differs from the `data_agent` resource
+- All four allowed tool names on chat-enabled agents
+
+Admin examples: [examples/admin.config.minimal.yaml](examples/admin.config.minimal.yaml) and [examples/admin.config.full.yaml](examples/admin.config.full.yaml).
+
+### JSON Schema
+
+Editor validation and autocomplete: [schemas/app-config.v2.schema.json](schemas/app-config.v2.schema.json).
+
+Add to the top of a YAML config file:
+
+```yaml
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+```
+
+Regenerate after schema changes:
+
+```bash
+pnpm schema:export
+```
 
 ### Advanced options
 

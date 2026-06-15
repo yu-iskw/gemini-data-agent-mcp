@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Minimal analyst MCP config: ADC auth, one agent, one tool.
+
+api_version: v1beta
+
+agents:
+  my-agent:
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent
