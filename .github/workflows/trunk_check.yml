@@ -47,10 +47,12 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Verify gemini-data-agent-core is linked
-        run: test -f packages/gemini-data-agent-admin-mcp/node_modules/gemini-data-agent-core/package.json
-      - name: Build gemini-data-agent-core
-        run: pnpm --filter gemini-data-agent-core build
+      - name: Verify @gemini-data-agents/core is linked
+        run: |
+          test -f packages/admin-mcp/node_modules/@gemini-data-agents/core/package.json
+          test -f packages/analyst-mcp/node_modules/@gemini-data-agents/core/package.json
+      - name: Build @gemini-data-agents/core
+        run: pnpm --filter @gemini-data-agents/core build
       - name: Trunk Check
         uses: trunk-io/trunk-action@v1
         with:

@@ -2,11 +2,7 @@
   "mcpServers": {
     "gemini-data-agent": {
       "command": "node",
-      "args": [
-        "packages/gemini-data-analyst-mcp/dist/cli.js",
-        "--config",
-        "config.mcp-inspector.yaml"
-      ]
+      "args": ["packages/analyst-mcp/dist/cli.js", "--config", "config.mcp-inspector.yaml"]
     }
   }
 }

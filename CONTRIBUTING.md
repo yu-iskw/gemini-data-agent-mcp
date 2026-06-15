@@ -4,25 +4,24 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
 
 ## Repository layout
 
-| Package                                                                        | Role                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`packages/gemini-data-agent-mcp`](packages/gemini-data-agent-mcp)             | **npm publish target.** Bundles core + both MCP servers; exposes **`gemini-data-analyst-mcp`** and **`gemini-data-agent-admin-mcp`** binaries.                                       |
-| [`packages/gemini-data-agent-core`](packages/gemini-data-agent-core)           | Shared config (Zod), YAML load/validate, registry YAML serialize/diff, ADC/impersonation auth, Gemini Data Agents REST client, redaction, audit logging helpers. **No MCP runtime.** |
-| [`packages/gemini-data-analyst-mcp`](packages/gemini-data-analyst-mcp)         | Analyst MCP server source. Binary: **`gemini-data-analyst-mcp`**.                                                                                                                    |
-| [`packages/gemini-data-agent-admin-mcp`](packages/gemini-data-agent-admin-mcp) | Admin MCP server source. Binary: **`gemini-data-agent-admin-mcp`**.                                                                                                                  |
+| Package                                        | npm name                          | Published?         | Role                                                                                                                                                                                 |
+| ---------------------------------------------- | --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`packages/core`](packages/core)               | `@gemini-data-agents/core`        | No (`private`)     | Shared config (Zod), YAML load/validate, registry YAML serialize/diff, ADC/impersonation auth, Gemini Data Agents REST client, redaction, audit logging helpers. **No MCP runtime.** |
+| [`packages/analyst-mcp`](packages/analyst-mcp) | `@gemini-data-agents/analyst-mcp` | **Yes**            | Analyst MCP server. Binary: **`gemini-data-analyst-mcp`**. Bundles core.                                                                                                             |
+| [`packages/admin-mcp`](packages/admin-mcp)     | `@gemini-data-agents/admin-mcp`   | No (publish-ready) | Admin MCP server. Binary: **`gemini-data-agent-admin-mcp`**. Bundles core.                                                                                                           |
 
 ## Architecture
 
 ```text
                     ┌─────────────────────────────┐
-                    │  gemini-data-agent-core     │
+                    │  @gemini-data-agents/core   │
+                    │  (private workspace only)   │
                     │  config · client · security │
                     │  registry YAML helpers      │
                     └──────────────┬──────────────┘
            ┌───────────────────────┼───────────────────────┐
            ▼                       ▼
 ┌────────────────────┐   ┌────────────────────┐
-│ gemini-data-       │   │ gemini-data-agent- │
 │ analyst-mcp        │   │ admin-mcp          │
 │ (read-only registry│   │ (YAML artifacts,  │
 │  + sessions)       │   │  lifecycle stubs)  │
@@ -41,6 +40,8 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
 - **No GitHub automation** from the admin server (no commit, push, or PR APIs).
 - **No HTTP MCP transport** unless added later (`stdio` is supported).
 - Analyst server **does not** expose raw REST passthrough or admin-only lifecycle tools.
+- **Core is not published** to npm; it is bundled into each MCP package tarball.
+- **Admin MCP is not published** to npm yet (monorepo/dev only).
 
 ## Development setup
 
@@ -59,16 +60,16 @@ pnpm format
 Build individual packages:
 
 ```bash
-pnpm --filter gemini-data-agent-core build
-pnpm --filter gemini-data-analyst-mcp build
-pnpm --filter gemini-data-agent-admin-mcp build
+pnpm --filter @gemini-data-agents/core build
+pnpm --filter @gemini-data-agents/analyst-mcp build
+pnpm --filter @gemini-data-agents/admin-mcp build
 ```
 
 Run servers from built artifacts (without a global npm install):
 
 ```bash
-node packages/gemini-data-analyst-mcp/dist/cli.js --config config.yaml
-node packages/gemini-data-agent-admin-mcp/dist/cli.js --config admin-config.yaml
+node packages/analyst-mcp/dist/cli.js --config config.yaml
+node packages/admin-mcp/dist/cli.js --config admin-config.yaml
 ```
 
 Tests live under `packages/*/src/**/*.test.ts`. Run the full suite with `pnpm test` from the repository root.
@@ -83,30 +84,32 @@ See [AGENTS.md](AGENTS.md) for repository conventions and agent tooling.
 
 ## Releasing
 
-Publishing is handled by [`packages/gemini-data-agent-mcp`](packages/gemini-data-agent-mcp) — a single npm package that bundles the core, analyst, and admin workspace packages via `bundledDependencies`.
+Only **`@gemini-data-agents/analyst-mcp`** is published to npm today. It bundles the private **`@gemini-data-agents/core`** workspace package via `bundledDependencies`.
 
-CI uses `pnpm publish --filter gemini-data-agent-mcp` with a hoisted node linker (required for bundling). Local development keeps the default isolated linker; only the publish path switches to hoisted.
+CI uses `pnpm publish --filter @gemini-data-agents/analyst-mcp` with a hoisted node linker (required for bundling). Local development keeps the default isolated linker; only the publish path switches to hoisted.
+
+Do **not** use `npm pack` inside `packages/analyst-mcp` to validate the release tarball — with a hoisted workspace layout it can follow symlinks and report a multi‑MB bogus archive. Use `pnpm publish --filter @gemini-data-agents/analyst-mcp --dry-run --no-git-checks` (after hoisted install) or the validate job in [`.github/workflows/publish.yml`](.github/workflows/publish.yml).
 
 ### First release (one-time bootstrap)
 
 npm trusted publishing requires the package to exist on npm before you can configure a trusted publisher. Use a granular npm token for the initial publish:
 
-1. Bump the version in [`packages/gemini-data-agent-mcp/package.json`](packages/gemini-data-agent-mcp/package.json).
+1. Bump the version in [`packages/analyst-mcp/package.json`](packages/analyst-mcp/package.json) (and core if you keep versions in sync for bundled semver rewrite).
 2. Run `pnpm build && pnpm test`.
 3. Publish locally (with `NODE_AUTH_TOKEN` set or after `npm login`):
 
    ```bash
-   pnpm publish:npm
+   pnpm publish:npm:analyst
    ```
 
-   After bootstrap, restore the dev linker if needed:
+   After bootstrap, restore the dev linker:
 
    ```bash
    pnpm config delete node-linker
    pnpm install
    ```
 
-4. On [npmjs.com](https://www.npmjs.com) → **gemini-data-agent-mcp** → **Settings → Trusted publishing**, configure:
+4. On [npm](https://docs.npmjs.com/trusted-publishers) → **@gemini-data-agents/analyst-mcp** → **Settings → Trusted publishing**, configure:
    - Provider: GitHub Actions
    - Repository: `yu-iskw/gemini-data-agent-mcp`
    - Workflow filename: `publish.yml`
@@ -114,7 +117,7 @@ npm trusted publishing requires the package to exist on npm before you can confi
 
 ### Subsequent releases
 
-1. Bump the version in `packages/gemini-data-agent-mcp/package.json`.
+1. Bump the version in `packages/analyst-mcp/package.json` (and core if synced).
 2. Create a GitHub Release — [`.github/workflows/publish.yml`](.github/workflows/publish.yml) publishes via OIDC (no `NPM_TOKEN` required).
 
 ## Pull requests

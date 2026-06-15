@@ -1,6 +1,6 @@
 {
   "name": "typescript-template",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "",
   "keywords": [],
@@ -25,7 +25,7 @@
     "knip": "knip",
     "codeql:local": "bash dev/codeql.sh",
     "test": "vitest run",
-    "publish:npm": "pnpm config set node-linker hoisted && pnpm install && pnpm build && pnpm publish --filter gemini-data-agent-mcp --no-git-checks --access public"
+    "publish:npm:analyst": "pnpm config set node-linker hoisted && pnpm install && pnpm build && pnpm publish --filter @gemini-data-agents/analyst-mcp --no-git-checks --access public"
   },
   "devDependencies": {
     "@trunkio/launcher": "^1.3.4",

@@ -1,13 +1,13 @@
 # gemini-data-agent-mcp
 
-MCP servers for [**Gemini Data Agents**](https://cloud.google.com/gemini/docs/data-analytics) on Google Cloud.
+MCP servers for [**Gemini Data Agents**](https://cloud.google.com/gemini/docs/conversational-analytics-api/overview) on Google Cloud.
 
-Install one npm package and get two role-separated CLI binaries:
+Install role-separated MCP packages under **`@gemini-data-agents`**:
 
-| Binary                            | Audience                     | Purpose                                                                                  |
-| --------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------- |
-| **`gemini-data-analyst-mcp`**     | Data analysts, coding agents | Query and chat with data agents, manage shared sessions, read a **static YAML registry** |
-| **`gemini-data-agent-admin-mcp`** | Operators                    | Generate, validate, and diff analyst registry YAML for humans to commit                  |
+| Package                               | Audience                     | Binary                        | npm install                                      |
+| ------------------------------------- | ---------------------------- | ----------------------------- | ------------------------------------------------ |
+| **`@gemini-data-agents/analyst-mcp`** | Data analysts, coding agents | `gemini-data-analyst-mcp`     | `npm install -g @gemini-data-agents/analyst-mcp` |
+| **`@gemini-data-agents/admin-mcp`**   | Operators                    | `gemini-data-agent-admin-mcp` | Monorepo/dev only (not published yet)            |
 
 Works with Cursor, Claude Code, Codex, and any MCP client that supports **stdio** transport.
 
@@ -22,19 +22,18 @@ Works with Cursor, Claude Code, Codex, and any MCP client that supports **stdio*
             geminidataanalytics.googleapis.com
 ```
 
-Analysts consume a **committed YAML file** on disk. Operators use the admin server to produce that YAML; humans copy it into Git (no automated commit/PR from the server).
+Analysts consume a **committed YAML file** on disk. Operators use the admin server to produce that YAML; humans copy it into Git (no automated commit/PR from the server). For operators, run the admin server from a clone: `node packages/admin-mcp/dist/cli.js --config admin-config.yaml` (see [Quickstart: admin server](#quickstart-admin-server)).
 
 ## Installation
 
 ```bash
-npm install -g gemini-data-agent-mcp
+npm install -g @gemini-data-agents/analyst-mcp
 ```
 
-Verify:
+Verify (analyst binary only — admin requires a monorepo clone; see [Quickstart: admin server](#quickstart-admin-server)):
 
 ```bash
 gemini-data-analyst-mcp --help
-gemini-data-agent-admin-mcp --help
 ```
 
 ## Quickstart: analyst server
@@ -70,10 +69,10 @@ The analyst server exposes analytical tools, session collaboration, resources, a
 
 ## Quickstart: admin server
 
-For operators generating registry YAML that analysts will commit:
+For operators generating registry YAML that analysts will commit (monorepo clone required — admin is not on npm yet):
 
 ```bash
-gemini-data-agent-admin-mcp --config /absolute/path/to/admin-config.yaml
+node packages/admin-mcp/dist/cli.js --config /absolute/path/to/admin-config.yaml
 ```
 
 Example MCP client entry:
@@ -82,8 +81,12 @@ Example MCP client entry:
 {
   "mcpServers": {
     "gemini-data-agent-admin": {
-      "command": "gemini-data-agent-admin-mcp",
-      "args": ["--config", "/absolute/path/to/admin-config.yaml"]
+      "command": "node",
+      "args": [
+        "/absolute/path/to/gemini-data-agent-mcp/packages/admin-mcp/dist/cli.js",
+        "--config",
+        "/absolute/path/to/admin-config.yaml"
+      ]
     }
   }
 }

@@ -1,4 +1,4 @@
-import { validateConfig } from 'gemini-data-agent-core';
+import { validateConfig } from '@gemini-data-agents/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import type * as GoogleAuthLibrary from 'google-auth-library';
@@ -84,7 +84,7 @@ describe('query_data_agent tool behavior', () => {
       json: async () => mockResponse,
     });
 
-    const { resolveCredentials, createClient } = await import('gemini-data-agent-core');
+    const { resolveCredentials, createClient } = await import('@gemini-data-agents/core');
 
     const creds = await resolveCredentials(config.agents['test-agent']!.auth);
     const client = createClient(creds);
@@ -125,7 +125,7 @@ describe('query_data_agent tool behavior', () => {
       json: async () => [{ systemMessage: { text: { parts: ['ok'] } } }],
     });
 
-    const { resolveCredentials, createClient } = await import('gemini-data-agent-core');
+    const { resolveCredentials, createClient } = await import('@gemini-data-agents/core');
 
     const creds = await resolveCredentials(config.agents['test-agent']!.auth);
     const client = createClient(creds);
@@ -156,7 +156,7 @@ describe('query_data_agent tool behavior', () => {
       json: async () => [{ systemMessage: { text: { parts: ['ok'] } } }],
     });
 
-    const { resolveCredentials, createClient } = await import('gemini-data-agent-core');
+    const { resolveCredentials, createClient } = await import('@gemini-data-agents/core');
     const creds = await resolveCredentials(config.agents['test-agent']!.auth);
     const client = createClient(creds);
 
@@ -210,7 +210,7 @@ describe('query_data_agent tool behavior (conversation paths)', () => {
         }),
       });
 
-    const { resolveCredentials, createClient } = await import('gemini-data-agent-core');
+    const { resolveCredentials, createClient } = await import('@gemini-data-agents/core');
     const creds = await resolveCredentials(config.agents['test-agent']!.auth);
     const client = createClient(creds);
 
@@ -257,8 +257,8 @@ describe('query_data_agent tool behavior (conversation paths)', () => {
       }),
     });
 
-    const { resolveCredentials, createClient } = await import('gemini-data-agent-core');
-    const { DataAgentMcpError } = await import('gemini-data-agent-core');
+    const { resolveCredentials, createClient } = await import('@gemini-data-agents/core');
+    const { DataAgentMcpError } = await import('@gemini-data-agents/core');
 
     const creds = await resolveCredentials(config.agents['test-agent']!.auth);
     const client = createClient(creds);
@@ -289,7 +289,7 @@ describe('query_data_agent tool behavior (conversation paths)', () => {
       json: async () => ({ deleted: true }),
     });
 
-    const { resolveCredentials, createClient } = await import('gemini-data-agent-core');
+    const { resolveCredentials, createClient } = await import('@gemini-data-agents/core');
 
     const creds = await resolveCredentials(config.agents['test-agent']!.auth);
     const client = createClient(creds);

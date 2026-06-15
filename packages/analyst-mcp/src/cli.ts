@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
 import {
   DataAgentMcpError,
   loadConfig,
@@ -8,11 +7,12 @@ import {
   DEFAULT_LOG_LEVEL,
   LOG_LEVELS,
   parseLogLevel,
-} from 'gemini-data-agent-core';
+} from '@gemini-data-agents/core';
+import { Command } from 'commander';
 
 import { startServer } from './server.js';
 
-import type { ServerConfig } from 'gemini-data-agent-core';
+import type { ServerConfig } from '@gemini-data-agents/core';
 
 const program = new Command();
 const configPathOptionFlags = '-c, --config <path>';

@@ -1,4 +1,4 @@
-import { redact, redactServiceAccount, validateConfig } from 'gemini-data-agent-core';
+import { redact, redactServiceAccount, validateConfig } from '@gemini-data-agents/core';
 import { describe, it, expect } from 'vitest';
 
 const config = validateConfig({

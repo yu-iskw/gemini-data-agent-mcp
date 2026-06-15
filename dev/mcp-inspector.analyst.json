@@ -3,11 +3,7 @@
     "gemini-data-analyst": {
       "type": "stdio",
       "command": "node",
-      "args": [
-        "packages/gemini-data-analyst-mcp/dist/cli.js",
-        "--config",
-        "examples/analyst.config.yaml"
-      ]
+      "args": ["packages/analyst-mcp/dist/cli.js", "--config", "examples/analyst.config.yaml"]
     }
   }
 }

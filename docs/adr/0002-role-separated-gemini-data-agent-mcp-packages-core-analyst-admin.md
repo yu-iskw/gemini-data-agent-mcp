@@ -6,6 +6,8 @@ Date: 2026-04-29
 
 Accepted
 
+> **Note (2026-06):** Workspace directories and npm scopes were renamed to `packages/core` (`@gemini-data-agents/core`), `packages/analyst-mcp` (`@gemini-data-agents/analyst-mcp`), and `packages/admin-mcp` (`@gemini-data-agents/admin-mcp`); CLI binary names are unchanged. Core is not published to npm.
+
 ## Context
 
 The repository originally shipped a single MCP package (`gemini-data-agent-mcp`) combining:
