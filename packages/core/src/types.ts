@@ -4,12 +4,6 @@ export type AuthMode = 'adc' | 'impersonation';
 
 export type AuthSource = 'adc';
 
-export interface AgentCapabilities {
-  query_data: boolean;
-  chat: boolean;
-  raw_passthrough: boolean;
-}
-
 export interface AgentGenerationOptions {
   generate_query?: boolean;
   generate_query_result?: boolean;
@@ -33,22 +27,8 @@ export interface AgentConfig {
   api_version: ApiVersion;
   data_agent: string;
   auth: AuthConfig;
-  capabilities: AgentCapabilities;
+  tools: string[];
   generation_options?: AgentGenerationOptions;
-}
-
-export interface DefaultsConfig {
-  api_version?: ApiVersion;
-  location?: string;
-  timeout_seconds?: number;
-  auth?: Partial<AuthConfig>;
-}
-
-export interface VersionPolicyConfig {
-  default: ApiVersion;
-  allowed_versions: ApiVersion[];
-  allow_tool_override: boolean;
-  warn_on_v1alpha: boolean;
 }
 
 export interface RedactionConfig {
@@ -92,10 +72,9 @@ export interface ServerConfig {
 }
 
 export interface AppConfig {
+  api_version: ApiVersion;
   server: ServerConfig;
-  version_policy: VersionPolicyConfig;
   security: SecurityConfig;
-  defaults: DefaultsConfig;
   agents: Record<string, AgentConfig>;
 }
 

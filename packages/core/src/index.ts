@@ -1,6 +1,18 @@
 export { loadConfig, validateConfig } from './config/loader.js';
-export { resolveAgentConfig, resolveApiVersion, resolveTimeout } from './config/validation.js';
-export { AppConfigSchema } from './config/schema.js';
+export {
+  resolveAgentConfig,
+  resolveApiVersion,
+  resolveTimeout,
+  agentHasTool,
+  shouldWarnOnV1Alpha,
+} from './config/validation.js';
+export { AppConfigInputSchema } from './config/schema.js';
+export {
+  ALLOWED_AGENT_TOOLS,
+  ALLOWED_API_VERSIONS,
+  DEFAULT_SECURITY,
+  DEFAULT_SERVER,
+} from './config/defaults.js';
 
 export { resolveCredentials } from './auth/index.js';
 export type { ResolvedCredentials } from './auth/index.js';
@@ -42,6 +54,7 @@ export {
   diffAnalystRegistryYaml,
   parseAndValidateAnalystRegistryYaml,
   serializeAnalystRegistryYaml,
+  buildConfigInput,
 } from './registry/analyst-registry-yaml.js';
 export type { SerializeAnalystRegistryOptions } from './registry/analyst-registry-yaml.js';
 

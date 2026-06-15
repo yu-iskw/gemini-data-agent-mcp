@@ -1,5 +1,4 @@
 import {
-  AppConfigSchema,
   calculateLatency,
   createAuditStartTime,
   DataAgentMcpError,
@@ -10,6 +9,7 @@ import {
   resolveAgentConfig,
   resolveCredentials,
   serializeAnalystRegistryYaml,
+  buildConfigInput,
   validateConfig,
   wrapNetworkError,
 } from '@gemini-data-agents/core';
@@ -68,7 +68,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
             event: 'mcp_tool_invocation',
             tool: 'generate_analyst_registry_yaml',
             agent: 'registry',
-            api_version: config.version_policy.default,
+            api_version: config.api_version,
             auth_mode: 'n/a',
             latency_ms: latency,
             success: true,
@@ -84,7 +84,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
             event: 'mcp_tool_invocation',
             tool: 'generate_analyst_registry_yaml',
             agent: 'registry',
-            api_version: config.version_policy.default,
+            api_version: config.api_version,
             auth_mode: 'n/a',
             latency_ms: latency,
             success: false,
@@ -176,7 +176,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
             event: 'mcp_tool_invocation',
             tool: 'inspect_admin_auth',
             agent: agentName,
-            api_version: config.version_policy.default,
+            api_version: config.api_version,
             auth_mode: agentConfig.auth.mode,
             latency_ms: latency,
             success: true,
@@ -210,30 +210,11 @@ function registerDryRunDataAgentChange(server: McpServer, config: AppConfig): vo
     },
     async (args) => {
       try {
-        const mergedAgents = {
-          ...config.agents,
-          [args.agent_name]: args.proposed_agent,
+        const input = buildConfigInput(config) as Record<string, unknown> & {
+          agents: Record<string, unknown>;
         };
-        const raw = {
-          server: config.server,
-          version_policy: config.version_policy,
-          security: config.security,
-          defaults: config.defaults,
-          agents: mergedAgents,
-        };
-        const parsed = AppConfigSchema.safeParse(raw);
-        if (!parsed.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({ valid: false, issues: parsed.error.flatten() }, null, 2),
-              },
-            ],
-            isError: true,
-          };
-        }
-        validateConfig(raw);
+        input.agents[args.agent_name] = args.proposed_agent;
+        validateConfig(input);
         return {
           content: [
             {

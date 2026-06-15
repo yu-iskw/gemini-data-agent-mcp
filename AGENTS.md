@@ -116,11 +116,16 @@ When you want durable fixes (not one-off chat advice):
 - Prefer simple, direct, maintainable solutions over clever abstractions.
 - Prefer state-based tests with real collaborators (or simple fakes/stubs), and avoid mocks/monkey patches unless explicitly approved.
 - When using plan-driven execution, keep the plan file unchanged, reuse existing TODOs, and advance work sequentially to completion.
-- Value explicit verification loops (`/verifier`, lint/security scans, and trial-and-error fixes) until behavior is confirmed working end to end.
+- Value explicit verification loops (`/verifier`, MCP Inspector for MCP servers, lint/security scans, and trial-and-error fixes) until behavior is confirmed working end to end.
+- Keep README.md end-user focused; put contributor and development guidance in CONTRIBUTING.md.
 
 ## Learned Workspace Facts
 
-- Core implementation focus is `packages/core` plus MCP servers `packages/analyst-mcp` and `packages/admin-mcp`.
+- Role-separated layout: `packages/core` (`@gemini-data-agents/core`, private shared library), `packages/analyst-mcp` (read-only analyst MCP), and `packages/admin-mcp` (admin MCP).
+- npm publishes only `@gemini-data-agents/analyst-mcp`; `@gemini-data-agents/core` stays private and is not published.
+- MCP Inspector configs and smoke script live under `dev/` for analyst and admin server validation.
+- Config v2 YAML uses full `data_agent` resource names, a root `api_version`, and per-agent `tools` lists; ADC is default with optional `impersonate_service_account`.
+- Backward compatibility is not required during active development; large refactors are acceptable.
 - This workspace repeatedly validates MCP server behavior against official MCP and Google Gemini Data Agent documentation.
 - Security and quality hardening commonly includes `pnpm knip`, `osv-scanner`, and `grype` in addition to standard lint/test checks.
 - The MCP server intentionally removed A2A-related tools and concentrates on MCP-native flows.

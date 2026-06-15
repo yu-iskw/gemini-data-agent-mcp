@@ -11,7 +11,7 @@ function getAgent(config: AppConfig, agentName: string) {
 export function registerResources(server: McpServer, config: AppConfig): void {
   registerAgentsListResource(server, config);
   registerAgentDetailResource(server, config);
-  registerAgentCapabilitiesResource(server, config);
+  registerAgentToolsResource(server, config);
   registerAgentAuthPolicyResource(server, config);
   registerPromptsResource(server, config);
 }
@@ -29,7 +29,7 @@ function registerAgentsListResource(server: McpServer, config: AppConfig): void 
         project: agent.project,
         location: agent.location,
         api_version: agent.api_version,
-        capabilities: agent.capabilities,
+        tools: agent.tools,
       }));
 
       return {
@@ -89,7 +89,7 @@ function registerAgentDetailResource(server: McpServer, config: AppConfig): void
             source: agent.auth.source,
             impersonate_service_account: agent.auth.impersonate_service_account,
           },
-          capabilities: agent.capabilities,
+          tools: agent.tools,
           generation_options: agent.generation_options,
         },
         config.security.redaction.enabled,
@@ -108,21 +108,24 @@ function registerAgentDetailResource(server: McpServer, config: AppConfig): void
   );
 }
 
-function registerAgentCapabilitiesResource(server: McpServer, config: AppConfig): void {
-  const template = new ResourceTemplate('gemini-data-agent://agents/{agent}/capabilities', {
+function registerAgentToolsResource(server: McpServer, config: AppConfig): void {
+  const template = new ResourceTemplate('gemini-data-agent://agents/{agent}/tools', {
     list: async () => ({
       resources: Object.keys(config.agents).map((name) => ({
-        uri: `gemini-data-agent://agents/${name}/capabilities`,
-        name: `${name} capabilities`,
+        uri: `gemini-data-agent://agents/${name}/tools`,
+        name: `${name} tools`,
         mimeType: 'application/json',
       })),
     }),
   });
 
   server.resource(
-    'agent-capabilities',
+    'agent-tools',
     template,
-    { mimeType: 'application/json', description: 'Capabilities of a named Gemini Data Agent.' },
+    {
+      mimeType: 'application/json',
+      description: 'Enabled MCP tools for a named Gemini Data Agent.',
+    },
     async (uri, variables) => {
       const agentName = String(variables['agent'] ?? '');
       const agent = getAgent(config, agentName);
@@ -136,7 +139,7 @@ function registerAgentCapabilitiesResource(server: McpServer, config: AppConfig)
           {
             uri: uri.href,
             mimeType: 'application/json',
-            text: JSON.stringify(agent.capabilities, null, 2),
+            text: JSON.stringify({ tools: agent.tools }, null, 2),
           },
         ],
       };

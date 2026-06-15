@@ -1,5 +1,4 @@
-# Example analyst MCP server configuration (static registry consumed by gemini-data-analyst-mcp).
-# Copy or merge into your repo and pass: gemini-data-analyst-mcp --config /path/to/this/file.yaml
+api_version: v1beta
 
 server:
   name: gemini-data-analyst-mcp
@@ -8,9 +7,9 @@ server:
 
 agents:
   my-agent:
-    project: my-gcp-project
-    location: us-central1
-    api_version: v1beta
-    data_agent: my-agent
-    auth:
-      mode: adc
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent
+      - chat_data_agent
+      - create_data_agent_conversation
+      - list_conversation_messages

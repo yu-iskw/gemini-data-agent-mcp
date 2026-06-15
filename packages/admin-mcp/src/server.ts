@@ -20,7 +20,7 @@ export async function startServer(config: AppConfig): Promise<void> {
   logInfo('server', `Starting ${config.server.name} (admin)`, {
     transport: config.server.transport,
     agents: agentCount,
-    version_policy: config.version_policy.default,
+    api_version: config.api_version,
   });
 
   if (config.server.transport === 'stdio' || config.server.transport === undefined) {

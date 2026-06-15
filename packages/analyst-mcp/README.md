@@ -39,28 +39,23 @@ Point `--config` at a YAML file listing your agents. See [examples/analyst.confi
 Minimal shape:
 
 ```yaml
+api_version: v1beta
+
 agents:
   my-agent:
-    project: my-gcp-project
-    location: us-central1
-    api_version: v1beta
-    data_agent: my-agent
-    auth:
-      mode: adc
-    capabilities:
-      query_data: true
-      chat: true
-      raw_passthrough: false
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent
+      - chat_data_agent
+      - create_data_agent_conversation
+      - list_conversation_messages
 ```
 
-Per-agent **`capabilities`** gate which tools succeed (`query_data`, `chat`). The analyst server does **not** register raw REST passthrough.
+Per-agent **`tools`** gate which data-agent API tools succeed. Session and registry tools are always available. The analyst server does **not** register raw REST passthrough.
 
 ## Authentication
 
-| `auth.mode`     | Usage                                                                                                 |
-| --------------- | ----------------------------------------------------------------------------------------------------- |
-| `adc`           | Local dev: `gcloud auth application-default login`                                                    |
-| `impersonation` | CI/shared runners: set `impersonate_service_account` and grant `roles/iam.serviceAccountTokenCreator` |
+Use ADC by default (`gcloud auth application-default login`). Set **`impersonate_service_account`** per agent for CI or shared runners (grant `roles/iam.serviceAccountTokenCreator`).
 
 ## MCP tools
 
@@ -98,7 +93,7 @@ Ask a natural-language analytical question to a configured Gemini Data Agent.
 | `context`            | no       | Optional `queryData` context object            |
 | `timeout_seconds`    | no       | 1–600 seconds                                  |
 
-**Capability:** `query_data` must be enabled on the agent.
+**Capability:** `query_data_agent` must be in the agent `tools` list.
 
 ---
 
@@ -116,7 +111,7 @@ Chat with a configured Gemini Data Agent, optionally continuing a persisted conv
 | `api_version`     | no       | API version override                                     |
 | `timeout_seconds` | no       | 1–600 seconds                                            |
 
-**Capability:** `chat` must be enabled on the agent.
+**Tool:** `chat_data_agent` must be in the agent `tools` list.
 
 ---
 
@@ -132,7 +127,7 @@ Create a managed conversation for multi-turn chat with a configured data agent.
 | `api_version`     | no       | API version override                               |
 | `timeout_seconds` | no       | 1–600 seconds                                      |
 
-**Capability:** `chat` must be enabled on the agent.
+**Tool:** `chat_data_agent` must be in the agent `tools` list.
 
 ---
 
@@ -150,7 +145,7 @@ List stored messages for a managed conversation.
 | `api_version`     | no       | API version override             |
 | `timeout_seconds` | no       | 1–600 seconds                    |
 
-**Capability:** `chat` must be enabled on the agent.
+**Tool:** `chat_data_agent` must be in the agent `tools` list.
 
 ---
 
@@ -292,13 +287,13 @@ The analyst server **does not** register:
 
 ## MCP resources
 
-| URI                                               | Description                           |
-| ------------------------------------------------- | ------------------------------------- |
-| `gemini-data-agent://agents`                      | JSON list of all configured agents    |
-| `gemini-data-agent://agents/{agent}`              | Redacted configuration for one agent  |
-| `gemini-data-agent://agents/{agent}/capabilities` | Capability flags for one agent        |
-| `gemini-data-agent://agents/{agent}/auth-policy`  | Non-secret auth posture for one agent |
-| `gemini-data-agent://prompts`                     | Catalog of available MCP prompts      |
+| URI                                              | Description                           |
+| ------------------------------------------------ | ------------------------------------- |
+| `gemini-data-agent://agents`                     | JSON list of all configured agents    |
+| `gemini-data-agent://agents/{agent}`             | Redacted configuration for one agent  |
+| `gemini-data-agent://agents/{agent}/tools`       | Enabled MCP tools for one agent       |
+| `gemini-data-agent://agents/{agent}/auth-policy` | Non-secret auth posture for one agent |
+| `gemini-data-agent://prompts`                    | Catalog of available MCP prompts      |
 
 ## MCP prompts
 

@@ -8,18 +8,11 @@ import { createMcpServer } from '../server.js';
 import type { AppConfig } from '@gemini-data-agents/core';
 
 const adminConfig: AppConfig = validateConfig({
+  api_version: 'v1beta',
   agents: {
     admin: {
-      project: 'my-project',
-      location: 'us-central1',
-      api_version: 'v1beta',
       data_agent: 'projects/my-project/locations/us-central1/dataAgents/x',
-      auth: { mode: 'adc' },
-      capabilities: {
-        query_data: true,
-        chat: false,
-        raw_passthrough: false,
-      },
+      tools: ['query_data_agent'],
     },
   },
 });

@@ -1,5 +1,7 @@
 # Example admin MCP server configuration (gemini-data-agent-admin-mcp).
-# Uses the same AppConfig schema; typically defines the same agents as production for YAML generation and auth inspection.
+# Uses the same v2 AppConfig schema as the analyst registry.
+
+api_version: v1beta
 
 server:
   name: gemini-data-agent-admin-mcp
@@ -8,13 +10,9 @@ server:
 
 agents:
   my-agent:
-    project: my-gcp-project
-    location: us-central1
-    api_version: v1beta
     data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
-    auth:
-      mode: adc
-    capabilities:
-      query_data: true
-      chat: false
-      raw_passthrough: false
+    tools:
+      - query_data_agent
+      - chat_data_agent
+      - create_data_agent_conversation
+      - list_conversation_messages

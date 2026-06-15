@@ -21,9 +21,10 @@ describe('loadConfig', () => {
   it('loads a minimal YAML config and applies defaults', () => {
     const config = loadConfig(path.join(fixturesDir, 'config-minimal.yaml'));
     expect(config.server.log_level).toBe('INFO');
-    expect(config.version_policy.default).toBe('v1beta');
+    expect(config.api_version).toBe('v1beta');
     expect(config.security.raw_passthrough.enabled).toBe(false);
-    expect(config.agents['my-agent'].capabilities.query_data).toBe(true);
+    expect(config.agents['my-agent'].tools).toContain('query_data_agent');
+    expect(config.agents['my-agent'].auth.mode).toBe('adc');
   });
 
   it('throws CONFIG_NOT_FOUND for missing file', () => {
@@ -48,82 +49,79 @@ describe('loadConfig', () => {
     }
   });
 
-  it('throws CONFIG_VALIDATION_ERROR for impersonation without impersonate_service_account', () => {
-    expect(() => loadConfig(path.join(fixturesDir, 'config-invalid-impersonation.yaml'))).toThrow(
+  it('throws CONFIG_INVALID_DATA_AGENT for bare agent id', () => {
+    expect(() => loadConfig(path.join(fixturesDir, 'config-invalid-data-agent.yaml'))).toThrow(
       DataAgentMcpError,
     );
     try {
-      loadConfig(path.join(fixturesDir, 'config-invalid-impersonation.yaml'));
+      loadConfig(path.join(fixturesDir, 'config-invalid-data-agent.yaml'));
     } catch (err) {
       expect(err).toBeInstanceOf(DataAgentMcpError);
-      expect((err as DataAgentMcpError).code).toBe('CONFIG_VALIDATION_ERROR');
+      expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID_DATA_AGENT');
     }
-  });
-
-  it('loads config with raw passthrough enabled and patterns', () => {
-    const config = loadConfig(path.join(fixturesDir, 'config-with-raw-passthrough.yaml'));
-    expect(config.security.raw_passthrough.enabled).toBe(true);
-    expect(config.security.raw_passthrough.allowed_path_patterns).toHaveLength(1);
-    expect(config.agents['dev-agent'].capabilities.raw_passthrough).toBe(true);
   });
 });
 
 describe('validateConfig', () => {
   it('applies defaults for optional fields', () => {
     const config = validateConfig({
+      api_version: 'v1beta',
       agents: {
         test: {
-          project: 'my-project',
-          location: 'us-central1',
-          api_version: 'v1beta',
           data_agent: 'projects/my-project/locations/us-central1/dataAgents/test',
-          auth: { mode: 'adc' },
+          tools: ['query_data_agent'],
         },
       },
     });
     expect(config.server.name).toBe('gemini-data-agent');
     expect(config.server.log_level).toBe('INFO');
-    expect(config.version_policy.default).toBe('v1beta');
+    expect(config.api_version).toBe('v1beta');
     expect(config.security.redaction.enabled).toBe(true);
-    expect(config.agents['test'].capabilities.query_data).toBe(true);
+    expect(config.agents['test'].tools).toContain('query_data_agent');
+    expect(config.agents['test'].project).toBe('my-project');
+    expect(config.agents['test'].location).toBe('us-central1');
   });
 
-  it('resolves agent api_version against allowed_versions', () => {
-    expect(() =>
-      validateConfig({
-        version_policy: {
-          allowed_versions: ['v1', 'v1beta'],
+  it('builds impersonation auth when impersonate_service_account is set', () => {
+    const config = validateConfig({
+      api_version: 'v1beta',
+      agents: {
+        test: {
+          data_agent: 'projects/p/locations/l/dataAgents/d',
+          tools: ['query_data_agent'],
+          impersonate_service_account: 'sa@p.iam.gserviceaccount.com',
         },
-        agents: {
-          test: {
-            project: 'p',
-            location: 'l',
-            api_version: 'v1alpha',
-            data_agent: 'd',
-            auth: { mode: 'adc' },
-          },
-        },
-      }),
-    ).toThrow(DataAgentMcpError);
+      },
+    });
+    expect(config.agents['test'].auth.mode).toBe('impersonation');
+    expect(config.agents['test'].auth.impersonate_service_account).toBe(
+      'sa@p.iam.gserviceaccount.com',
+    );
   });
 
-  it('throws for raw_passthrough enabled without patterns', () => {
+  it('applies client override when provided', () => {
+    const config = validateConfig({
+      api_version: 'v1beta',
+      agents: {
+        test: {
+          data_agent: 'projects/data-proj/locations/us-central1/dataAgents/agent',
+          client: { project: 'api-proj', location: 'europe-west1' },
+          tools: ['query_data_agent'],
+        },
+      },
+    });
+    expect(config.agents['test'].project).toBe('api-proj');
+    expect(config.agents['test'].location).toBe('europe-west1');
+  });
+
+  it('throws for unknown tool name', () => {
     expect(() =>
       validateConfig({
-        security: {
-          raw_passthrough: {
-            enabled: true,
-            allowed_methods: ['GET'],
-            allowed_path_patterns: [],
-          },
-        },
+        api_version: 'v1beta',
         agents: {
           test: {
-            project: 'p',
-            location: 'l',
-            api_version: 'v1beta',
-            data_agent: 'd',
-            auth: { mode: 'adc' },
+            data_agent: 'projects/p/locations/l/dataAgents/d',
+            tools: ['unknown_tool'],
           },
         },
       }),

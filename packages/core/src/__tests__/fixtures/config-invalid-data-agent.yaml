@@ -1,0 +1,7 @@
+api_version: v1beta
+
+agents:
+  broken-agent:
+    data_agent: my-agent
+    tools:
+      - query_data_agent

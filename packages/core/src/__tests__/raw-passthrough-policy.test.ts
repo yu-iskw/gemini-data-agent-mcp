@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { validateConfig } from '../config/loader.js';
+import { DEFAULT_SECURITY } from '../config/defaults.js';
 import {
   enforceRawPassthroughPolicy,
   enforceHostRestriction,
@@ -8,92 +8,85 @@ import {
 } from '../security/allowlist.js';
 import { DataAgentMcpError } from '../types.js';
 
-function makeConfig(rawPassthroughEnabled: boolean, agentRawPassthrough: boolean) {
-  return validateConfig({
-    security: rawPassthroughEnabled
-      ? {
-          raw_passthrough: {
+import type { AgentConfig, AppConfig } from '../types.js';
+
+function makeConfig(rawPassthroughEnabled: boolean): AppConfig {
+  return {
+    api_version: 'v1beta',
+    server: { name: 'test', log_level: 'INFO', transport: 'stdio' },
+    security: {
+      ...DEFAULT_SECURITY,
+      raw_passthrough: rawPassthroughEnabled
+        ? {
             enabled: true,
             allowed_methods: ['GET', 'POST'],
             allowed_path_patterns: ['^v1beta/'],
-          },
-        }
-      : undefined,
+          }
+        : DEFAULT_SECURITY.raw_passthrough,
+    },
     agents: {
       'test-agent': {
         project: 'p',
         location: 'l',
         api_version: 'v1beta',
-        data_agent: 'd',
+        data_agent: 'projects/p/locations/l/dataAgents/d',
         auth: { mode: 'adc' },
-        capabilities: {
-          query_data: true,
-          chat: false,
-          raw_passthrough: agentRawPassthrough,
-        },
+        tools: ['query_data_agent'],
       },
     },
-  });
+  };
 }
+
+const testAgent: AgentConfig = {
+  project: 'p',
+  location: 'l',
+  api_version: 'v1beta',
+  data_agent: 'projects/p/locations/l/dataAgents/d',
+  auth: { mode: 'adc' },
+  tools: ['query_data_agent'],
+};
 
 describe('enforceRawPassthroughPolicy', () => {
   it('throws when raw passthrough is disabled globally', () => {
-    const config = makeConfig(false, false);
-    const agent = config.agents['test-agent']!;
+    const config = makeConfig(false);
     expect(() =>
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', '/v1beta/foo'),
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'GET', '/v1beta/foo'),
     ).toThrow(DataAgentMcpError);
     try {
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', '/v1beta/foo');
-    } catch (err) {
-      expect((err as DataAgentMcpError).code).toBe('RAW_PASSTHROUGH_DISABLED');
-    }
-  });
-
-  it('throws when agent capability is disabled', () => {
-    const config = makeConfig(true, false);
-    const agent = config.agents['test-agent']!;
-    expect(() =>
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1beta/foo'),
-    ).toThrow(DataAgentMcpError);
-    try {
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1beta/foo');
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'GET', '/v1beta/foo');
     } catch (err) {
       expect((err as DataAgentMcpError).code).toBe('RAW_PASSTHROUGH_DISABLED');
     }
   });
 
   it('throws for disallowed method', () => {
-    const config = makeConfig(true, true);
-    const agent = config.agents['test-agent']!;
+    const config = makeConfig(true);
     expect(() =>
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'DELETE', 'v1beta/foo'),
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'DELETE', 'v1beta/foo'),
     ).toThrow(DataAgentMcpError);
     try {
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'DELETE', 'v1beta/foo');
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'DELETE', 'v1beta/foo');
     } catch (err) {
       expect((err as DataAgentMcpError).code).toBe('RAW_PASSTHROUGH_METHOD_DENIED');
     }
   });
 
   it('throws for path not matching allowlist', () => {
-    const config = makeConfig(true, true);
-    const agent = config.agents['test-agent']!;
+    const config = makeConfig(true);
     expect(() =>
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1alpha/secret/path'),
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'GET', 'v1alpha/secret/path'),
     ).toThrow(DataAgentMcpError);
     try {
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1alpha/secret/path');
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'GET', 'v1alpha/secret/path');
     } catch (err) {
       expect((err as DataAgentMcpError).code).toBe('RAW_PASSTHROUGH_PATH_DENIED');
     }
   });
 
   it('passes for allowed method and path', () => {
-    const config = makeConfig(true, true);
-    const agent = config.agents['test-agent']!;
+    const config = makeConfig(true);
     expect(() =>
-      enforceRawPassthroughPolicy(config, agent, 'test-agent', 'GET', 'v1beta/projects/foo'),
+      enforceRawPassthroughPolicy(config, testAgent, 'test-agent', 'GET', 'v1beta/projects/foo'),
     ).not.toThrow();
   });
 });
