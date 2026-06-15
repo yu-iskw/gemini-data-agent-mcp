@@ -15,7 +15,7 @@
     "format:prettier": "prettier --write .",
     "format:trunk": "trunk fmt",
     "format:trunk-all": "trunk fmt --all",
-    "lint": "pnpm lint:trunk",
+    "lint": "pnpm lint:trunk && pnpm knip",
     "lint:all": "pnpm lint:trunk-all && pnpm security:grype",
     "lint:eslint": "eslint .",
     "lint:security": "trunk check --all --scope security",
