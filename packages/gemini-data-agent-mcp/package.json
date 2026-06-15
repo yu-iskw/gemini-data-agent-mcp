@@ -1,0 +1,35 @@
+{
+  "name": "gemini-data-agent-mcp",
+  "version": "0.1.0",
+  "description": "Gemini Data Agents MCP servers (analyst and admin) with shared core library.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "gemini-data-analyst-mcp": "./bin/analyst.js",
+    "gemini-data-agent-admin-mcp": "./bin/admin.js"
+  },
+  "dependencies": {
+    "gemini-data-agent-admin-mcp": "workspace:*",
+    "gemini-data-agent-core": "workspace:*",
+    "gemini-data-analyst-mcp": "workspace:*"
+  },
+  "bundledDependencies": [
+    "gemini-data-agent-core",
+    "gemini-data-analyst-mcp",
+    "gemini-data-agent-admin-mcp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yu-iskw/gemini-data-agent-mcp.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "pnpm --filter gemini-data-agent-core --filter gemini-data-analyst-mcp --filter gemini-data-agent-admin-mcp build"
+  },
+  "files": [
+    "bin"
+  ]
+}

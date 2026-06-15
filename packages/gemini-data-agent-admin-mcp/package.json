@@ -1,6 +1,7 @@
 {
   "name": "gemini-data-agent-admin-mcp",
   "version": "0.1.0",
+  "private": true,
   "description": "MCP server for Gemini Data Agent administrators: YAML registry artifacts and control-plane tools.",
   "license": "Apache-2.0",
   "type": "module",
