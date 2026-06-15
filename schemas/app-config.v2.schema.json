@@ -1,8 +1,4 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/yu-iskw/gemini-data-agent-mcp/schemas/app-config.v2.schema.json",
-  "title": "Gemini Data Agent MCP Config (v2)",
-  "description": "User-facing YAML configuration for gemini-data-analyst-mcp and gemini-data-agent-admin-mcp.",
   "$ref": "#/definitions/AppConfig",
   "definitions": {
     "AppConfig": {
@@ -138,5 +134,9 @@
       "required": ["api_version", "agents"],
       "additionalProperties": false
     }
-  }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/yu-iskw/gemini-data-agent-mcp/schemas/app-config.v2.schema.json",
+  "title": "Gemini Data Agent MCP Config (v2)",
+  "description": "User-facing YAML configuration for gemini-data-analyst-mcp and gemini-data-agent-admin-mcp."
 }

@@ -3,7 +3,9 @@ import { ALLOWED_API_VERSIONS, DEFAULT_TIMEOUT_SECONDS, WARN_ON_V1ALPHA } from '
 import type { AppConfig, AgentConfig } from '../types.js';
 
 export function resolveAgentConfig(config: AppConfig, agentName: string): AgentConfig {
-  const agent = Object.entries(config.agents).find(([name]) => name === agentName)?.[1];
+  // Agent name is validated by callers against configured registry keys.
+  // eslint-disable-next-line security/detect-object-injection
+  const agent = config.agents[agentName];
   if (!agent) {
     const available = Object.keys(config.agents).join(', ');
     throw new Error(
@@ -31,10 +33,10 @@ export function resolveApiVersion(
     return requestedVersion;
   }
 
-  return agent.api_version ?? config.api_version;
+  return agent.api_version;
 }
 
-export function resolveTimeout(_config: AppConfig, requestedTimeout?: number): number {
+export function resolveTimeout(requestedTimeout?: number): number {
   return requestedTimeout ?? DEFAULT_TIMEOUT_SECONDS;
 }
 

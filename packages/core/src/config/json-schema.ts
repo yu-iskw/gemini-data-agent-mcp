@@ -13,12 +13,12 @@ export function exportAppConfigJsonSchema(): Record<string, unknown> {
   }) as Record<string, unknown>;
 
   return {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    ...generated,
+    $schema: 'http://json-schema.org/draft-07/schema#',
     $id: SCHEMA_ID,
     title: 'Gemini Data Agent MCP Config (v2)',
     description:
       'User-facing YAML configuration for gemini-data-analyst-mcp and gemini-data-agent-admin-mcp.',
-    ...generated,
   };
 }
 

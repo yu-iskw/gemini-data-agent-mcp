@@ -57,7 +57,6 @@ export {
   serializeAnalystRegistryYaml,
   buildConfigInput,
 } from './registry/analyst-registry-yaml.js';
-export type { SerializeAnalystRegistryOptions } from './registry/analyst-registry-yaml.js';
 
 export {
   DataAgentMcpError,

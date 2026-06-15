@@ -157,8 +157,16 @@ function registerSessionCreate(
 
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
+        if (!agentHasTool(agentConfig, 'create_data_agent_conversation')) {
+          throw new DataAgentMcpError(
+            'TOOL_DISABLED',
+            `Agent "${agentName}" does not have create_data_agent_conversation in tools.`,
+            false,
+            { agent: agentName },
+          );
+        }
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
         const createdConversation = await client.createConversation({
@@ -278,8 +286,16 @@ function registerSessionChat(
       try {
         const session = sessionStore.getSessionForActor(args.session_id, actor);
         const agentConfig = resolveAgentConfig(config, session.agent);
+        if (!agentHasTool(agentConfig, 'chat_data_agent')) {
+          throw new DataAgentMcpError(
+            'TOOL_DISABLED',
+            `Agent "${session.agent}" does not have chat_data_agent in tools.`,
+            false,
+            { agent: session.agent },
+          );
+        }
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -716,7 +732,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
           );
         }
 
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -835,7 +851,7 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
         }
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -928,7 +944,7 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
         }
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -1015,7 +1031,7 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
         }
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -1167,7 +1183,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config) * 1000;
+        const timeoutMs = resolveTimeout() * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 

@@ -53,7 +53,7 @@ agents:
       - query_data_agent
 ```
 
-Per-agent **`tools`** gate which data-agent API tools succeed. Session and registry tools are always available. The analyst server does **not** register raw REST passthrough.
+Per-agent **`tools`** gate which data-agent API and session tools succeed. Registry tools (`list_data_agents`, `get_data_agent_config`) are always available. The analyst server does **not** register raw REST passthrough.
 
 ## Authentication
 
@@ -129,7 +129,7 @@ Create a managed conversation for multi-turn chat with a configured data agent.
 | `api_version`     | no       | API version override                               |
 | `timeout_seconds` | no       | 1–600 seconds                                      |
 
-**Tool:** `chat_data_agent` must be in the agent `tools` list.
+**Tool:** `create_data_agent_conversation` must be in the agent `tools` list.
 
 ---
 
@@ -147,7 +147,7 @@ List stored messages for a managed conversation.
 | `api_version`     | no       | API version override             |
 | `timeout_seconds` | no       | 1–600 seconds                    |
 
-**Tool:** `chat_data_agent` must be in the agent `tools` list.
+**Tool:** `list_conversation_messages` must be in the agent `tools` list.
 
 ---
 
@@ -202,6 +202,8 @@ Create a shared session that binds local session state to a managed Data Agent c
 | `api_version`                         | no       | API version override                                         |
 | `timeout_seconds`                     | no       | 1–600 seconds                                                |
 
+**Tool:** `create_data_agent_conversation` must be in the agent `tools` list.
+
 ---
 
 #### `session_chat`
@@ -219,6 +221,8 @@ Run one chat turn against an existing shared session.
 | `thinking_mode`                       | no       | Chat thinking mode                           |
 | `api_version`                         | no       | API version override                         |
 | `timeout_seconds`                     | no       | 1–600 seconds                                |
+
+**Tool:** `chat_data_agent` must be in the agent `tools` list.
 
 ---
 

@@ -22,19 +22,10 @@ export function parseAndValidateAnalystRegistryYaml(yamlText: string): AppConfig
   return validateConfig(parsed);
 }
 
-export interface SerializeAnalystRegistryOptions {
-  /** When true, omit sections that are empty objects after sanitization. */
-  minimal?: boolean;
-}
-
 /**
  * Serializes a validated {@link AppConfig} as minimal v2 YAML for analyst consumption.
  */
-export function serializeAnalystRegistryYaml(
-  config: AppConfig,
-  options: SerializeAnalystRegistryOptions = {},
-): string {
-  void options;
+export function serializeAnalystRegistryYaml(config: AppConfig): string {
   const root = buildAnalystRegistryDocument(config);
   return yaml.dump(root, {
     sortKeys: true,

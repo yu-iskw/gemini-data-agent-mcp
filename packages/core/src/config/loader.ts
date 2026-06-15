@@ -5,7 +5,7 @@ import * as yaml from 'js-yaml';
 import { extractProjectAndLocation } from '../google-api/endpoints.js';
 import { DataAgentMcpError } from '../types.js';
 
-import { ALLOWED_API_VERSIONS, DEFAULT_SECURITY, DEFAULT_SERVER } from './defaults.js';
+import { DEFAULT_SECURITY, DEFAULT_SERVER } from './defaults.js';
 import { AppConfigInputSchema } from './schema.js';
 
 import type { AgentConfig, AppConfig, AuthConfig } from '../types.js';
@@ -101,15 +101,8 @@ function normalizeAgent(
   agentInput: AppConfigInput['agents'][string],
   rootApiVersion: AppConfig['api_version'],
 ): AgentConfig {
-  const derived = extractProjectAndLocation(agentInput.data_agent);
-  if (!derived) {
-    throw new DataAgentMcpError(
-      'CONFIG_INVALID_DATA_AGENT',
-      `Agent "${name}" data_agent could not be parsed for project and location`,
-      false,
-      { agent: name },
-    );
-  }
+  // Zod regex on data_agent guarantees extractProjectAndLocation succeeds.
+  const derived = extractProjectAndLocation(agentInput.data_agent)!;
 
   const project = agentInput.client?.project ?? derived.project;
   const location = agentInput.client?.location ?? derived.location;
@@ -134,7 +127,7 @@ function normalizeAgent(
     api_version: apiVersion,
     data_agent: agentInput.data_agent,
     auth,
-    tools: [...agentInput.tools],
+    tools: agentInput.tools,
     ...(agentInput.generation_options ? { generation_options: agentInput.generation_options } : {}),
   };
 }
@@ -146,17 +139,6 @@ function runSemanticValidation(config: AppConfig): void {
       'Configuration must define at least one agent',
       false,
     );
-  }
-
-  for (const [name, agent] of Object.entries(config.agents)) {
-    if (!ALLOWED_API_VERSIONS.includes(agent.api_version)) {
-      throw new DataAgentMcpError(
-        'CONFIG_INVALID_API_VERSION',
-        `Agent "${name}" uses api_version "${agent.api_version}" which is not allowed. Allowed: ${ALLOWED_API_VERSIONS.join(', ')}`,
-        false,
-        { agent: name },
-      );
-    }
   }
 }
 
