@@ -78,6 +78,16 @@ jobs:
             echo "::error::Tarball lists dist/__tests__ from bundled core"
             exit 1
           fi
+      - name: Smoke-test analyst-mcp tarball outside workspace
+        run: |
+          set -euo pipefail
+          pack_dir=$(mktemp -d)
+          pnpm --filter @gemini-data-agents/analyst-mcp pack --pack-destination "$pack_dir"
+          tgz=$(ls "$pack_dir"/*.tgz)
+          smoke_dir=$(mktemp -d)
+          npm install --prefix "$smoke_dir" "$tgz"
+          "$smoke_dir/node_modules/.bin/gemini-data-analyst-mcp" validate-config \
+            --config "${GITHUB_WORKSPACE}/examples/analyst.config.yaml"
       - name: Require npm CLI for OIDC trusted publishing
         run: |
           set -euo pipefail

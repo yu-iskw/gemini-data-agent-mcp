@@ -140,7 +140,7 @@ Validate any file before use:
 
 ```bash
 gemini-data-analyst-mcp validate-config --config config.yaml
-gemini-data-agent-admin-mcp validate-config --config admin-config.yaml
+node packages/admin-mcp/dist/cli.js validate-config --config admin-config.yaml
 ```
 
 ## Authentication
@@ -173,12 +173,12 @@ See comments in [examples/analyst.config.yaml](examples/analyst.config.yaml) and
 ```bash
 # Start servers
 gemini-data-analyst-mcp --config config.yaml
-gemini-data-agent-admin-mcp --config admin-config.yaml
+node packages/admin-mcp/dist/cli.js --config admin-config.yaml
 
 # Validate or inspect config
 gemini-data-analyst-mcp validate-config --config config.yaml
 gemini-data-analyst-mcp inspect-config --config config.yaml
-gemini-data-agent-admin-mcp validate-config --config admin-config.yaml
+node packages/admin-mcp/dist/cli.js validate-config --config admin-config.yaml
 ```
 
 Supported transport: **`stdio`** (default). **`http`** is rejected at startup.

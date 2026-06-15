@@ -34,13 +34,14 @@
     "@gemini-data-agents/core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "commander": "^13.1.0",
+    "google-auth-library": "^10.6.2",
+    "js-yaml": "^4.1.0",
     "zod": "^3.24.3"
   },
   "bundledDependencies": [
     "@gemini-data-agents/core"
   ],
   "devDependencies": {
-    "@types/node": "^22.15.3",
-    "google-auth-library": "^10.6.2"
+    "@types/node": "^22.15.3"
   }
 }
