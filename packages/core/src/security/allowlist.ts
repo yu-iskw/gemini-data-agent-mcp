@@ -6,30 +6,17 @@ const ALLOWED_HOST = 'geminidataanalytics.googleapis.com';
 
 export function enforceRawPassthroughPolicy(
   config: AppConfig,
-  agent: AgentConfig,
+  _agent: AgentConfig,
   agentName: string,
   method: string,
   path: string,
 ): void {
   const globalPolicy = config.security.raw_passthrough;
-  const agentPassthrough = agent.capabilities.raw_passthrough;
 
   if (!globalPolicy.enabled) {
-    throw new DataAgentMcpError(
-      'RAW_PASSTHROUGH_DISABLED',
-      'Raw passthrough is disabled globally. Set security.raw_passthrough.enabled=true to allow.',
-      false,
-      { agent: agentName },
-    );
-  }
-
-  if (!agentPassthrough) {
-    throw new DataAgentMcpError(
-      'RAW_PASSTHROUGH_DISABLED',
-      `Raw passthrough is not enabled for agent "${agentName}". Set capabilities.raw_passthrough=true in the agent config.`,
-      false,
-      { agent: agentName },
-    );
+    throw new DataAgentMcpError('RAW_PASSTHROUGH_DISABLED', 'Raw passthrough is disabled.', false, {
+      agent: agentName,
+    });
   }
 
   const normalizedMethod = method.toUpperCase();

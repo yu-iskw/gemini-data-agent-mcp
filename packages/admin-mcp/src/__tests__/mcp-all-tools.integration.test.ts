@@ -26,18 +26,11 @@ vi.mock('google-auth-library', async (importOriginal) => {
 
 function adminConfig() {
   return validateConfig({
+    api_version: 'v1beta',
     agents: {
       admin: {
-        project: 'my-gcp-project',
-        location: 'us-central1',
-        api_version: 'v1beta',
         data_agent: 'projects/my-gcp-project/locations/us-central1/dataAgents/admin',
-        auth: { mode: 'adc' },
-        capabilities: {
-          query_data: true,
-          chat: false,
-          raw_passthrough: false,
-        },
+        tools: ['query_data_agent'],
       },
     },
   });
@@ -164,11 +157,8 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
         arguments: {
           agent_name: 'new-agent',
           proposed_agent: {
-            project: 'my-gcp-project',
-            location: 'us-central1',
-            api_version: 'v1beta',
-            data_agent: 'new-agent',
-            auth: { mode: 'adc' },
+            data_agent: 'projects/my-gcp-project/locations/us-central1/dataAgents/new-agent',
+            tools: ['query_data_agent'],
           },
         },
       });

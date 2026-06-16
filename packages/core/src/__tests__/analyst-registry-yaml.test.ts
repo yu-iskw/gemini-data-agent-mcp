@@ -10,14 +10,11 @@ import {
 describe('analyst registry YAML', () => {
   it('round-trips through serialize and parse/validate', () => {
     const config = validateConfig({
+      api_version: 'v1beta',
       agents: {
         a1: {
-          project: 'p1',
-          location: 'us-central1',
-          api_version: 'v1beta',
-          data_agent: 'a1',
-          auth: { mode: 'adc' },
-          capabilities: { query_data: true, chat: true, raw_passthrough: true },
+          data_agent: 'projects/p1/locations/us-central1/dataAgents/a1',
+          tools: ['query_data_agent', 'chat_data_agent'],
         },
       },
     });
@@ -25,11 +22,12 @@ describe('analyst registry YAML', () => {
     const yaml = serializeAnalystRegistryYaml(config);
     expect(yaml).not.toMatch(/BEGIN PRIVATE KEY|refresh_token|client_secret/i);
     const reparsed = parseAndValidateAnalystRegistryYaml(yaml);
-    expect(reparsed.agents['a1']?.capabilities.raw_passthrough).toBe(false);
+    expect(reparsed.agents['a1']?.tools).toContain('query_data_agent');
   });
 
   it('omits admin server identity from generated analyst registry YAML', () => {
     const config = validateConfig({
+      api_version: 'v1beta',
       server: {
         name: 'gemini-data-agent-admin-mcp',
         log_level: 'DEBUG',
@@ -37,11 +35,8 @@ describe('analyst registry YAML', () => {
       },
       agents: {
         a1: {
-          project: 'p1',
-          location: 'us-central1',
-          api_version: 'v1beta',
-          data_agent: 'a1',
-          auth: { mode: 'adc' },
+          data_agent: 'projects/p1/locations/us-central1/dataAgents/a1',
+          tools: ['query_data_agent'],
         },
       },
     });
@@ -50,6 +45,7 @@ describe('analyst registry YAML', () => {
 
     expect(yaml).not.toContain('gemini-data-agent-admin-mcp');
     expect(yaml).not.toMatch(/^server:/m);
+    expect(yaml).toContain('api_version: v1beta');
 
     const reparsed = parseAndValidateAnalystRegistryYaml(yaml);
     expect(reparsed.server.name).toBe('gemini-data-agent');

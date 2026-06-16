@@ -1,0 +1,142 @@
+{
+  "$ref": "#/definitions/AppConfig",
+  "definitions": {
+    "AppConfig": {
+      "type": "object",
+      "properties": {
+        "api_version": {
+          "type": "string",
+          "enum": ["v1", "v1beta", "v1alpha"],
+          "description": "Default Gemini Data Agents API version for all agents unless overridden per agent."
+        },
+        "server": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "default": "gemini-data-agent",
+              "description": "MCP server name reported to clients."
+            },
+            "log_level": {
+              "type": "string",
+              "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+              "default": "INFO",
+              "description": "Log level for stderr operational logs."
+            },
+            "transport": {
+              "type": "string",
+              "enum": ["stdio", "http"],
+              "default": "stdio",
+              "description": "MCP transport. Only stdio is supported today."
+            },
+            "host": {
+              "type": "string",
+              "description": "HTTP transport host (not yet supported)."
+            },
+            "port": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "HTTP transport port (not yet supported)."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Optional MCP server identity and logging settings."
+        },
+        "agents": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "data_agent": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^projects\\/[^/]+\\/locations\\/[^/]+\\/dataAgents\\/[^/]+$",
+                "description": "Full Gemini Data Agent resource name."
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "query_data_agent",
+                    "chat_data_agent",
+                    "create_data_agent_conversation",
+                    "list_conversation_messages"
+                  ]
+                },
+                "minItems": 1,
+                "description": "MCP tool names enabled for this agent: query_data_agent, chat_data_agent, create_data_agent_conversation, list_conversation_messages."
+              },
+              "impersonate_service_account": {
+                "type": "string",
+                "description": "Optional service account email to impersonate. Omit to use Application Default Credentials (ADC)."
+              },
+              "api_version": {
+                "type": "string",
+                "enum": ["v1", "v1beta", "v1alpha"],
+                "description": "Optional per-agent API version override. Defaults to root api_version."
+              },
+              "client": {
+                "type": "object",
+                "properties": {
+                  "project": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "GCP project used for API client routing when it differs from the data_agent resource."
+                  },
+                  "location": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "GCP location used for API client routing when it differs from the data_agent resource."
+                  }
+                },
+                "required": ["project", "location"],
+                "additionalProperties": false,
+                "description": "Optional API client project/location when routing differs from the data_agent resource."
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Human-readable agent label for MCP resources."
+              },
+              "description": {
+                "type": "string",
+                "description": "Short description of the agent purpose."
+              },
+              "generation_options": {
+                "type": "object",
+                "properties": {
+                  "generate_query": {
+                    "type": "boolean"
+                  },
+                  "generate_query_result": {
+                    "type": "boolean"
+                  },
+                  "generate_natural_language_answer": {
+                    "type": "boolean"
+                  },
+                  "generate_explanation": {
+                    "type": "boolean"
+                  },
+                  "generate_disambiguation_question": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Default Gemini Data Agents generation options for query_data_agent."
+              }
+            },
+            "required": ["data_agent", "tools"],
+            "additionalProperties": false
+          },
+          "description": "Registry of named data agents keyed by local alias (used in MCP tool agent parameter)."
+        }
+      },
+      "required": ["api_version", "agents"],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/yu-iskw/gemini-data-agent-mcp/schemas/app-config.v2.schema.json",
+  "title": "Gemini Data Agent MCP Config (v2)",
+  "description": "User-facing YAML configuration for gemini-data-analyst-mcp and gemini-data-agent-admin-mcp."
+}

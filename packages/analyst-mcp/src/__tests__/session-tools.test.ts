@@ -30,18 +30,16 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 const config = validateConfig({
+  api_version: 'v1beta',
   agents: {
     'test-agent': {
-      project: 'my-project',
-      location: 'us-central1',
-      api_version: 'v1beta',
       data_agent: 'projects/my-project/locations/us-central1/dataAgents/test-agent',
-      auth: { mode: 'adc' },
-      capabilities: {
-        query_data: true,
-        chat: true,
-        raw_passthrough: false,
-      },
+      tools: [
+        'query_data_agent',
+        'chat_data_agent',
+        'create_data_agent_conversation',
+        'list_conversation_messages',
+      ],
     },
   },
 });

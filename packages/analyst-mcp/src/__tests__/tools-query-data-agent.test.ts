@@ -29,30 +29,15 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 const baseConfig = {
+  api_version: 'v1beta',
   agents: {
     'test-agent': {
-      project: 'my-project',
-      location: 'us-central1',
-      api_version: 'v1beta',
       data_agent: 'projects/my-project/locations/us-central1/dataAgents/test-agent',
-      auth: { mode: 'adc' },
-      capabilities: {
-        query_data: true,
-        chat: false,
-        raw_passthrough: false,
-      },
+      tools: ['query_data_agent'],
     },
     'no-query-agent': {
-      project: 'my-project',
-      location: 'us-central1',
-      api_version: 'v1beta',
       data_agent: 'projects/my-project/locations/us-central1/dataAgents/no-query',
-      auth: { mode: 'adc' },
-      capabilities: {
-        query_data: false,
-        chat: false,
-        raw_passthrough: false,
-      },
+      tools: ['chat_data_agent'],
     },
   },
 };
@@ -65,7 +50,7 @@ describe('query_data_agent tool behavior', () => {
   it('config validates correctly for test agents', () => {
     const config = validateConfig(baseConfig);
     expect(config.agents['test-agent']).toBeDefined();
-    expect(config.agents['test-agent']?.capabilities.query_data).toBe(true);
+    expect(config.agents['test-agent']?.tools).toContain('query_data_agent');
   });
 
   it('returns response with natural language answer on success', async () => {
@@ -102,18 +87,11 @@ describe('query_data_agent tool behavior', () => {
 
   it('sends dataAgentContext when chatting with a configured data agent', async () => {
     const config = validateConfig({
+      api_version: 'v1beta',
       agents: {
         'test-agent': {
-          project: 'my-project',
-          location: 'us-central1',
-          api_version: 'v1beta',
-          data_agent: 'test-agent',
-          auth: { mode: 'adc' },
-          capabilities: {
-            query_data: true,
-            chat: false,
-            raw_passthrough: false,
-          },
+          data_agent: 'projects/my-project/locations/us-central1/dataAgents/test-agent',
+          tools: ['query_data_agent'],
         },
       },
     });
@@ -273,10 +251,10 @@ describe('query_data_agent tool behavior (conversation paths)', () => {
     ).rejects.toThrow(DataAgentMcpError);
   });
 
-  it('query_data capability guard rejects disabled agents', () => {
+  it('query_data_agent tool guard rejects agents without the tool', () => {
     const config = validateConfig(baseConfig);
     const noQueryAgent = config.agents['no-query-agent']!;
-    expect(noQueryAgent.capabilities.query_data).toBe(false);
+    expect(noQueryAgent.tools).not.toContain('query_data_agent');
   });
 
   it('preserves raw DELETE passthrough bodies', async () => {

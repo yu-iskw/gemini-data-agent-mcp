@@ -1,7 +1,10 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Full admin MCP config for generate_analyst_registry_yaml and operator workflows.
+
 api_version: v1beta
 
 server:
-  name: gemini-data-agent-mcp
+  name: gemini-data-agent-admin-mcp
   log_level: INFO
   transport: stdio
 
@@ -31,3 +34,13 @@ agents:
       - create_data_agent_conversation
       - list_conversation_messages
     impersonate_service_account: gda-finance-staging@my-staging-project.iam.gserviceaccount.com
+
+  cross-project-api:
+    display_name: Cross-project API routing example
+    description: Data agent in data-proj; API calls routed via api-proj (client override).
+    data_agent: projects/data-proj/locations/us-central1/dataAgents/shared-agent
+    client:
+      project: api-proj
+      location: europe-west1
+    tools:
+      - query_data_agent

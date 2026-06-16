@@ -1,7 +1,11 @@
+import { ALLOWED_API_VERSIONS, DEFAULT_TIMEOUT_SECONDS, WARN_ON_V1ALPHA } from './defaults.js';
+
 import type { AppConfig, AgentConfig } from '../types.js';
 
 export function resolveAgentConfig(config: AppConfig, agentName: string): AgentConfig {
-  const agent = Object.entries(config.agents).find(([name]) => name === agentName)?.[1];
+  // Agent name is validated by callers against configured registry keys.
+  // eslint-disable-next-line security/detect-object-injection
+  const agent = config.agents[agentName];
   if (!agent) {
     const available = Object.keys(config.agents).join(', ');
     throw new Error(
@@ -11,28 +15,31 @@ export function resolveAgentConfig(config: AppConfig, agentName: string): AgentC
   return agent;
 }
 
+export function agentHasTool(agent: AgentConfig, toolName: string): boolean {
+  return agent.tools.includes(toolName);
+}
+
 export function resolveApiVersion(
   config: AppConfig,
   agent: AgentConfig,
   requestedVersion?: string,
 ): string {
-  const policy = config.version_policy;
-
   if (requestedVersion) {
-    if (!policy.allow_tool_override) {
-      throw new Error('API version override is disabled by version_policy.allow_tool_override');
-    }
-    if (!policy.allowed_versions.includes(requestedVersion as 'v1' | 'v1beta' | 'v1alpha')) {
+    if (!ALLOWED_API_VERSIONS.includes(requestedVersion as AppConfig['api_version'])) {
       throw new Error(
-        `API version "${requestedVersion}" is not allowed. Allowed versions: ${policy.allowed_versions.join(', ')}`,
+        `API version "${requestedVersion}" is not allowed. Allowed versions: ${ALLOWED_API_VERSIONS.join(', ')}`,
       );
     }
     return requestedVersion;
   }
 
-  return agent.api_version ?? config.defaults.api_version ?? policy.default;
+  return agent.api_version;
 }
 
-export function resolveTimeout(config: AppConfig, requestedTimeout?: number): number {
-  return requestedTimeout ?? config.defaults.timeout_seconds ?? 120;
+export function resolveTimeout(requestedTimeout?: number): number {
+  return requestedTimeout ?? DEFAULT_TIMEOUT_SECONDS;
+}
+
+export function shouldWarnOnV1Alpha(): boolean {
+  return WARN_ON_V1ALPHA;
 }

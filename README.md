@@ -38,7 +38,7 @@ gemini-data-analyst-mcp --help
 
 ## Quickstart: analyst server
 
-1. Create a config file. Start from [examples/analyst.config.yaml](examples/analyst.config.yaml).
+1. Create a config file. Start from [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml) or see [examples/analyst.config.full.yaml](examples/analyst.config.full.yaml) for all optional fields.
 
 2. Authenticate with Google Cloud (ADC):
 
@@ -99,42 +99,74 @@ Typical workflow:
 3. Open a PR, review, and merge.
 4. Point analyst **`--config`** at the committed file path.
 
-See [examples/admin.config.yaml](examples/admin.config.yaml) and [examples/generated.registry.yaml](examples/generated.registry.yaml).
+See [examples/admin.config.minimal.yaml](examples/admin.config.minimal.yaml), [examples/admin.config.full.yaml](examples/admin.config.full.yaml), and [examples/generated.registry.yaml](examples/generated.registry.yaml).
 
 ## YAML configuration
 
-Both servers share the same agent definition schema.
+Both servers share the same v2 agent definition schema.
 
 ### Minimal config
 
+See [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml):
+
 ```yaml
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+api_version: v1beta
+
 agents:
   my-agent:
-    project: my-gcp-project
-    location: us-central1
-    api_version: v1beta
-    data_agent: my-agent
-    auth:
-      mode: adc
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent
 ```
 
-Omitted sections receive safe defaults (`server`, `version_policy`, `security`, `defaults`, per-agent `capabilities`).
+Omit `impersonate_service_account` for ADC (local dev). Optional `server` block configures MCP server identity and logging.
+
+### Full config
+
+See [examples/analyst.config.full.yaml](examples/analyst.config.full.yaml) for a multi-agent setup with:
+
+- `server` (`name`, `log_level`, `transport`)
+- `display_name`, `description`, `generation_options`
+- Per-agent `api_version` override
+- Per-agent `impersonate_service_account` (multi-project)
+- Optional `client: { project, location }` when API routing differs from the `data_agent` resource
+- All four allowed tool names on chat-enabled agents
+
+Admin examples: [examples/admin.config.minimal.yaml](examples/admin.config.minimal.yaml) and [examples/admin.config.full.yaml](examples/admin.config.full.yaml).
+
+### JSON Schema
+
+Editor validation and autocomplete: [schemas/app-config.v2.schema.json](schemas/app-config.v2.schema.json).
+
+Add to the top of a YAML config file:
+
+```yaml
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+```
+
+Regenerate after schema changes:
+
+```bash
+pnpm schema:export
+```
 
 ### Advanced options
 
-- **`version_policy`**: constrain API versions and tool overrides.
-- **`security`**: redaction, audit, persistence, raw passthrough policy (for config validation).
-- **`agents.<name>.capabilities`**: enable `query_data`, `chat`; generated analyst registry YAML from the admin server forces `raw_passthrough` to **false**.
+- **`api_version`**: required at root; optional per-agent override.
+- **`agents.<name>.tools`**: MCP tool names enabled for that agent (`query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`).
+- **`agents.<name>.impersonate_service_account`**: per-agent service account impersonation (ADC is used when omitted).
+- **`agents.<name>.client`**: optional `{ project, location }` when API client routing differs from the `data_agent` resource.
 
 ### Validation rules
 
-| Rule                                                           | Behavior |
-| -------------------------------------------------------------- | -------- |
-| Missing or empty `agents`                                      | Failure  |
-| Missing `project`                                              | Failure  |
-| `api_version` not in `version_policy.allowed_versions`         | Failure  |
-| `impersonation` without `impersonate_service_account`          | Failure  |
-| `raw_passthrough.enabled=true` without `allowed_path_patterns` | Failure  |
+| Rule                                  | Behavior |
+| ------------------------------------- | -------- |
+| Missing or empty `agents`             | Failure  |
+| Missing root `api_version`            | Failure  |
+| `data_agent` not a full resource name | Failure  |
+| Unknown tool name in `tools`          | Failure  |
+| Empty `tools` list                    | Failure  |
 
 Validate any file before use:
 
@@ -145,14 +177,9 @@ node packages/admin-mcp/dist/cli.js validate-config --config admin-config.yaml
 
 ## Authentication
 
-Credentials use **Application Default Credentials (ADC)** or **service account impersonation**.
+Credentials use **Application Default Credentials (ADC)** by default. Set **`impersonate_service_account`** on an agent for service account impersonation (CI or shared runners; grant `roles/iam.serviceAccountTokenCreator`).
 
-| `auth.mode`     | When to use                                                                                              |
-| --------------- | -------------------------------------------------------------------------------------------------------- |
-| `adc`           | Local development; run `gcloud auth application-default login`                                           |
-| `impersonation` | CI or shared runners; set `impersonate_service_account` and grant `roles/iam.serviceAccountTokenCreator` |
-
-See comments in [examples/analyst.config.yaml](examples/analyst.config.yaml) and [Google Cloud ADC docs](https://cloud.google.com/docs/authentication/application-default-credentials).
+Local development: `gcloud auth application-default login`. See [Google Cloud ADC docs](https://cloud.google.com/docs/authentication/application-default-credentials).
 
 ## MCP tools and resources
 
@@ -160,7 +187,7 @@ See comments in [examples/analyst.config.yaml](examples/analyst.config.yaml) and
 
 **Tools:** `query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`, `list_data_agents`, `get_data_agent_config`, `get_operation`, `session_create`, `session_chat`, `session_switch_intent`, `session_fork`, `session_reset`, `session_handoff`.
 
-**Resources:** `gemini-data-agent://agents`, `gemini-data-agent://agents/{agent}`, `gemini-data-agent://agents/{agent}/capabilities`, `gemini-data-agent://agents/{agent}/auth-policy`, `gemini-data-agent://prompts`.
+**Resources:** `gemini-data-agent://agents`, `gemini-data-agent://agents/{agent}`, `gemini-data-agent://agents/{agent}/tools`, `gemini-data-agent://agents/{agent}/auth-policy`, `gemini-data-agent://prompts`.
 
 **Prompts:** session-oriented prompts plus `analyze_data_question`, `investigate_data_issue`, `explain_generated_query`, `compare_segments`, `find_anomalies`, `prepare_data_analysis_report`.
 

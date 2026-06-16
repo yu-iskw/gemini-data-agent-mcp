@@ -7,6 +7,8 @@ import {
   resolveAgentConfig,
   resolveApiVersion,
   resolveTimeout,
+  agentHasTool,
+  shouldWarnOnV1Alpha,
   logWarn,
   emitAuditEvent,
   createAuditStartTime,
@@ -155,8 +157,16 @@ function registerSessionCreate(
 
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
+        if (!agentHasTool(agentConfig, 'create_data_agent_conversation')) {
+          throw new DataAgentMcpError(
+            'TOOL_DISABLED',
+            `Agent "${agentName}" does not have create_data_agent_conversation in tools.`,
+            false,
+            { agent: agentName },
+          );
+        }
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
         const createdConversation = await client.createConversation({
@@ -276,8 +286,16 @@ function registerSessionChat(
       try {
         const session = sessionStore.getSessionForActor(args.session_id, actor);
         const agentConfig = resolveAgentConfig(config, session.agent);
+        if (!agentHasTool(agentConfig, 'chat_data_agent')) {
+          throw new DataAgentMcpError(
+            'TOOL_DISABLED',
+            `Agent "${session.agent}" does not have chat_data_agent in tools.`,
+            false,
+            { agent: session.agent },
+          );
+        }
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -696,10 +714,10 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
         const agentConfig = resolveAgentConfig(config, agentName);
         agentName = args.agent;
 
-        if (!agentConfig.capabilities.query_data) {
+        if (!agentHasTool(agentConfig, 'query_data_agent')) {
           throw new DataAgentMcpError(
-            'CAPABILITY_DISABLED',
-            `Agent "${agentName}" does not have query_data capability enabled.`,
+            'TOOL_DISABLED',
+            `Agent "${agentName}" does not have query_data_agent in tools.`,
             false,
             { agent: agentName },
           );
@@ -707,14 +725,14 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
 
-        if (apiVersion === 'v1alpha' && config.version_policy.warn_on_v1alpha) {
+        if (apiVersion === 'v1alpha' && shouldWarnOnV1Alpha()) {
           logWarn(
             'tools',
             `Using v1alpha API version for agent "${agentName}" — this is an early-access version.`,
           );
         }
 
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -823,17 +841,17 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
 
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
-        if (!agentConfig.capabilities.chat) {
+        if (!agentHasTool(agentConfig, 'chat_data_agent')) {
           throw new DataAgentMcpError(
-            'CAPABILITY_DISABLED',
-            `Agent "${agentName}" does not have chat capability enabled.`,
+            'TOOL_DISABLED',
+            `Agent "${agentName}" does not have chat_data_agent in tools.`,
             false,
             { agent: agentName },
           );
         }
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -916,17 +934,17 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
 
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
-        if (!agentConfig.capabilities.chat) {
+        if (!agentHasTool(agentConfig, 'create_data_agent_conversation')) {
           throw new DataAgentMcpError(
-            'CAPABILITY_DISABLED',
-            `Agent "${agentName}" does not have chat capability enabled.`,
+            'TOOL_DISABLED',
+            `Agent "${agentName}" does not have create_data_agent_conversation in tools.`,
             false,
             { agent: agentName },
           );
         }
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -1003,17 +1021,17 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
 
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
-        if (!agentConfig.capabilities.chat) {
+        if (!agentHasTool(agentConfig, 'list_conversation_messages')) {
           throw new DataAgentMcpError(
-            'CAPABILITY_DISABLED',
-            `Agent "${agentName}" does not have chat capability enabled.`,
+            'TOOL_DISABLED',
+            `Agent "${agentName}" does not have list_conversation_messages in tools.`,
             false,
             { agent: agentName },
           );
         }
 
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config, args.timeout_seconds) * 1000;
+        const timeoutMs = resolveTimeout(args.timeout_seconds) * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 
@@ -1091,7 +1109,7 @@ function registerListDataAgents(server: McpServer, config: AppConfig): void {
         api_version: agent.api_version,
         project: agent.project,
         location: agent.location,
-        capabilities: agent.capabilities,
+        tools: agent.tools,
         ...(args.include_redacted_auth
           ? {
               auth: redact(
@@ -1134,7 +1152,7 @@ function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void 
               source: agentConfig.auth.source,
               impersonate_service_account: agentConfig.auth.impersonate_service_account,
             },
-            capabilities: agentConfig.capabilities,
+            tools: agentConfig.tools,
             generation_options: agentConfig.generation_options,
           },
           config.security.redaction.enabled,
@@ -1165,7 +1183,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
       try {
         const agentConfig = resolveAgentConfig(config, agentName);
         const apiVersion = resolveApiVersion(config, agentConfig, args.api_version);
-        const timeoutMs = resolveTimeout(config) * 1000;
+        const timeoutMs = resolveTimeout() * 1000;
         const credentials = await resolveCredentials(agentConfig.auth);
         const client = createClient(credentials);
 

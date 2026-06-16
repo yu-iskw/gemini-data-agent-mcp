@@ -1,43 +1,13 @@
-# Example output shape from admin tool `generate_analyst_registry_yaml` (stable keys, analyst-safe capabilities).
+# Example output shape from admin tool `generate_analyst_registry_yaml`.
 # Commit through normal Git review; analysts consume this as their static registry file.
+
+api_version: v1beta
 
 agents:
   my-agent:
-    api_version: v1beta
-    auth:
-      mode: adc
-    capabilities:
-      chat: false
-      query_data: true
-      raw_passthrough: false
     data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
-    location: us-central1
-    project: my-gcp-project
-security:
-  audit:
-    enabled: true
-    include_prompt: false
-    include_response: false
-  persistence:
-    enabled: false
-  raw_passthrough:
-    allowed_methods:
-      - GET
-      - POST
-    allowed_path_patterns: []
-    enabled: false
-  redaction:
-    enabled: true
-    redact_headers: true
-    redact_raw_request_body: false
-    redact_raw_response_body: false
-    redact_tokens: true
-    show_service_account: full
-version_policy:
-  allow_tool_override: true
-  allowed_versions:
-    - v1
-    - v1beta
-    - v1alpha
-  default: v1beta
-  warn_on_v1alpha: true
+    tools:
+      - chat_data_agent
+      - create_data_agent_conversation
+      - list_conversation_messages
+      - query_data_agent

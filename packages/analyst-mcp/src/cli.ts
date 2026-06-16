@@ -100,22 +100,20 @@ program
       const config = loadConfig(options.config);
 
       const redactedConfig = {
+        api_version: config.api_version,
         server: config.server,
-        version_policy: config.version_policy,
-        security: config.security,
-        defaults: config.defaults,
         agents: Object.fromEntries(
           Object.entries(config.agents).map(([name, agent]) => [
             name,
             {
-              ...agent,
-              auth: {
-                mode: agent.auth.mode,
-                source: agent.auth.source,
-                impersonate_service_account: agent.auth.impersonate_service_account
-                  ? '[REDACTED]'
-                  : undefined,
-              },
+              data_agent: agent.data_agent,
+              tools: agent.tools,
+              api_version: agent.api_version,
+              ...(agent.auth.impersonate_service_account
+                ? { impersonate_service_account: '[REDACTED]' }
+                : {}),
+              ...(agent.display_name ? { display_name: agent.display_name } : {}),
+              ...(agent.description ? { description: agent.description } : {}),
             },
           ]),
         ),

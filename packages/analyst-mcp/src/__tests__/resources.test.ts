@@ -2,24 +2,14 @@ import { redact, redactServiceAccount, validateConfig } from '@gemini-data-agent
 import { describe, it, expect } from 'vitest';
 
 const config = validateConfig({
+  api_version: 'v1beta',
   agents: {
     'my-agent': {
       display_name: 'My Agent',
       description: 'Test agent',
-      project: 'my-project',
-      location: 'us-central1',
-      api_version: 'v1beta',
       data_agent: 'projects/my-project/locations/us-central1/dataAgents/my-agent',
-      auth: {
-        mode: 'impersonation',
-        source: 'adc',
-        impersonate_service_account: 'my-sa@my-project.iam.gserviceaccount.com',
-      },
-      capabilities: {
-        query_data: true,
-        chat: false,
-        raw_passthrough: false,
-      },
+      impersonate_service_account: 'my-sa@my-project.iam.gserviceaccount.com',
+      tools: ['query_data_agent'],
     },
   },
 });
@@ -56,17 +46,16 @@ describe('Resource content safety', () => {
     );
   });
 
-  it('capabilities resource shows all capabilities', () => {
-    const caps = config.agents['my-agent']!.capabilities;
-    expect(caps.query_data).toBe(true);
-    expect(caps.chat).toBe(false);
+  it('tools list is exposed for agent resources', () => {
+    const tools = config.agents['my-agent']!.tools;
+    expect(tools).toContain('query_data_agent');
   });
 
   it('agents list does not include auth tokens', () => {
     const agentList = Object.entries(config.agents).map(([name, agent]) => ({
       name,
       project: agent.project,
-      capabilities: agent.capabilities,
+      tools: agent.tools,
     }));
 
     const json = JSON.stringify(agentList);

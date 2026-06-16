@@ -3,7 +3,7 @@
     "gemini-data-agent-admin": {
       "type": "stdio",
       "command": "node",
-      "args": ["packages/admin-mcp/dist/cli.js", "--config", "examples/admin.config.yaml"]
+      "args": ["packages/admin-mcp/dist/cli.js", "--config", "examples/admin.config.minimal.yaml"]
     }
   }
 }
