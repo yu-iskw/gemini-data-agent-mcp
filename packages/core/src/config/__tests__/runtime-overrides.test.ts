@@ -18,9 +18,10 @@ const httpOauthInput = {
   ...baseInput,
   server: {
     transport: 'http' as const,
+    public_url: 'https://127.0.0.1:8080/mcp',
     oauth: {
-      resource_url: 'http://127.0.0.1:8080/mcp',
-      issuer: 'http://localhost:8080/realms/master',
+      resource_url: 'https://127.0.0.1:8080/mcp',
+      issuer: 'https://localhost:8080/realms/master',
     },
   },
 };
@@ -148,17 +149,17 @@ describe('applyRuntimeOverrides environment', () => {
     expect(result.server.host).toBe('127.0.0.1');
     expect(result.server.port).toBe(8080);
     expect(result.server.http?.path).toBe('/mcp');
-    expect(result.server.public_url).toBe('http://127.0.0.1:8080/mcp');
+    expect(result.server.public_url).toBe('https://127.0.0.1:8080/mcp');
   });
 
   it('applies MCP_PUBLIC_URL and MCP_HTTP_PATH from environment when consistent', () => {
-    process.env.MCP_PUBLIC_URL = 'http://127.0.0.1:8080/custom-mcp';
+    process.env.MCP_PUBLIC_URL = 'https://127.0.0.1:8080/custom-mcp';
     process.env.MCP_HTTP_PATH = '/custom-mcp';
 
     const config = validateConfig(httpOauthInput);
     const result = applyRuntimeOverrides(config);
 
-    expect(result.server.public_url).toBe('http://127.0.0.1:8080/custom-mcp');
+    expect(result.server.public_url).toBe('https://127.0.0.1:8080/custom-mcp');
     expect(result.server.http?.path).toBe('/custom-mcp');
   });
 
@@ -218,9 +219,10 @@ describe('applyRuntimeOverrides environment', () => {
     expect(result.server.bind?.host).toBe('0.0.0.0');
   });
 
-  it('rejects non-HTTPS public_url when NODE_ENV is production', () => {
+  it('rejects non-HTTPS public_url when server.oauth is enabled', () => {
+    process.env.MCP_PUBLIC_URL = 'http://127.0.0.1:8080/mcp';
+
     const config = validateConfig(httpOauthInput);
-    process.env.NODE_ENV = 'production';
 
     expect(() => applyRuntimeOverrides(config)).toThrow(DataAgentMcpError);
     try {
@@ -228,7 +230,7 @@ describe('applyRuntimeOverrides environment', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(DataAgentMcpError);
       expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID');
-      expect((err as DataAgentMcpError).message).toContain('https');
+      expect((err as DataAgentMcpError).message).toContain('https when server.oauth is enabled');
     }
   });
 });
@@ -258,14 +260,14 @@ describe('applyRuntimeOverrides CLI precedence', () => {
   });
 
   it('CLI --http-path wins over MCP_HTTP_PATH from environment', () => {
-    process.env.MCP_PUBLIC_URL = 'http://127.0.0.1:8080/cli-path';
+    process.env.MCP_PUBLIC_URL = 'https://127.0.0.1:8080/cli-path';
     process.env.MCP_HTTP_PATH = '/env-path';
 
     const config = validateConfig(httpOauthInput);
     const result = applyRuntimeOverrides(config, { httpPath: '/cli-path' });
 
     expect(result.server.http?.path).toBe('/cli-path');
-    expect(result.server.public_url).toBe('http://127.0.0.1:8080/cli-path');
+    expect(result.server.public_url).toBe('https://127.0.0.1:8080/cli-path');
   });
 
   it('CLI --transport wins over MCP_TRANSPORT from environment', () => {

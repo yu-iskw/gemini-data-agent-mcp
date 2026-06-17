@@ -114,6 +114,61 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token)."
+                },
+                "user_token": {
+                  "type": "object",
+                  "properties": {
+                    "trusted_ingress_client_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1,
+                      "description": "MCP JWT azp/client_id values allowed to use user_token egress."
+                    },
+                    "google_token": {
+                      "type": "object",
+                      "properties": {
+                        "introspection_url": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "OIDC token introspection endpoint. Omit to use issuer discovery introspection_endpoint."
+                        },
+                        "issuer": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "Expected issuer (iss) on introspected Google/OIDC access tokens."
+                        },
+                        "audiences": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "minItems": 1,
+                          "description": "Allowed aud/client_id values for introspected egress tokens."
+                        }
+                      },
+                      "required": ["issuer", "audiences"],
+                      "additionalProperties": false
+                    },
+                    "binding": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": ["ingress_client_only", "google_sub_matches_mcp_sub"],
+                          "description": "How MCP ingress identity is bound to the Google egress token."
+                        }
+                      },
+                      "required": ["mode"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["trusted_ingress_client_ids", "google_token", "binding"],
+                  "additionalProperties": false,
+                  "description": "Required when any agent uses auth_mode user_token: ingress allowlist and Google token introspection binding."
                 }
               },
               "additionalProperties": false,
@@ -135,7 +190,7 @@
                 "issuer": {
                   "type": "string",
                   "format": "uri",
-                  "description": "OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.)."
+                  "description": "OAuth/OIDC issuer URL for MCP ingress JWT verification (JWT-at-JWKS profile)."
                 },
                 "scopes_supported": {
                   "type": "array",
@@ -153,6 +208,29 @@
                     "minLength": 1
                   },
                   "description": "OAuth scopes required on MCP access tokens (enforced at ingress)."
+                },
+                "allowed_audiences": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "JWT aud values accepted for MCP ingress. Defaults to resource_url when omitted."
+                },
+                "scope_claims": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["scope", "scp"]
+                  },
+                  "default": ["scope"],
+                  "description": "JWT claims parsed for OAuth scopes on MCP access tokens."
+                },
+                "token_profile": {
+                  "type": "string",
+                  "enum": ["jwt_jwks"],
+                  "default": "jwt_jwks",
+                  "description": "MCP ingress token profile. Only jwt_jwks (JWT verified via issuer JWKS) is supported."
                 }
               },
               "required": ["issuer"],

@@ -121,6 +121,39 @@ const HttpBindConfigSchema = z.object({
     .describe('HTTP bind port (1-65535). Defaults to 8080 when transport is http.'),
 });
 
+const UserTokenGoogleTokenSchema = z.object({
+  introspection_url: z
+    .string()
+    .url()
+    .optional()
+    .describe(
+      'OIDC token introspection endpoint. Omit to use issuer discovery introspection_endpoint.',
+    ),
+  issuer: z
+    .string()
+    .url()
+    .describe('Expected issuer (iss) on introspected Google/OIDC access tokens.'),
+  audiences: z
+    .array(z.string().min(1))
+    .min(1)
+    .describe('Allowed aud/client_id values for introspected egress tokens.'),
+});
+
+const UserTokenBindingSchema = z.object({
+  mode: z
+    .enum(['ingress_client_only', 'google_sub_matches_mcp_sub'])
+    .describe('How MCP ingress identity is bound to the Google egress token.'),
+});
+
+const UserTokenConfigSchema = z.object({
+  trusted_ingress_client_ids: z
+    .array(z.string().min(1))
+    .min(1)
+    .describe('MCP JWT azp/client_id values allowed to use user_token egress.'),
+  google_token: UserTokenGoogleTokenSchema,
+  binding: UserTokenBindingSchema,
+});
+
 const HttpServerConfigSchema = z.object({
   path: z
     .string()
@@ -141,6 +174,9 @@ const HttpServerConfigSchema = z.object({
     .describe(
       'HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token).',
     ),
+  user_token: UserTokenConfigSchema.optional().describe(
+    'Required when any agent uses auth_mode user_token: ingress allowlist and Google token introspection binding.',
+  ),
 });
 
 const OAuthServerConfigSchema = z
@@ -154,7 +190,10 @@ const OAuthServerConfigSchema = z
       .url()
       .optional()
       .describe('Canonical MCP resource URL. Defaults to server.public_url when omitted.'),
-    issuer: z.string().url().describe('OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.).'),
+    issuer: z
+      .string()
+      .url()
+      .describe('OAuth/OIDC issuer URL for MCP ingress JWT verification (JWT-at-JWKS profile).'),
     scopes_supported: z
       .array(z.string().min(1))
       .default(['mcp:tools'])
@@ -163,6 +202,43 @@ const OAuthServerConfigSchema = z
       .array(z.string().min(1))
       .optional()
       .describe('OAuth scopes required on MCP access tokens (enforced at ingress).'),
+    allowed_audiences: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('JWT aud values accepted for MCP ingress. Defaults to resource_url when omitted.'),
+    scope_claims: z
+      .array(z.enum(['scope', 'scp']))
+      .default(['scope'])
+      .describe('JWT claims parsed for OAuth scopes on MCP access tokens.'),
+    token_profile: z
+      .enum(['jwt_jwks'])
+      .default('jwt_jwks')
+      .describe(
+        'MCP ingress token profile. Only jwt_jwks (JWT verified via issuer JWKS) is supported.',
+      ),
+  })
+  .superRefine((oauth, ctx) => {
+    const required = oauth.required_scopes ?? oauth.scopes_supported;
+    for (const scope of required) {
+      if (!oauth.scopes_supported.includes(scope)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['required_scopes'],
+          message: `required scope "${scope}" must be listed in scopes_supported`,
+        });
+      }
+    }
+    if (
+      oauth.issuer.includes('securetoken.google.com') &&
+      (!oauth.allowed_audiences || oauth.allowed_audiences.length === 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['allowed_audiences'],
+        message:
+          'server.oauth.allowed_audiences is required for Identity Platform issuers (securetoken.google.com)',
+      });
+    }
   })
   .transform((oauth) => ({
     ...oauth,

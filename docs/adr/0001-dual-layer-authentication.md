@@ -61,7 +61,7 @@ sequenceDiagram
 
 Same as UC3; Cloud Run SA impersonates a data-plane SA.
 
-#### UC5 — HTTP + user token (Phase 1)
+#### UC5 — HTTP + user token (bound BFF)
 
 ```mermaid
 sequenceDiagram
@@ -73,11 +73,19 @@ sequenceDiagram
   User->>BFF: Login Google
   BFF->>MCP: Authorization MCP_token
   BFF->>MCP: X-Google-Access-Token user_Google_token
-  Note over MCP: Two credentials same request
+  Note over MCP: Ingress client allowlist + introspection + session identity binding
   MCP->>API: User Google token only
 ```
 
 Default header: `X-Google-Access-Token` (configurable via `server.http.google_access_token_header`). The MCP `Authorization` header is never used for Google API calls.
+
+`server.http.user_token` is **required** when any agent uses `auth_mode: user_token`:
+
+- `trusted_ingress_client_ids` — only listed MCP JWT `azp`/`client_id` values may call user_token agents
+- `google_token` — OIDC introspection URL (or issuer discovery), expected issuer, allowed audiences
+- `binding.mode` — `ingress_client_only` or `google_sub_matches_mcp_sub` (MCP JWT `sub` must match introspected Google `sub`)
+
+The HTTP session stores a validated Google identity tuple; later requests with a different Google principal are rejected.
 
 #### UC6 — HTTP agent identity
 
@@ -122,6 +130,16 @@ server:
   public_url: https://mcp.example.com/mcp
   oauth:
     issuer: https://auth.example.com/
+    allowed_audiences: [https://mcp.example.com/mcp]
+  http:
+    user_token:
+      trusted_ingress_client_ids: [bff-client-id]
+      google_token:
+        introspection_url: https://auth.example.com/introspect
+        issuer: https://accounts.google.com
+        audiences: [google-oauth-client-id]
+      binding:
+        mode: google_sub_matches_mcp_sub
 agents:
   my-agent:
     data_agent: projects/p/locations/l/dataAgents/a
@@ -137,11 +155,12 @@ agents:
 - `user_token` enables user-attributed analytics on hosted HTTP without MCP token passthrough.
 - Stdio and SA modes unchanged for local and automation use cases.
 
-### Negative / limits (Phase 1)
+### Negative / limits
 
 - `user_token` requires the BFF to send a Google access token on every MCP HTTP request (no refresh vault yet).
-- `user_token` mode requires a **trusted confidential BFF**: the MCP ingress principal is not cryptographically bound to the Google access token in `X-Google-Access-Token`; arbitrary MCP clients must not be able to supply their own secondary token.
-- In-memory HTTP sessions are **single-instance only**: multi-instance Cloud Run (or any horizontal scale-out) needs session affinity, an external session store, or clients must tolerate `404` on session reuse until Phase 2.
+- `user_token` requires `server.http.user_token` binding policy and HTTPS `public_url`.
+- MCP ingress uses a **JWT-at-JWKS** profile only (`server.oauth.token_profile: jwt_jwks`); opaque MCP access tokens are not supported.
+- In-memory HTTP sessions are **single-instance only**: multi-instance Cloud Run needs session affinity, an external session store, or clients must tolerate `404` on session reuse.
 
 ### Anti-patterns
 

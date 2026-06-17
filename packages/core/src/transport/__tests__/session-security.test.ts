@@ -9,9 +9,9 @@ import {
 } from '../oauth.js';
 import { startMcpHttpServer } from '../start-http-server.js';
 
-import type { AppConfig } from '../../types.js';
+import { defaultHttpOauthFields, testIssuer } from './http-test-fixtures.js';
 
-const testIssuer = 'https://auth.example.com/realms/test';
+import type { AppConfig } from '../../types.js';
 
 function stubOidcDiscovery(): void {
   const realFetch = globalThis.fetch.bind(globalThis);
@@ -58,13 +58,12 @@ function buildConfig(port: number): AppConfig {
         path: '/mcp',
         sessions: { max_sessions: 100, idle_ttl_ms: 60_000, max_sessions_per_principal: 50 },
       },
-      oauth: {
+      oauth: defaultHttpOauthFields({
         enabled: true,
         resource_url: baseUrl,
         issuer: testIssuer,
-        scopes_supported: ['mcp:tools'],
-        required_scopes: ['mcp:tools'],
-      },
+        allowed_audiences: [baseUrl],
+      }),
     },
     security: {
       redaction: {

@@ -7,6 +7,8 @@ import {
   resetOidcDiscoveryCacheForTests,
 } from '../oauth.js';
 
+import { defaultTestOAuth } from './http-test-fixtures.js';
+
 const testIssuer = 'https://auth.example.com/realms/test';
 
 function stubOidcDiscovery(body: Record<string, unknown>): void {
@@ -33,13 +35,12 @@ describe('OIDC discovery hardening', () => {
     stubOidcDiscovery({ issuer: testIssuer });
 
     await expect(
-      buildOAuthMetadata({
-        enabled: true,
-        resource_url: 'https://mcp.example.com/mcp',
-        issuer: testIssuer,
-        scopes_supported: ['mcp:tools'],
-        required_scopes: ['mcp:tools'],
-      }),
+      buildOAuthMetadata(
+        defaultTestOAuth({
+          resource_url: 'https://mcp.example.com/mcp',
+          issuer: testIssuer,
+        }),
+      ),
     ).rejects.toThrow(/Invalid OIDC discovery document/);
   });
 
@@ -52,13 +53,12 @@ describe('OIDC discovery hardening', () => {
     });
 
     await expect(
-      buildOAuthMetadata({
-        enabled: true,
-        resource_url: 'https://mcp.example.com/mcp',
-        issuer: testIssuer,
-        scopes_supported: ['mcp:tools'],
-        required_scopes: ['mcp:tools'],
-      }),
+      buildOAuthMetadata(
+        defaultTestOAuth({
+          resource_url: 'https://mcp.example.com/mcp',
+          issuer: testIssuer,
+        }),
+      ),
     ).rejects.toThrow(/issuer mismatch/);
   });
 
@@ -71,16 +71,32 @@ describe('OIDC discovery hardening', () => {
     };
     stubOidcDiscovery(discovery);
 
-    const oauth = {
-      enabled: true,
+    const oauth = defaultTestOAuth({
       resource_url: 'https://mcp.example.com/mcp',
       issuer: testIssuer,
-      scopes_supported: ['mcp:tools'],
-      required_scopes: ['mcp:tools'],
-    };
+    });
 
     await buildOAuthMetadata(oauth);
     await buildOAuthMetadata(oauth);
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces concurrent discovery fetches for the same issuer', async () => {
+    const discovery = {
+      issuer: testIssuer,
+      authorization_endpoint: `${testIssuer}/auth`,
+      token_endpoint: `${testIssuer}/token`,
+      jwks_uri: `${testIssuer}/jwks`,
+    };
+    stubOidcDiscovery(discovery);
+
+    const oauth = defaultTestOAuth({
+      resource_url: 'https://mcp.example.com/mcp',
+      issuer: testIssuer,
+    });
+
+    await Promise.all([buildOAuthMetadata(oauth), buildOAuthMetadata(oauth)]);
 
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });

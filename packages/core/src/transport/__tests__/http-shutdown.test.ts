@@ -4,6 +4,8 @@ import { z } from 'zod';
 
 import { startMcpHttpServer } from '../start-http-server.js';
 
+import { defaultHttpOauthFields } from './http-test-fixtures.js';
+
 import type { AppConfig } from '../../types.js';
 
 function createTestMcpServer(): McpServer {
@@ -26,13 +28,12 @@ function buildConfig(): AppConfig {
       port: 0,
       public_url: baseUrl,
       http: { path: '/mcp' },
-      oauth: {
+      oauth: defaultHttpOauthFields({
         enabled: false,
         resource_url: baseUrl,
         issuer: 'http://localhost:8080/realms/master',
-        scopes_supported: ['mcp:tools'],
-        required_scopes: ['mcp:tools'],
-      },
+        allowed_audiences: [baseUrl],
+      }),
     },
     security: {
       redaction: {

@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
+import { type GooglePrincipalIdentity } from '../auth/google-identity.js';
 import { logFingerprint } from '../observability/fingerprints.js';
 import { logInfo } from '../observability/logging.js';
+
+import { logGooglePrincipalFingerprint } from './user-token-middleware.js';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -10,6 +13,7 @@ export interface SessionRecord {
   transport: StreamableHTTPServerTransport;
   server: McpServer;
   principalId?: string;
+  googleIdentity?: GooglePrincipalIdentity;
   lastAccessAt: number;
 }
 
@@ -117,6 +121,7 @@ function registerSessionRecord(
   logInfo('transport', 'session_created', {
     session_fingerprint: logFingerprint(sessionId),
     ...(record.principalId ? { principal_fingerprint: logFingerprint(record.principalId) } : {}),
+    ...(record.googleIdentity ? logGooglePrincipalFingerprint(record.googleIdentity) : {}),
     sessions_active: state.sessions.size,
   });
 }

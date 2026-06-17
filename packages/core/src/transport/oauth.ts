@@ -2,7 +2,7 @@ import { checkResourceAllowed } from '@modelcontextprotocol/sdk/shared/auth-util
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { z } from 'zod';
 
-import type { OAuthServerConfig } from '../types.js';
+import type { OAuthScopeClaim, OAuthServerConfig } from '../types.js';
 import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { OAuthMetadata } from '@modelcontextprotocol/sdk/shared/auth.js';
@@ -28,15 +28,37 @@ const OidcDiscoveryDocumentSchema = z.object({
 
 type OidcDiscoveryDocument = z.infer<typeof OidcDiscoveryDocumentSchema>;
 
+const DISCOVERY_MIN_TTL_MS = 60_000;
+const DISCOVERY_MAX_TTL_MS = 60 * 60_000;
+const DISCOVERY_STALE_MS = 60_000;
+
 interface CachedDiscovery {
   document: OidcDiscoveryDocument;
   expiresAt: number;
+  staleUntil: number;
 }
 
 const oidcCache = new Map<string, CachedDiscovery>();
+const oidcInFlight = new Map<string, Promise<OidcDiscoveryDocument>>();
 
 export function resetOidcDiscoveryCacheForTests(): void {
   oidcCache.clear();
+  oidcInFlight.clear();
+}
+
+function parseCacheControlMaxAge(cacheControl: string | null): number | undefined {
+  if (!cacheControl) {
+    return undefined;
+  }
+  const match = /max-age=(\d+)/i.exec(cacheControl);
+  if (!match?.[1]) {
+    return undefined;
+  }
+  const seconds = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(seconds)) {
+    return undefined;
+  }
+  return Math.min(DISCOVERY_MAX_TTL_MS, Math.max(DISCOVERY_MIN_TTL_MS, seconds * 1000));
 }
 
 function normalizeIssuer(issuer: string): string {
@@ -53,6 +75,57 @@ function assertIssuerMatches(configuredIssuer: string, discoveredIssuer: string)
   }
 }
 
+async function fetchOidcDiscoveryDocument(
+  issuer: string,
+  cacheKey: string,
+  staleDocument?: OidcDiscoveryDocument,
+): Promise<OidcDiscoveryDocument> {
+  const discoveryUrl = new URL('.well-known/openid-configuration', cacheKey).href;
+  try {
+    const response = await fetch(discoveryUrl, {
+      signal: AbortSignal.timeout(DISCOVERY_FETCH_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch OIDC discovery from ${discoveryUrl}: ${response.status}`);
+    }
+
+    const parsed = OidcDiscoveryDocumentSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new Error(`Invalid OIDC discovery document from ${discoveryUrl}`);
+    }
+
+    assertIssuerMatches(issuer, parsed.data.issuer);
+
+    const ttlMs =
+      parseCacheControlMaxAge(response.headers.get('cache-control')) ?? DISCOVERY_TTL_MS;
+    const now = Date.now();
+
+    if (oidcCache.size >= MAX_DISCOVERY_CACHE_ENTRIES) {
+      const oldestKey = oidcCache.keys().next().value;
+      if (oldestKey) {
+        oidcCache.delete(oldestKey);
+      }
+    }
+
+    oidcCache.set(cacheKey, {
+      document: parsed.data,
+      expiresAt: now + ttlMs,
+      staleUntil: now + ttlMs + DISCOVERY_STALE_MS,
+    });
+
+    return parsed.data;
+  } catch (err) {
+    const cached = oidcCache.get(cacheKey);
+    if (cached && cached.staleUntil > Date.now()) {
+      return cached.document;
+    }
+    if (staleDocument) {
+      return staleDocument;
+    }
+    throw err;
+  }
+}
+
 async function fetchOidcDiscovery(issuer: string): Promise<OidcDiscoveryDocument> {
   const cacheKey = normalizeIssuer(issuer);
   const cached = oidcCache.get(cacheKey);
@@ -60,34 +133,34 @@ async function fetchOidcDiscovery(issuer: string): Promise<OidcDiscoveryDocument
     return cached.document;
   }
 
-  const discoveryUrl = new URL('.well-known/openid-configuration', cacheKey).href;
-  const response = await fetch(discoveryUrl, {
-    signal: AbortSignal.timeout(DISCOVERY_FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch OIDC discovery from ${discoveryUrl}: ${response.status}`);
+  const inFlight = oidcInFlight.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
   }
 
-  const parsed = OidcDiscoveryDocumentSchema.safeParse(await response.json());
-  if (!parsed.success) {
-    throw new Error(`Invalid OIDC discovery document from ${discoveryUrl}`);
+  const promise = fetchOidcDiscoveryDocument(issuer, cacheKey, cached?.document);
+  oidcInFlight.set(cacheKey, promise);
+  try {
+    return await promise;
+  } finally {
+    oidcInFlight.delete(cacheKey);
   }
+}
 
-  assertIssuerMatches(issuer, parsed.data.issuer);
-
-  if (oidcCache.size >= MAX_DISCOVERY_CACHE_ENTRIES) {
-    const oldestKey = oidcCache.keys().next().value;
-    if (oldestKey) {
-      oidcCache.delete(oldestKey);
-    }
+export async function resolveIntrospectionUrl(
+  oauth: OAuthServerConfig,
+  configuredUrl?: string,
+): Promise<string> {
+  if (configuredUrl) {
+    return configuredUrl;
   }
-
-  oidcCache.set(cacheKey, {
-    document: parsed.data,
-    expiresAt: Date.now() + DISCOVERY_TTL_MS,
-  });
-
-  return parsed.data;
+  const discovery = await fetchOidcDiscovery(oauth.issuer);
+  if (!discovery.introspection_endpoint) {
+    throw new Error(
+      'server.http.user_token.google_token.introspection_url is required when issuer discovery lacks introspection_endpoint',
+    );
+  }
+  return discovery.introspection_endpoint;
 }
 
 class MissingPrincipalIdError extends Error {
@@ -130,6 +203,55 @@ function parseScopeClaim(scopeClaim: unknown): string[] {
   return [];
 }
 
+function collectScopesFromClaim(
+  payload: JWTPayload,
+  claim: OAuthScopeClaim,
+  scopes: Set<string>,
+): void {
+  if (claim === 'scope') {
+    for (const scope of parseScopeClaim(payload.scope)) {
+      scopes.add(scope);
+    }
+    return;
+  }
+
+  const scp = payload.scp;
+  if (!Array.isArray(scp)) {
+    return;
+  }
+  for (const entry of scp) {
+    if (typeof entry === 'string' && entry) {
+      scopes.add(entry);
+    }
+  }
+}
+
+export function parseScopeClaims(
+  payload: JWTPayload,
+  scopeClaims: readonly OAuthScopeClaim[],
+): string[] {
+  const scopes = new Set<string>();
+  for (const claim of scopeClaims) {
+    collectScopesFromClaim(payload, claim, scopes);
+  }
+  return [...scopes];
+}
+
+function audienceAllowed(audiences: string[], oauth: OAuthServerConfig): boolean {
+  if (audiences.length === 0) {
+    return false;
+  }
+  const resourceUrl = new URL(oauth.resource_url);
+  return audiences.some(
+    (audience) =>
+      oauth.allowed_audiences.includes(audience) ||
+      checkResourceAllowed({
+        requestedResource: audience,
+        configuredResource: resourceUrl,
+      }),
+  );
+}
+
 export function getMissingRequiredScopes(
   requiredScopes: readonly string[],
   tokenScopes: readonly string[],
@@ -157,6 +279,42 @@ export async function buildOAuthMetadata(oauth: OAuthServerConfig): Promise<OAut
   };
 }
 
+function buildAuthInfoFromPayload(
+  token: string,
+  payload: JWTPayload,
+  oauth: OAuthServerConfig,
+  resourceUrl: URL,
+): AuthInfo {
+  const aud = payload.aud;
+  const audiences: string[] =
+    aud === undefined ? [] : Array.isArray(aud) ? aud.map(String) : [String(aud)];
+
+  if (!audienceAllowed(audiences, oauth)) {
+    throw new Error(
+      `Token audience does not match allowed audiences for ${oauth.resource_url}: ${audiences.join(', ')}`,
+    );
+  }
+
+  const scopes = parseScopeClaims(payload, oauth.scope_claims);
+  const missing = getMissingRequiredScopes(oauth.required_scopes, scopes);
+  if (missing.length > 0) {
+    throw new Error(`Token is missing required OAuth scopes: ${missing.join(', ')}`);
+  }
+
+  const clientId = extractTokenClientId(payload) ?? 'unknown';
+  const mcpSub = typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
+  const principalId = derivePrincipalId(payload);
+
+  return {
+    token,
+    clientId,
+    scopes,
+    expiresAt: typeof payload.exp === 'number' ? payload.exp : undefined,
+    resource: resourceUrl,
+    extra: { principalId, ...(mcpSub ? { sub: mcpSub } : {}) },
+  };
+}
+
 export function createJwtTokenVerifier(oauth: OAuthServerConfig): OAuthTokenVerifier {
   const resourceUrl = new URL(oauth.resource_url);
   let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
@@ -170,47 +328,13 @@ export function createJwtTokenVerifier(oauth: OAuthServerConfig): OAuthTokenVeri
         issuer: discovery.issuer,
       });
 
-      const aud = payload.aud;
-      const audiences: string[] =
-        aud === undefined ? [] : Array.isArray(aud) ? aud.map(String) : [String(aud)];
-
-      const allowed = audiences.some((audience) =>
-        checkResourceAllowed({
-          requestedResource: audience,
-          configuredResource: resourceUrl,
-        }),
-      );
-
-      if (!allowed) {
-        throw new Error(
-          `Token audience does not match resource ${oauth.resource_url}: ${audiences.join(', ')}`,
-        );
-      }
-
-      const scopes = parseScopeClaim(payload.scope);
-      const missing = getMissingRequiredScopes(oauth.required_scopes, scopes);
-      if (missing.length > 0) {
-        throw new Error(`Token is missing required OAuth scopes: ${missing.join(', ')}`);
-      }
-
-      const clientId = extractTokenClientId(payload) ?? 'unknown';
-
-      const principalId = derivePrincipalId(payload);
-
-      return {
-        token,
-        clientId,
-        scopes,
-        expiresAt: typeof payload.exp === 'number' ? payload.exp : undefined,
-        resource: resourceUrl,
-        extra: { principalId },
-      };
+      return buildAuthInfoFromPayload(token, payload, oauth, resourceUrl);
     },
   };
 }
 
 export function createStubTokenVerifier(
-  tokens: Map<string, { principalId: string; scopes?: string[] }>,
+  tokens: Map<string, { principalId: string; sub?: string; clientId?: string; scopes?: string[] }>,
 ): OAuthTokenVerifier {
   return {
     verifyAccessToken: async (token: string): Promise<AuthInfo> => {
@@ -218,12 +342,16 @@ export function createStubTokenVerifier(
       if (!entry) {
         throw new Error('Invalid token');
       }
+      const clientId = entry.clientId ?? entry.principalId;
       return {
         token,
-        clientId: entry.principalId,
+        clientId,
         scopes: entry.scopes ?? ['mcp:tools'],
         expiresAt: Math.floor(Date.now() / 1000) + 3600,
-        extra: { principalId: entry.principalId },
+        extra: {
+          principalId: entry.principalId,
+          ...(entry.sub ? { sub: entry.sub } : {}),
+        },
       };
     },
   };

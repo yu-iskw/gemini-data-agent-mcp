@@ -1,15 +1,22 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createStubTokenIntrospector } from '../../auth/oauth-introspection.js';
 import { clearCredentialCache, resolveCredentials } from '../../auth/resolver.js';
 import { createStubTokenVerifier, resetOidcDiscoveryCacheForTests } from '../oauth.js';
 import { startMcpHttpServer } from '../start-http-server.js';
 
+import {
+  defaultHttpOauthFields,
+  defaultUserTokenConfig,
+  testIssuer,
+} from './http-test-fixtures.js';
+
 import type { AppConfig } from '../../types.js';
 
-const testIssuer = 'https://auth.example.com/realms/test';
 const mcpToken = 'mcp-access-token';
 const userGoogleToken = 'user-google-access-token';
+const googleUserSub = 'google-user-1';
 
 function stubOidcDiscovery(): void {
   const realFetch = globalThis.fetch.bind(globalThis);
@@ -24,6 +31,7 @@ function stubOidcDiscovery(): void {
             authorization_endpoint: `${testIssuer}/protocol/openid-connect/auth`,
             token_endpoint: `${testIssuer}/protocol/openid-connect/token`,
             jwks_uri: `${testIssuer}/protocol/openid-connect/certs`,
+            introspection_endpoint: 'https://auth.example.com/introspect',
           }),
           { status: 200 },
         );
@@ -57,14 +65,16 @@ function buildUserTokenConfig(port: number): AppConfig {
       host: '127.0.0.1',
       port,
       public_url: baseUrl,
-      http: { path: '/mcp' },
-      oauth: {
+      http: {
+        path: '/mcp',
+        user_token: defaultUserTokenConfig(),
+      },
+      oauth: defaultHttpOauthFields({
         enabled: true,
         resource_url: baseUrl,
         issuer: testIssuer,
-        scopes_supported: ['mcp:tools'],
-        required_scopes: ['mcp:tools'],
-      },
+        allowed_audiences: [baseUrl],
+      }),
     },
     security: {
       redaction: {
@@ -90,6 +100,35 @@ function buildUserTokenConfig(port: number): AppConfig {
       },
     },
   };
+}
+
+function createTestVerifiers() {
+  const verifier = createStubTokenVerifier(
+    new Map([
+      [
+        mcpToken,
+        {
+          principalId: 'sub:google-user-1|client:bff-client',
+          sub: googleUserSub,
+          clientId: 'bff-client',
+        },
+      ],
+    ]),
+  );
+  const introspector = createStubTokenIntrospector(
+    new Map([
+      [
+        userGoogleToken,
+        {
+          issuer: 'https://accounts.google.com',
+          subject: googleUserSub,
+          clientId: 'google-client',
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+        },
+      ],
+    ]),
+  );
+  return { verifier, introspector };
 }
 
 const initializeBody = {
@@ -133,12 +172,13 @@ async function readJsonRpcResult(response: Response): Promise<unknown> {
 describe('HTTP user_token egress', () => {
   it('uses X-Google-Access-Token for Data Agent egress, not MCP Authorization', async () => {
     stubOidcDiscovery();
-    const verifier = createStubTokenVerifier(new Map([[mcpToken, { principalId: 'bff-client' }]]));
+    const { verifier, introspector } = createTestVerifiers();
 
     const handle = await startMcpHttpServer({
       config: buildUserTokenConfig(0),
       createMcpServer: createEgressProbeServer,
       testTokenVerifier: verifier,
+      testTokenIntrospector: introspector,
     });
     activeServers.push(handle);
 
@@ -196,15 +236,17 @@ describe('HTTP user_token egress', () => {
 
   it('does not read user token when no agent uses user_token mode', async () => {
     stubOidcDiscovery();
-    const verifier = createStubTokenVerifier(new Map([[mcpToken, { principalId: 'bff-client' }]]));
+    const { verifier, introspector } = createTestVerifiers();
 
     const config = buildUserTokenConfig(0);
     config.agents['my-agent'].auth = { mode: 'adc' };
+    delete config.server.http?.user_token;
 
     const handle = await startMcpHttpServer({
       config,
       createMcpServer: createEgressProbeServer,
       testTokenVerifier: verifier,
+      testTokenIntrospector: introspector,
     });
     activeServers.push(handle);
 

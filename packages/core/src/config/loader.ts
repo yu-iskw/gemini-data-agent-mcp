@@ -93,12 +93,16 @@ function buildOAuthConfig(
   oauthInput: NonNullable<AppConfigInput['server']>['oauth'],
   publicUrl: string,
 ): AppConfig['server']['oauth'] {
+  const resourceUrl = oauthInput?.resource_url ?? publicUrl;
   return {
     enabled: oauthInput?.enabled ?? true,
-    resource_url: oauthInput?.resource_url ?? publicUrl,
+    resource_url: resourceUrl,
     issuer: oauthInput!.issuer,
     scopes_supported: oauthInput?.scopes_supported ?? ['mcp:tools'],
     required_scopes: oauthInput!.required_scopes,
+    allowed_audiences: oauthInput?.allowed_audiences ?? [resourceUrl],
+    scope_claims: oauthInput?.scope_claims ?? ['scope'],
+    token_profile: oauthInput?.token_profile ?? 'jwt_jwks',
   };
 }
 
@@ -115,6 +119,7 @@ function buildNormalizedHttpConfig(
     ...(httpInput?.google_access_token_header
       ? { google_access_token_header: httpInput.google_access_token_header }
       : {}),
+    ...(httpInput?.user_token ? { user_token: httpInput.user_token } : {}),
   };
 }
 
@@ -256,6 +261,73 @@ function normalizeAgent(
   };
 }
 
+function validateUserTokenAgentRequirements(
+  name: string,
+  agent: AppConfig['agents'][string],
+  config: AppConfig,
+): void {
+  if (agent.auth.mode !== 'user_token') {
+    return;
+  }
+
+  if (config.server.transport !== 'http') {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      `agent "${name}" auth mode user_token requires server.transport http`,
+      false,
+      { agent: name },
+    );
+  }
+
+  if (config.server.oauth?.enabled === false) {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      `agent "${name}" auth mode user_token requires server.oauth.enabled`,
+      false,
+      { agent: name },
+    );
+  }
+
+  const publicUrl = config.server.public_url;
+  if (!publicUrl || new URL(publicUrl).protocol !== 'https:') {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      `agent "${name}" auth mode user_token requires server.public_url to use https`,
+      false,
+      { agent: name },
+    );
+  }
+}
+
+function validateUserTokenBindingPolicy(config: AppConfig): void {
+  const userToken = config.server.http?.user_token;
+  if (!userToken) {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      'server.http.user_token is required when any agent uses auth_mode user_token',
+      false,
+    );
+  }
+
+  if (userToken.trusted_ingress_client_ids.length === 0) {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      'server.http.user_token.trusted_ingress_client_ids must be non-empty',
+      false,
+    );
+  }
+
+  const hasIntrospectionUrl = Boolean(userToken.google_token.introspection_url);
+  const oauthIssuer = config.server.oauth?.issuer;
+  if (!hasIntrospectionUrl && !oauthIssuer) {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      'server.http.user_token.google_token.introspection_url or server.oauth.issuer is required for user_token mode',
+      false,
+    );
+  }
+}
+
 function runSemanticValidation(config: AppConfig): void {
   if (!config.agents || Object.keys(config.agents).length === 0) {
     throw new DataAgentMcpError(
@@ -265,28 +337,16 @@ function runSemanticValidation(config: AppConfig): void {
     );
   }
 
+  const hasUserTokenAgent = Object.values(config.agents).some(
+    (agent) => agent.auth.mode === 'user_token',
+  );
+
   for (const [name, agent] of Object.entries(config.agents)) {
-    if (agent.auth.mode !== 'user_token') {
-      continue;
-    }
+    validateUserTokenAgentRequirements(name, agent, config);
+  }
 
-    if (config.server.transport !== 'http') {
-      throw new DataAgentMcpError(
-        'CONFIG_INVALID',
-        `agent "${name}" auth mode user_token requires server.transport http`,
-        false,
-        { agent: name },
-      );
-    }
-
-    if (config.server.oauth?.enabled === false) {
-      throw new DataAgentMcpError(
-        'CONFIG_INVALID',
-        `agent "${name}" auth mode user_token requires server.oauth.enabled`,
-        false,
-        { agent: name },
-      );
-    }
+  if (hasUserTokenAgent) {
+    validateUserTokenBindingPolicy(config);
   }
 }
 

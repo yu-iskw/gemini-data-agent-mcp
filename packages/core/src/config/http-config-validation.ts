@@ -56,6 +56,56 @@ export function validateHttpUrlConsistency(server: ServerConfig): void {
   }
 }
 
+function assertPublicUrlUsesHttps(publicUrl: string, reason: string): void {
+  if (new URL(publicUrl).protocol !== 'https:') {
+    throw new DataAgentMcpError('CONFIG_INVALID', `server.public_url must use ${reason}`, false);
+  }
+}
+
+function validateHttpsPublicUrlRequirements(server: ServerConfig): void {
+  const publicUrl = server.public_url!;
+  if (server.oauth?.enabled !== false) {
+    assertPublicUrlUsesHttps(publicUrl, 'https when server.oauth is enabled');
+  }
+  if (process.env.NODE_ENV === 'production') {
+    assertPublicUrlUsesHttps(publicUrl, 'https when NODE_ENV=production');
+  }
+}
+
+function validateInsecureHttpOAuth(server: ServerConfig): void {
+  if (server.oauth?.enabled !== false) {
+    return;
+  }
+
+  const bindHost = resolveBindHost(server);
+  const allowInsecure = process.env.MCP_ALLOW_INSECURE_HTTP === 'true';
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction) {
+    throw new DataAgentMcpError(
+      'CONFIG_INSECURE_HTTP',
+      'server.oauth.enabled: false is not allowed when NODE_ENV=production',
+      false,
+    );
+  }
+
+  if (!allowInsecure) {
+    throw new DataAgentMcpError(
+      'CONFIG_INSECURE_HTTP',
+      'server.oauth.enabled: false requires MCP_ALLOW_INSECURE_HTTP=true for local CI smoke tests only',
+      false,
+    );
+  }
+
+  if (!isLoopbackHost(bindHost)) {
+    throw new DataAgentMcpError(
+      'CONFIG_INSECURE_HTTP',
+      `server.oauth.enabled: false requires a loopback bind host (got ${bindHost})`,
+      false,
+    );
+  }
+}
+
 export function validateHttpServerConfig(server: ServerConfig): void {
   if (server.transport !== 'http') {
     return;
@@ -78,45 +128,6 @@ export function validateHttpServerConfig(server: ServerConfig): void {
   }
 
   validateHttpUrlConsistency(server);
-
-  if (process.env.NODE_ENV === 'production') {
-    const scheme = new URL(server.public_url).protocol;
-    if (scheme !== 'https:') {
-      throw new DataAgentMcpError(
-        'CONFIG_INVALID',
-        'server.public_url must use https when NODE_ENV=production',
-        false,
-      );
-    }
-  }
-
-  if (server.oauth.enabled === false) {
-    const bindHost = resolveBindHost(server);
-    const allowInsecure = process.env.MCP_ALLOW_INSECURE_HTTP === 'true';
-    const isProduction = process.env.NODE_ENV === 'production';
-
-    if (isProduction) {
-      throw new DataAgentMcpError(
-        'CONFIG_INSECURE_HTTP',
-        'server.oauth.enabled: false is not allowed when NODE_ENV=production',
-        false,
-      );
-    }
-
-    if (!allowInsecure) {
-      throw new DataAgentMcpError(
-        'CONFIG_INSECURE_HTTP',
-        'server.oauth.enabled: false requires MCP_ALLOW_INSECURE_HTTP=true for local CI smoke tests only',
-        false,
-      );
-    }
-
-    if (!isLoopbackHost(bindHost)) {
-      throw new DataAgentMcpError(
-        'CONFIG_INSECURE_HTTP',
-        `server.oauth.enabled: false requires a loopback bind host (got ${bindHost})`,
-        false,
-      );
-    }
-  }
+  validateHttpsPublicUrlRequirements(server);
+  validateInsecureHttpOAuth(server);
 }

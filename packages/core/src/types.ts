@@ -85,7 +85,30 @@ export interface HttpServerConfig {
   max_body_bytes?: number;
   /** HTTP header carrying the end-user Google access token when auth.mode is user_token. */
   google_access_token_header?: string;
+  user_token?: UserTokenConfig;
 }
+
+export type UserTokenBindingMode = 'ingress_client_only' | 'google_sub_matches_mcp_sub';
+
+export interface UserTokenGoogleTokenConfig {
+  introspection_url?: string;
+  issuer: string;
+  audiences: string[];
+}
+
+export interface UserTokenBindingConfig {
+  mode: UserTokenBindingMode;
+}
+
+export interface UserTokenConfig {
+  trusted_ingress_client_ids: string[];
+  google_token: UserTokenGoogleTokenConfig;
+  binding: UserTokenBindingConfig;
+}
+
+export type OAuthTokenProfile = 'jwt_jwks';
+
+export type OAuthScopeClaim = 'scope' | 'scp';
 
 export interface OAuthServerConfig {
   enabled: boolean;
@@ -94,6 +117,9 @@ export interface OAuthServerConfig {
   scopes_supported: string[];
   /** Scopes enforced on MCP access tokens (subset of or equal to scopes_supported). */
   required_scopes: string[];
+  allowed_audiences: string[];
+  scope_claims: OAuthScopeClaim[];
+  token_profile: OAuthTokenProfile;
 }
 
 export interface ServerConfig {
