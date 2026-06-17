@@ -244,8 +244,18 @@ const OAuthServerConfigSchema = z
         });
       }
     }
+    let isIdentityPlatformIssuer = false;
+    try {
+      const issuerHostname = new URL(oauth.issuer).hostname.toLowerCase();
+      isIdentityPlatformIssuer =
+        issuerHostname === 'securetoken.google.com' ||
+        issuerHostname.endsWith('.securetoken.google.com');
+    } catch {
+      // issuer format is validated by z.string().url(); ignore here if parsing fails.
+    }
+
     if (
-      oauth.issuer.includes('securetoken.google.com') &&
+      isIdentityPlatformIssuer &&
       (!oauth.allowed_audiences || oauth.allowed_audiences.length === 0)
     ) {
       ctx.addIssue({
