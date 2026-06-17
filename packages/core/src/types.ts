@@ -1,6 +1,6 @@
 export type ApiVersion = 'v1' | 'v1beta' | 'v1alpha';
 
-export type AuthMode = 'adc' | 'impersonation';
+export type AuthMode = 'adc' | 'impersonation' | 'user_token';
 
 export type AuthSource = 'adc';
 
@@ -83,6 +83,8 @@ export interface HttpServerConfig {
   cors?: HttpCorsConfig;
   sessions?: HttpSessionConfig;
   max_body_bytes?: number;
+  /** HTTP header carrying the end-user Google access token when auth.mode is user_token. */
+  google_access_token_header?: string;
 }
 
 export interface OAuthServerConfig {

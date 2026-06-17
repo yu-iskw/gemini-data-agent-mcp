@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import {
+  parseGoogleAccessTokenHeader,
+  runWithAuthRequestContextAsync,
+} from '../auth/request-context.js';
 import { clearCredentialCache, resolveCredentials } from '../auth/resolver.js';
 import { DataAgentMcpError } from '../types.js';
 
@@ -63,5 +67,32 @@ describe('resolveCredentials', () => {
     await expect(resolveCredentials({ mode: 'workload_identity' as never })).rejects.toThrow(
       DataAgentMcpError,
     );
+  });
+
+  it('resolves user_token from AsyncLocalStorage context', async () => {
+    const creds = await runWithAuthRequestContextAsync(
+      { googleAccessToken: 'user-google-token' },
+      () => resolveCredentials({ mode: 'user_token' }),
+    );
+    const headers = await creds.getRequestHeaders();
+    expect(headers.Authorization).toBe('Bearer user-google-token');
+  });
+
+  it('throws AUTH_MISSING_USER_TOKEN when context has no token', async () => {
+    await expect(resolveCredentials({ mode: 'user_token' })).rejects.toMatchObject({
+      code: 'AUTH_MISSING_USER_TOKEN',
+    });
+  });
+});
+
+describe('parseGoogleAccessTokenHeader', () => {
+  it('strips Bearer prefix', () => {
+    expect(parseGoogleAccessTokenHeader('Bearer abc.def')).toBe('abc.def');
+  });
+
+  it('returns undefined for empty values', () => {
+    expect(parseGoogleAccessTokenHeader(undefined)).toBeUndefined();
+    expect(parseGoogleAccessTokenHeader('')).toBeUndefined();
+    expect(parseGoogleAccessTokenHeader('   ')).toBeUndefined();
   });
 });

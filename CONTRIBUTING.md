@@ -44,6 +44,10 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
 - **Core is not published** to npm; it is bundled into each MCP package tarball.
 - **Admin MCP is not published** to npm yet (monorepo/dev only).
 
+### Architecture decision records
+
+Authentication use cases (stdio vs HTTP, ADC vs user token) are documented in [docs/adr/0001-dual-layer-authentication.md](docs/adr/0001-dual-layer-authentication.md).
+
 ## Development setup
 
 **Requirements:** Node.js (see [`.node-version`](.node-version)), [pnpm](https://pnpm.io/) (see root `package.json` `packageManager`).

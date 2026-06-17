@@ -11,6 +11,14 @@ import cors from 'cors';
 import express, { json } from 'express';
 
 import {
+  parseGoogleAccessTokenHeader,
+  runWithAuthRequestContextAsync,
+} from '../auth/request-context.js';
+import {
+  configUsesUserToken,
+  resolveGoogleAccessTokenHeaderName,
+} from '../auth/user-token-config.js';
+import {
   DEFAULT_IDLE_TTL_MS,
   DEFAULT_MAX_BODY_BYTES,
   DEFAULT_MAX_SESSIONS,
@@ -107,6 +115,14 @@ export async function startMcpHttpServer(
     );
   }
 
+  const usesUserToken = configUsesUserToken(config);
+  const googleAccessTokenHeader = resolveGoogleAccessTokenHeaderName(config);
+  const mcpRouteOptions = {
+    usesUserToken,
+    googleAccessTokenHeader,
+    sessionOptions,
+  };
+
   if (oauth.enabled) {
     const oauthMetadata = await buildOAuthMetadata(oauth);
     const tokenVerifier = options.testTokenVerifier ?? createJwtTokenVerifier(oauth);
@@ -130,12 +146,12 @@ export async function startMcpHttpServer(
     routesContext = registerMcpRoutes(app, httpPath, createMcpServer, {
       authMiddleware,
       oauthEnabled: true,
-      sessionOptions,
+      ...mcpRouteOptions,
     });
   } else {
     routesContext = registerMcpRoutes(app, httpPath, createMcpServer, {
       oauthEnabled: false,
-      sessionOptions,
+      ...mcpRouteOptions,
     });
   }
 
@@ -196,6 +212,8 @@ export async function startMcpHttpServer(
 interface RegisterMcpRoutesOptions {
   authMiddleware?: express.RequestHandler;
   oauthEnabled: boolean;
+  usesUserToken: boolean;
+  googleAccessTokenHeader: string;
   sessionOptions: {
     maxSessions: number;
     idleTtlMs: number;
@@ -223,25 +241,42 @@ function isPrincipalMismatch(
   return Boolean(oauthEnabled && record.principalId && principalId !== record.principalId);
 }
 
-async function forwardTransportRequest(
-  label: string,
-  transport: StreamableHTTPServerTransport,
-  req: Request,
-  res: Response,
-  body?: unknown,
-): Promise<void> {
-  try {
-    if (body === undefined) {
-      await transport.handleRequest(req, res);
-    } else {
-      await transport.handleRequest(req, res, body);
+interface ForwardTransportRequestParams {
+  label: string;
+  transport: StreamableHTTPServerTransport;
+  req: Request;
+  res: Response;
+  usesUserToken: boolean;
+  googleAccessTokenHeader: string;
+  body?: unknown;
+}
+
+async function forwardTransportRequest(params: ForwardTransportRequestParams): Promise<void> {
+  const { label, transport, req, res, usesUserToken, googleAccessTokenHeader, body } = params;
+  const runHandler = async (): Promise<void> => {
+    try {
+      if (body === undefined) {
+        await transport.handleRequest(req, res);
+      } else {
+        await transport.handleRequest(req, res, body);
+      }
+    } catch (err) {
+      logError('transport', label, { error: String(err) });
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
     }
-  } catch (err) {
-    logError('transport', label, { error: String(err) });
-    if (!res.headersSent) {
-      res.status(500).end();
-    }
+  };
+
+  if (!usesUserToken) {
+    await runHandler();
+    return;
   }
+
+  const headerValue = req.get(googleAccessTokenHeader);
+  const googleAccessToken = parseGoogleAccessTokenHeader(headerValue ?? undefined);
+
+  await runWithAuthRequestContextAsync({ googleAccessToken }, runHandler);
 }
 
 function registerMcpRoutes(
@@ -268,13 +303,15 @@ function registerMcpRoutes(
         return;
       }
       sessionManager.touch(sessionId);
-      await forwardTransportRequest(
-        'MCP HTTP request failed',
-        record.transport,
+      await forwardTransportRequest({
+        label: 'MCP HTTP request failed',
+        transport: record.transport,
         req,
         res,
-        req.body,
-      );
+        usesUserToken: options.usesUserToken,
+        googleAccessTokenHeader: options.googleAccessTokenHeader,
+        body: req.body,
+      });
       return;
     }
 
@@ -303,7 +340,15 @@ function registerMcpRoutes(
     const server = createMcpServer();
     const transport = createTransport(sessionManager, server, principalId);
     await server.connect(transport);
-    await forwardTransportRequest('MCP HTTP initialize failed', transport, req, res, req.body);
+    await forwardTransportRequest({
+      label: 'MCP HTTP initialize failed',
+      transport,
+      req,
+      res,
+      usesUserToken: options.usesUserToken,
+      googleAccessTokenHeader: options.googleAccessTokenHeader,
+      body: req.body,
+    });
   };
 
   const handleSessionRequest = async (req: Request, res: Response): Promise<void> => {
@@ -326,7 +371,14 @@ function registerMcpRoutes(
     }
 
     sessionManager.touch(sessionId);
-    await forwardTransportRequest('MCP HTTP session request failed', record.transport, req, res);
+    await forwardTransportRequest({
+      label: 'MCP HTTP session request failed',
+      transport: record.transport,
+      req,
+      res,
+      usesUserToken: options.usesUserToken,
+      googleAccessTokenHeader: options.googleAccessTokenHeader,
+    });
   };
 
   if (options.authMiddleware) {

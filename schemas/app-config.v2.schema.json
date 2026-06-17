@@ -109,6 +109,11 @@
                   "type": "integer",
                   "exclusiveMinimum": 0,
                   "description": "Maximum JSON request body size in bytes (default 1048576)."
+                },
+                "google_access_token_header": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token)."
                 }
               },
               "additionalProperties": false,
@@ -178,6 +183,11 @@
               "impersonate_service_account": {
                 "type": "string",
                 "description": "Optional service account email to impersonate. Omit to use Application Default Credentials (ADC)."
+              },
+              "auth_mode": {
+                "type": "string",
+                "enum": ["adc", "user_token"],
+                "description": "Egress auth mode: adc (default) or user_token (HTTP only; requires X-Google-Access-Token header)."
               },
               "api_version": {
                 "type": "string",

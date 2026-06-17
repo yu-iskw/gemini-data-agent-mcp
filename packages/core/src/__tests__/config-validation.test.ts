@@ -127,4 +127,73 @@ describe('validateConfig', () => {
       }),
     ).toThrow(DataAgentMcpError);
   });
+
+  it('builds user_token auth when auth_mode is user_token on http transport', () => {
+    const config = validateConfig({
+      api_version: 'v1beta',
+      server: {
+        transport: 'http',
+        public_url: 'https://mcp.example.com/mcp',
+        oauth: { issuer: 'https://auth.example.com' },
+      },
+      agents: {
+        test: {
+          data_agent: 'projects/p/locations/l/dataAgents/d',
+          tools: ['query_data_agent'],
+          auth_mode: 'user_token',
+        },
+      },
+    });
+    expect(config.agents['test'].auth.mode).toBe('user_token');
+  });
+
+  it('rejects user_token auth mode on stdio transport', () => {
+    expect(() =>
+      validateConfig({
+        api_version: 'v1beta',
+        agents: {
+          test: {
+            data_agent: 'projects/p/locations/l/dataAgents/d',
+            tools: ['query_data_agent'],
+            auth_mode: 'user_token',
+          },
+        },
+      }),
+    ).toThrow(DataAgentMcpError);
+    try {
+      validateConfig({
+        api_version: 'v1beta',
+        agents: {
+          test: {
+            data_agent: 'projects/p/locations/l/dataAgents/d',
+            tools: ['query_data_agent'],
+            auth_mode: 'user_token',
+          },
+        },
+      });
+    } catch (err) {
+      expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID');
+      expect((err as DataAgentMcpError).message).toContain('user_token');
+    }
+  });
+
+  it('rejects user_token when http oauth is disabled', () => {
+    expect(() =>
+      validateConfig({
+        api_version: 'v1beta',
+        server: {
+          transport: 'http',
+          public_url: 'http://127.0.0.1:8080/mcp',
+          oauth: { enabled: false, issuer: 'https://auth.example.com' },
+        },
+        agents: {
+          test: {
+            data_agent: 'projects/p/locations/l/dataAgents/d',
+            tools: ['query_data_agent'],
+            auth_mode: 'user_token',
+          },
+        },
+      }),
+    ).toThrow(DataAgentMcpError);
+  });
 });

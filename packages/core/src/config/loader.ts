@@ -101,6 +101,22 @@ function buildOAuthConfig(
   };
 }
 
+function buildNormalizedHttpConfig(
+  serverInput: AppConfigInput['server'],
+  httpPath: string,
+): NonNullable<AppConfig['server']['http']> {
+  const httpInput = serverInput?.http;
+  return {
+    path: httpPath,
+    ...(httpInput?.cors ? { cors: httpInput.cors } : {}),
+    ...(httpInput?.sessions ? { sessions: httpInput.sessions } : {}),
+    max_body_bytes: httpInput?.max_body_bytes ?? DEFAULT_MAX_BODY_BYTES,
+    ...(httpInput?.google_access_token_header
+      ? { google_access_token_header: httpInput.google_access_token_header }
+      : {}),
+  };
+}
+
 function applyHttpTransportConfig(
   server: AppConfig['server'],
   serverInput: AppConfigInput['server'],
@@ -132,12 +148,7 @@ function applyHttpTransportConfig(
   server.host = bindHost;
   server.port = bindPort;
   server.public_url = publicUrl;
-  server.http = {
-    path: httpPath,
-    ...(serverInput?.http?.cors ? { cors: serverInput.http.cors } : {}),
-    ...(serverInput?.http?.sessions ? { sessions: serverInput.http.sessions } : {}),
-    max_body_bytes: serverInput?.http?.max_body_bytes ?? DEFAULT_MAX_BODY_BYTES,
-  };
+  server.http = buildNormalizedHttpConfig(serverInput, httpPath);
 
   if (serverInput?.oauth) {
     server.oauth = buildOAuthConfig(serverInput.oauth, publicUrl);
@@ -225,6 +236,8 @@ function normalizeAgent(
       source: 'adc',
       impersonate_service_account: agentInput.impersonate_service_account,
     };
+  } else if (agentInput.auth_mode === 'user_token') {
+    auth = { mode: 'user_token' };
   } else {
     auth = { mode: 'adc' };
   }
@@ -249,6 +262,30 @@ function runSemanticValidation(config: AppConfig): void {
       'Configuration must define at least one agent',
       false,
     );
+  }
+
+  for (const [name, agent] of Object.entries(config.agents)) {
+    if (agent.auth.mode !== 'user_token') {
+      continue;
+    }
+
+    if (config.server.transport !== 'http') {
+      throw new DataAgentMcpError(
+        'CONFIG_INVALID',
+        `agent "${name}" auth mode user_token requires server.transport http`,
+        false,
+        { agent: name },
+      );
+    }
+
+    if (config.server.oauth?.enabled === false) {
+      throw new DataAgentMcpError(
+        'CONFIG_INVALID',
+        `agent "${name}" auth mode user_token requires server.oauth.enabled`,
+        false,
+        { agent: name },
+      );
+    }
   }
 }
 

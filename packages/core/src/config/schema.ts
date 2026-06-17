@@ -50,6 +50,12 @@ const AgentInputSchema = z.object({
     .describe(
       'Optional service account email to impersonate. Omit to use Application Default Credentials (ADC).',
     ),
+  auth_mode: z
+    .enum(['adc', 'user_token'])
+    .optional()
+    .describe(
+      'Egress auth mode: adc (default) or user_token (HTTP only; requires X-Google-Access-Token header).',
+    ),
   api_version: ApiVersionSchema.optional().describe(
     'Optional per-agent API version override. Defaults to root api_version.',
   ),
@@ -118,6 +124,13 @@ const HttpServerConfigSchema = z.object({
     .positive()
     .optional()
     .describe('Maximum JSON request body size in bytes (default 1048576).'),
+  google_access_token_header: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token).',
+    ),
 });
 
 const OAuthServerConfigSchema = z.object({

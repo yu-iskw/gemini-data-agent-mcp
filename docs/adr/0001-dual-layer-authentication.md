@@ -1,0 +1,154 @@
+# ADR 0001: Dual-layer authentication (MCP ingress vs Data Agent egress)
+
+## Status
+
+Accepted
+
+## Context
+
+MCP servers expose tools over **stdio** or **HTTP**. Calls to `geminidataanalytics.googleapis.com` require separate Google credentials. These two hops serve different purposes and must not be conflated.
+
+- **Ingress:** Who may invoke MCP tools? (MCP OAuth on HTTP; local trust on stdio.)
+- **Egress:** Which GCP principal does the Data Agent API authorize? (ADC, SA impersonation, or end-user token.)
+
+The [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) forbids **token passthrough**: the MCP access token must not be forwarded to upstream Google APIs.
+
+## Decision
+
+Model authentication as **two layers** with an explicit **egress `auth.mode`** per agent:
+
+| `auth.mode`     | Transports    | Egress caller                                                              |
+| --------------- | ------------- | -------------------------------------------------------------------------- |
+| `adc`           | stdio, http   | Application Default Credentials (user laptop ADC or Cloud Run revision SA) |
+| `impersonation` | stdio, http   | Target service account via source ADC                                      |
+| `user_token`    | **http only** | End-user Google access token from a separate HTTP header                   |
+
+HTTP ingress always uses `server.oauth` when `transport: http` (except local CI smoke with `oauth.enabled: false` on loopback).
+
+### Use-case catalog
+
+#### UC1 — Stdio + ADC
+
+```mermaid
+sequenceDiagram
+  participant IDE as MCP_host_IDE
+  participant MCP as analyst_mcp_stdio
+  participant API as DataAgent_API
+
+  IDE->>MCP: stdio JSON-RPC
+  Note over MCP: No MCP OAuth
+  MCP->>API: ADC from gcloud auth application-default login
+```
+
+#### UC2 — Stdio + SA impersonation
+
+Same as UC1; egress impersonates a target service account.
+
+#### UC3 — HTTP + platform SA (Cloud Run)
+
+```mermaid
+sequenceDiagram
+  participant App as AI_web_app
+  participant MCP as MCP_on_CloudRun
+  participant API as DataAgent_API
+
+  App->>MCP: MCP OAuth Bearer
+  Note over MCP: Verify JWT audience = public_url
+  MCP->>API: Cloud Run revision SA ADC
+```
+
+#### UC4 — HTTP + impersonation
+
+Same as UC3; Cloud Run SA impersonates a data-plane SA.
+
+#### UC5 — HTTP + user token (Phase 1)
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant BFF as Web_app_BFF
+  participant MCP as MCP_on_CloudRun
+  participant API as DataAgent_API
+
+  User->>BFF: Login Google
+  BFF->>MCP: Authorization MCP_token
+  BFF->>MCP: X-Google-Access-Token user_Google_token
+  Note over MCP: Two credentials same request
+  MCP->>API: User Google token only
+```
+
+Default header: `X-Google-Access-Token` (configurable via `server.http.google_access_token_header`). The MCP `Authorization` header is never used for Google API calls.
+
+#### UC6 — HTTP agent identity
+
+Variant of UC3: dedicated agent service account per deployment; MCP OAuth identifies the client application.
+
+#### UC7 — A2A agent as MCP client
+
+[A2A](https://github.com/a2aproject/A2A/blob/main/docs/topics/enterprise-ready.md) declares security on the Agent Card; credentials are acquired out-of-band. An orchestrator maps to UC5 (user IAM) or UC3 (agent SA).
+
+#### UC8 — Local HTTP smoke
+
+`oauth.enabled: false` + `MCP_ALLOW_INSECURE_HTTP` on loopback. Egress still uses ADC/impersonation. Not for production.
+
+### Configuration matrix
+
+| UC  | Transport | MCP ingress    | `auth.mode`          | GCP caller on API   |
+| --- | --------- | -------------- | -------------------- | ------------------- |
+| 1   | stdio     | none           | `adc`                | User ADC            |
+| 2   | stdio     | none           | `impersonation`      | Target SA           |
+| 3   | http      | OAuth          | `adc`                | Cloud Run / host SA |
+| 4   | http      | OAuth          | `impersonation`      | Target SA           |
+| 5   | http      | OAuth          | `user_token`         | End user            |
+| 6   | http      | OAuth          | `adc` + agent SA IAM | Agent SA            |
+| 8   | http      | disabled smoke | `adc`                | Local ADC           |
+
+### YAML examples
+
+Stdio (default):
+
+```yaml
+agents:
+  my-agent:
+    data_agent: projects/p/locations/l/dataAgents/a
+    tools: [query_data_agent]
+```
+
+HTTP + user token:
+
+```yaml
+server:
+  transport: http
+  public_url: https://mcp.example.com/mcp
+  oauth:
+    issuer: https://auth.example.com/
+agents:
+  my-agent:
+    data_agent: projects/p/locations/l/dataAgents/a
+    auth_mode: user_token
+    tools: [query_data_agent]
+```
+
+## Consequences
+
+### Positive
+
+- Clear separation of MCP client auth vs Data Agent IAM.
+- `user_token` enables user-attributed analytics on hosted HTTP without MCP token passthrough.
+- Stdio and SA modes unchanged for local and automation use cases.
+
+### Negative / limits (Phase 1)
+
+- `user_token` requires the BFF to send a Google access token on every MCP HTTP request (no refresh vault yet).
+- In-memory sessions remain per Cloud Run instance (see Cloud Run package readiness ADR/plan).
+
+### Anti-patterns
+
+- Forwarding the MCP Bearer token to `googleapis.com`.
+- Assuming `roles/run.invoker` grants user-level Data Agent IAM.
+- Using Cloud Run SA ADC when governance requires per-user IAM (use `user_token`).
+
+## Future work (not Phase 1)
+
+- Session-bound or vault-stored refresh tokens keyed by MCP `principalId`.
+- Config guard when `K_SERVICE` is set and user-facing tools use `adc` egress.
