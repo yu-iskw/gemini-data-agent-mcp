@@ -5,13 +5,15 @@ import {
   loadConfig,
   validateConfig,
   applyRuntimeOverrides,
+  parsePort,
   LOG_LEVELS,
+  type McpHttpServerHandle,
+  type ServerCliOverrides,
+  type ServerConfig,
 } from '@gemini-data-agents/core';
 import { Command } from 'commander';
 
 import { startServer } from './server.js';
-
-import type { ServerCliOverrides, ServerConfig } from '@gemini-data-agents/core';
 
 const program = new Command();
 const configPathOptionFlags = '-c, --config <path>';
@@ -54,17 +56,37 @@ function buildCliOverrides(
     overrides.host = options.host;
   }
   if (command.getOptionValueSource('port') === 'cli' && options.port) {
-    const port = Number.parseInt(options.port, 10);
-    if (Number.isNaN(port) || port <= 0) {
-      throw new Error(`Invalid port "${options.port}"`);
-    }
-    overrides.port = port;
+    overrides.port = parsePort('--port', options.port);
   }
   if (command.getOptionValueSource('httpPath') === 'cli' && options.httpPath) {
     overrides.httpPath = options.httpPath;
   }
 
   return Object.keys(overrides).length > 0 ? overrides : undefined;
+}
+
+function registerHttpShutdown(handle: McpHttpServerHandle | undefined): void {
+  if (!handle) {
+    return;
+  }
+
+  const shutdown = async (signal: string): Promise<void> => {
+    process.stderr.write(`\nReceived ${signal}, shutting down HTTP server...\n`);
+    try {
+      await handle.close();
+      process.exit(0);
+    } catch (err) {
+      process.stderr.write(`\nShutdown error: ${String(err)}\n`);
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
 }
 
 program
@@ -94,9 +116,12 @@ program
       command: Command,
     ) => {
       try {
-        const config = loadConfig(options.config);
-        applyRuntimeOverrides(config, buildCliOverrides(command, options));
-        await startServer(config);
+        const config = applyRuntimeOverrides(
+          loadConfig(options.config),
+          buildCliOverrides(command, options),
+        );
+        const handle = await startServer(config);
+        registerHttpShutdown(handle);
       } catch (err) {
         if (err instanceof DataAgentMcpError) {
           process.stderr.write(`\nFatal error [${err.code}]: ${err.message}\n`);
@@ -137,8 +162,7 @@ program
   .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
   .action((options: { config: string }) => {
     try {
-      const config = loadConfig(options.config);
-      applyRuntimeOverrides(config);
+      const config = applyRuntimeOverrides(loadConfig(options.config));
 
       const redactedConfig = {
         api_version: config.api_version,

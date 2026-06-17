@@ -10,8 +10,9 @@ import {
   DEFAULT_HTTP_HOST,
   DEFAULT_HTTP_PATH,
   DEFAULT_HTTP_PORT,
+  DEFAULT_MAX_BODY_BYTES,
   validateHttpServerConfig,
-} from './runtime-overrides.js';
+} from './http-config-validation.js';
 import { AppConfigInputSchema } from './schema.js';
 
 import type { AgentConfig, AppConfig, AuthConfig } from '../types.js';
@@ -86,7 +87,81 @@ export function validateConfig(raw: unknown): AppConfig {
   return config;
 }
 
-export { validateHttpServerConfig } from './runtime-overrides.js';
+export { validateHttpServerConfig } from './http-config-validation.js';
+
+function buildOAuthConfig(
+  oauthInput: NonNullable<AppConfigInput['server']>['oauth'],
+  publicUrl: string,
+): AppConfig['server']['oauth'] {
+  return {
+    enabled: oauthInput?.enabled ?? true,
+    resource_url: oauthInput?.resource_url ?? publicUrl,
+    issuer: oauthInput!.issuer,
+    scopes_supported: oauthInput?.scopes_supported ?? ['mcp:tools'],
+  };
+}
+
+function applyHttpTransportConfig(
+  server: AppConfig['server'],
+  serverInput: AppConfigInput['server'],
+): void {
+  const bindHost = serverInput?.bind?.host ?? serverInput?.host ?? DEFAULT_HTTP_HOST;
+  const bindPort = serverInput?.bind?.port ?? serverInput?.port ?? DEFAULT_HTTP_PORT;
+  const publicUrl = serverInput?.public_url ?? serverInput?.oauth?.resource_url;
+
+  if (!publicUrl) {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      'server.public_url is required when server.transport is http',
+      false,
+    );
+  }
+
+  const publicPath = new URL(publicUrl).pathname;
+  const httpPath = (serverInput?.http?.path ?? publicPath) || DEFAULT_HTTP_PATH;
+
+  if (serverInput?.http?.path && serverInput.http.path !== publicPath) {
+    throw new DataAgentMcpError(
+      'CONFIG_INVALID',
+      `server.http.path (${serverInput.http.path}) must match server.public_url pathname (${publicPath})`,
+      false,
+    );
+  }
+
+  server.bind = { host: bindHost, port: bindPort };
+  server.host = bindHost;
+  server.port = bindPort;
+  server.public_url = publicUrl;
+  server.http = {
+    path: httpPath,
+    ...(serverInput?.http?.cors ? { cors: serverInput.http.cors } : {}),
+    ...(serverInput?.http?.sessions ? { sessions: serverInput.http.sessions } : {}),
+    max_body_bytes: serverInput?.http?.max_body_bytes ?? DEFAULT_MAX_BODY_BYTES,
+  };
+
+  if (serverInput?.oauth) {
+    server.oauth = buildOAuthConfig(serverInput.oauth, publicUrl);
+  }
+}
+
+function applyStdioOauthConfig(
+  server: AppConfig['server'],
+  serverInput: AppConfigInput['server'],
+): void {
+  if (!serverInput?.oauth) {
+    return;
+  }
+
+  const publicUrl = serverInput.public_url ?? serverInput.oauth.resource_url;
+  if (!publicUrl) {
+    return;
+  }
+
+  server.oauth = buildOAuthConfig(serverInput.oauth, publicUrl);
+  if (!server.public_url) {
+    server.public_url = publicUrl;
+  }
+}
 
 function normalizeServerConfig(input: AppConfigInput): AppConfig['server'] {
   const serverInput = input.server;
@@ -94,24 +169,19 @@ function normalizeServerConfig(input: AppConfigInput): AppConfig['server'] {
 
   const server: AppConfig['server'] = {
     ...DEFAULT_SERVER,
-    ...serverInput,
+    name: serverInput?.name ?? DEFAULT_SERVER.name,
+    log_level: serverInput?.log_level ?? DEFAULT_SERVER.log_level,
     transport,
+    ...(serverInput?.host !== undefined ? { host: serverInput.host } : {}),
+    ...(serverInput?.port !== undefined ? { port: serverInput.port } : {}),
+    ...(serverInput?.public_url !== undefined ? { public_url: serverInput.public_url } : {}),
+    ...(serverInput?.bind !== undefined ? { bind: serverInput.bind } : {}),
   };
 
   if (transport === 'http') {
-    server.host = serverInput?.host ?? DEFAULT_HTTP_HOST;
-    server.port = serverInput?.port ?? DEFAULT_HTTP_PORT;
-    server.http = {
-      path: serverInput?.http?.path ?? DEFAULT_HTTP_PATH,
-    };
-    if (serverInput?.oauth) {
-      server.oauth = {
-        enabled: serverInput.oauth.enabled ?? true,
-        resource_url: serverInput.oauth.resource_url,
-        issuer: serverInput.oauth.issuer,
-        scopes_supported: serverInput.oauth.scopes_supported ?? ['mcp:tools'],
-      };
-    }
+    applyHttpTransportConfig(server, serverInput);
+  } else {
+    applyStdioOauthConfig(server, serverInput);
   }
 
   return server;

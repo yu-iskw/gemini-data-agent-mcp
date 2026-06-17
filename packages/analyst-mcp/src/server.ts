@@ -7,9 +7,9 @@ import { registerResources } from './mcp/resources.js';
 import { InMemorySessionStore } from './session/store.js';
 import { registerTools } from './tools.js';
 
-import type { AppConfig } from '@gemini-data-agents/core';
+import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 
-export async function startServer(config: AppConfig): Promise<void> {
+export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);
 
   const sessionStore = new InMemorySessionStore();
@@ -33,8 +33,9 @@ export async function startServer(config: AppConfig): Promise<void> {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     logInfo('server', 'MCP server connected via stdio');
+    return undefined;
   } else if (config.server.transport === 'http') {
-    await startMcpHttpServer({
+    return await startMcpHttpServer({
       config,
       createMcpServer: () => createMcpServer(config),
     });

@@ -29,22 +29,86 @@
               "default": "stdio",
               "description": "MCP transport: stdio (local subprocess) or http (Streamable HTTP)."
             },
+            "public_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Public MCP endpoint URL (canonical OAuth resource and client discovery)."
+            },
+            "bind": {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "string",
+                  "description": "HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 in containers."
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535,
+                  "description": "HTTP bind port (1-65535). Defaults to 8080 when transport is http."
+                }
+              },
+              "additionalProperties": false,
+              "description": "HTTP bind address for the listening socket."
+            },
             "host": {
               "type": "string",
-              "description": "HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 to bind all interfaces."
+              "description": "Deprecated: use bind.host. HTTP bind host."
             },
             "port": {
               "type": "integer",
-              "exclusiveMinimum": 0,
-              "description": "HTTP port. Defaults to process.env.PORT or 8080 when transport is http."
+              "minimum": 1,
+              "maximum": 65535,
+              "description": "Deprecated: use bind.port. HTTP bind port (1-65535)."
             },
             "http": {
               "type": "object",
               "properties": {
                 "path": {
                   "type": "string",
-                  "default": "/mcp",
-                  "description": "HTTP path for the MCP Streamable HTTP endpoint."
+                  "description": "HTTP path for MCP. Must match public_url pathname when both are set."
+                },
+                "cors": {
+                  "type": "object",
+                  "properties": {
+                    "allowed_origins": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "description": "Browser origins allowed for CORS. Omit to disable CORS (native clients only)."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "CORS settings for browser MCP clients."
+                },
+                "sessions": {
+                  "type": "object",
+                  "properties": {
+                    "max_sessions": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Maximum concurrent MCP HTTP sessions (default 1000)."
+                    },
+                    "idle_ttl_ms": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Idle session TTL in milliseconds (default 900000)."
+                    },
+                    "max_sessions_per_principal": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Maximum sessions per authenticated principal (default 50)."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "HTTP session lifecycle limits."
+                },
+                "max_body_bytes": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Maximum JSON request body size in bytes (default 1048576)."
                 }
               },
               "additionalProperties": false,
@@ -61,7 +125,7 @@
                 "resource_url": {
                   "type": "string",
                   "format": "uri",
-                  "description": "Canonical MCP resource URL (OAuth audience / RFC 8707 resource)."
+                  "description": "Canonical MCP resource URL. Defaults to server.public_url when omitted."
                 },
                 "issuer": {
                   "type": "string",
@@ -78,7 +142,7 @@
                   "description": "Scopes advertised in Protected Resource Metadata."
                 }
               },
-              "required": ["resource_url", "issuer"],
+              "required": ["issuer"],
               "additionalProperties": false,
               "description": "OAuth resource-server settings for HTTP transport."
             }

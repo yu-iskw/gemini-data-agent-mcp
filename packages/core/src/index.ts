@@ -7,6 +7,7 @@ export { buildOAuthMetadata, createJwtTokenVerifier } from './transport/index.js
 
 export { loadConfig, validateConfig, validateHttpServerConfig } from './config/loader.js';
 export { applyRuntimeOverrides, type ServerCliOverrides } from './config/runtime-overrides.js';
+export { parsePort } from './config/parse-port.js';
 export {
   resolveAgentConfig,
   resolveApiVersion,

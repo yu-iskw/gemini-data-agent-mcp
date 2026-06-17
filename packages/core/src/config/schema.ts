@@ -63,8 +63,61 @@ const AgentInputSchema = z.object({
   ),
 });
 
+const HttpCorsConfigSchema = z.object({
+  allowed_origins: z
+    .array(z.string().url())
+    .optional()
+    .describe('Browser origins allowed for CORS. Omit to disable CORS (native clients only).'),
+});
+
+const HttpSessionConfigSchema = z.object({
+  max_sessions: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum concurrent MCP HTTP sessions (default 1000).'),
+  idle_ttl_ms: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Idle session TTL in milliseconds (default 900000).'),
+  max_sessions_per_principal: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum sessions per authenticated principal (default 50).'),
+});
+
+const HttpBindConfigSchema = z.object({
+  host: z
+    .string()
+    .optional()
+    .describe('HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 in containers.'),
+  port: z
+    .number()
+    .int()
+    .min(1)
+    .max(65_535)
+    .optional()
+    .describe('HTTP bind port (1-65535). Defaults to 8080 when transport is http.'),
+});
+
 const HttpServerConfigSchema = z.object({
-  path: z.string().default('/mcp').describe('HTTP path for the MCP Streamable HTTP endpoint.'),
+  path: z
+    .string()
+    .optional()
+    .describe('HTTP path for MCP. Must match public_url pathname when both are set.'),
+  cors: HttpCorsConfigSchema.optional().describe('CORS settings for browser MCP clients.'),
+  sessions: HttpSessionConfigSchema.optional().describe('HTTP session lifecycle limits.'),
+  max_body_bytes: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum JSON request body size in bytes (default 1048576).'),
 });
 
 const OAuthServerConfigSchema = z.object({
@@ -72,7 +125,8 @@ const OAuthServerConfigSchema = z.object({
   resource_url: z
     .string()
     .url()
-    .describe('Canonical MCP resource URL (OAuth audience / RFC 8707 resource).'),
+    .optional()
+    .describe('Canonical MCP resource URL. Defaults to server.public_url when omitted.'),
   issuer: z.string().url().describe('OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.).'),
   scopes_supported: z
     .array(z.string().min(1))
@@ -90,16 +144,20 @@ const ServerConfigSchema = z.object({
     .enum(['stdio', 'http'])
     .default('stdio')
     .describe('MCP transport: stdio (local subprocess) or http (Streamable HTTP).'),
-  host: z
+  public_url: z
     .string()
+    .url()
     .optional()
-    .describe('HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 to bind all interfaces.'),
+    .describe('Public MCP endpoint URL (canonical OAuth resource and client discovery).'),
+  bind: HttpBindConfigSchema.optional().describe('HTTP bind address for the listening socket.'),
+  host: z.string().optional().describe('Deprecated: use bind.host. HTTP bind host.'),
   port: z
     .number()
     .int()
-    .positive()
+    .min(1)
+    .max(65_535)
     .optional()
-    .describe('HTTP port. Defaults to process.env.PORT or 8080 when transport is http.'),
+    .describe('Deprecated: use bind.port. HTTP bind port (1-65535).'),
   http: HttpServerConfigSchema.optional().describe('HTTP transport settings.'),
   oauth: OAuthServerConfigSchema.optional().describe(
     'OAuth resource-server settings for HTTP transport.',

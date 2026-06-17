@@ -2,6 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
+import {
+  createStubTokenVerifier,
+  derivePrincipalId,
+  resetOidcDiscoveryCacheForTests,
+} from '../oauth.js';
 import { startMcpHttpServer } from '../start-http-server.js';
 
 import type { AppConfig } from '../../types.js';
@@ -31,28 +36,30 @@ function stubOidcDiscovery(): void {
 }
 
 function createTestMcpServer(): McpServer {
-  const server = new McpServer({ name: 'http-smoke-test', version: '0.1.0' });
+  const server = new McpServer({ name: 'session-security-test', version: '0.1.0' });
   server.tool('ping', 'Ping', { message: z.string().optional() }, async ({ message }) => ({
     content: [{ type: 'text', text: message ?? 'pong' }],
   }));
   return server;
 }
 
-function buildHttpTestConfig(port: number, oauthEnabled: boolean): AppConfig {
+function buildConfig(port: number): AppConfig {
   const baseUrl = `http://127.0.0.1:${port}/mcp`;
-
   return {
     api_version: 'v1beta',
     server: {
-      name: 'http-smoke-test',
+      name: 'session-security-test',
       log_level: 'ERROR',
       transport: 'http',
       host: '127.0.0.1',
       port,
       public_url: baseUrl,
-      http: { path: '/mcp' },
+      http: {
+        path: '/mcp',
+        sessions: { max_sessions: 100, idle_ttl_ms: 60_000, max_sessions_per_principal: 50 },
+      },
       oauth: {
-        enabled: oauthEnabled,
+        enabled: true,
         resource_url: baseUrl,
         issuer: testIssuer,
         scopes_supported: ['mcp:tools'],
@@ -73,10 +80,10 @@ function buildHttpTestConfig(port: number, oauthEnabled: boolean): AppConfig {
     },
     agents: {
       'my-agent': {
-        project: 'my-gcp-project',
-        location: 'us-central1',
+        project: 'p',
+        location: 'l',
         api_version: 'v1beta',
-        data_agent: 'projects/my-gcp-project/locations/us-central1/dataAgents/my-agent',
+        data_agent: 'projects/p/locations/l/dataAgents/my-agent',
         auth: { mode: 'adc' },
         tools: ['query_data_agent'],
       },
@@ -84,9 +91,21 @@ function buildHttpTestConfig(port: number, oauthEnabled: boolean): AppConfig {
   };
 }
 
+const initializeBody = {
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-03-26',
+    capabilities: {},
+    clientInfo: { name: 'session-security', version: '0.1.0' },
+  },
+};
+
 const activeServers: Array<{ close: () => Promise<void> }> = [];
 
 afterEach(async () => {
+  resetOidcDiscoveryCacheForTests();
   vi.unstubAllGlobals();
   while (activeServers.length > 0) {
     const server = activeServers.pop();
@@ -94,100 +113,93 @@ afterEach(async () => {
   }
 });
 
-describe('HTTP MCP transport', () => {
-  it('accepts initialize request when oauth is disabled', async () => {
-    process.env.MCP_ALLOW_INSECURE_HTTP = 'true';
-    const config = buildHttpTestConfig(0, false);
+describe('derivePrincipalId', () => {
+  it('prefers sub:azp composite when both are present', () => {
+    expect(derivePrincipalId({ sub: 'user-1', azp: 'client-a' })).toBe('user-1:client-a');
+  });
+
+  it('falls back to sub or azp', () => {
+    expect(derivePrincipalId({ sub: 'user-1' })).toBe('user-1');
+    expect(derivePrincipalId({ azp: 'client-a' })).toBe('client-a');
+  });
+});
+
+describe('session principal binding', () => {
+  it('returns 403 when another principal reuses a session id', async () => {
+    stubOidcDiscovery();
+    const verifier = createStubTokenVerifier(
+      new Map([
+        ['token-a', { principalId: 'user-a' }],
+        ['token-b', { principalId: 'user-b' }],
+      ]),
+    );
+
     const handle = await startMcpHttpServer({
-      config,
+      config: buildConfig(0),
       createMcpServer: createTestMcpServer,
+      testTokenVerifier: verifier,
     });
     activeServers.push(handle);
 
-    const response = await fetch(handle.bindUrl.href, {
+    const initResponse = await fetch(handle.bindUrl.href, {
       method: 'POST',
       headers: {
         Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer token-a',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2025-03-26',
-          capabilities: {},
-          clientInfo: { name: 'http-smoke', version: '0.1.0' },
-        },
-      }),
+      body: JSON.stringify(initializeBody),
     });
 
-    expect(response.status).toBe(200);
-    const sessionId = response.headers.get('mcp-session-id');
+    expect(initResponse.status).toBe(200);
+    const sessionId = initResponse.headers.get('mcp-session-id');
     expect(sessionId).toBeTruthy();
 
-    const contentType = response.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
-      const body = (await response.json()) as { result?: { serverInfo?: { name?: string } } };
-      expect(body.result?.serverInfo?.name).toBe('http-smoke-test');
-    } else {
-      const text = await response.text();
-      expect(text).toContain('http-smoke-test');
-    }
-  });
-
-  it('returns 401 with WWW-Authenticate when oauth is enabled and token is missing', async () => {
-    stubOidcDiscovery();
-    const config = buildHttpTestConfig(0, true);
-    const handle = await startMcpHttpServer({
-      config,
-      createMcpServer: createTestMcpServer,
-    });
-    activeServers.push(handle);
-
-    const response = await fetch(handle.bindUrl.href, {
+    const hijackResponse = await fetch(handle.bindUrl.href, {
       method: 'POST',
       headers: {
         Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer token-b',
         'Content-Type': 'application/json',
+        'Mcp-Session-Id': sessionId!,
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'initialize',
-        params: {
-          protocolVersion: '2025-03-26',
-          capabilities: {},
-          clientInfo: { name: 'http-smoke', version: '0.1.0' },
-        },
-      }),
+      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'ping', params: {} }),
     });
 
-    expect(response.status).toBe(401);
-    const wwwAuth = response.headers.get('www-authenticate') ?? '';
-    expect(wwwAuth.toLowerCase()).toContain('bearer');
-    expect(wwwAuth).toContain('resource_metadata');
+    expect(hijackResponse.status).toBe(403);
   });
 
-  it('serves protected resource metadata when oauth is enabled', async () => {
+  it('allows the owning principal to GET the session', async () => {
     stubOidcDiscovery();
-    const config = buildHttpTestConfig(0, true);
+    const verifier = createStubTokenVerifier(new Map([['token-a', { principalId: 'user-a' }]]));
+
     const handle = await startMcpHttpServer({
-      config,
+      config: buildConfig(0),
       createMcpServer: createTestMcpServer,
+      testTokenVerifier: verifier,
     });
     activeServers.push(handle);
 
-    const metadataUrl = new URL('/.well-known/oauth-protected-resource/mcp', handle.bindUrl.origin)
-      .href;
-    const response = await fetch(metadataUrl);
-    expect(response.status).toBe(200);
+    const initResponse = await fetch(handle.bindUrl.href, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json, text/event-stream',
+        Authorization: 'Bearer token-a',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(initializeBody),
+    });
+    const sessionId = initResponse.headers.get('mcp-session-id');
 
-    const metadata = (await response.json()) as {
-      resource?: string;
-      authorization_servers?: string[];
-    };
-    expect(metadata.resource).toBe(config.server.oauth?.resource_url);
-    expect(metadata.authorization_servers?.[0]).toBe(config.server.oauth?.issuer);
+    const getResponse = await fetch(handle.bindUrl.href, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/event-stream',
+        Authorization: 'Bearer token-a',
+        'Mcp-Session-Id': sessionId!,
+      },
+    });
+
+    expect(getResponse.status).not.toBe(403);
   });
 });

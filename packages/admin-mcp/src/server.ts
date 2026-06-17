@@ -4,9 +4,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { registerAdminTools } from './admin-tools.js';
 
-import type { AppConfig } from '@gemini-data-agents/core';
+import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 
-export async function startServer(config: AppConfig): Promise<void> {
+export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);
 
   const server = new McpServer({
@@ -27,8 +27,9 @@ export async function startServer(config: AppConfig): Promise<void> {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     logInfo('server', 'MCP server connected via stdio');
+    return undefined;
   } else if (config.server.transport === 'http') {
-    await startMcpHttpServer({
+    return await startMcpHttpServer({
       config,
       createMcpServer: () => createMcpServer(config),
     });

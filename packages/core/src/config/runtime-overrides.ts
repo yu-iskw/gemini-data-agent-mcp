@@ -1,11 +1,16 @@
 import { parseLogLevel } from '../observability/log-level.js';
 import { DataAgentMcpError } from '../types.js';
 
-import type { AppConfig, ServerConfig } from '../types.js';
+import {
+  DEFAULT_HTTP_HOST,
+  DEFAULT_HTTP_PATH,
+  DEFAULT_HTTP_PORT,
+  validateHttpServerConfig,
+  validateHttpUrlConsistency,
+} from './http-config-validation.js';
+import { parsePort } from './parse-port.js';
 
-export const DEFAULT_HTTP_PORT = 8080;
-export const DEFAULT_HTTP_HOST = '127.0.0.1';
-export const DEFAULT_HTTP_PATH = '/mcp';
+import type { AppConfig, ServerConfig } from '../types.js';
 
 export interface ServerCliOverrides {
   transport?: ServerConfig['transport'];
@@ -13,20 +18,7 @@ export interface ServerCliOverrides {
   host?: string;
   port?: number;
   httpPath?: string;
-}
-
-export function validateHttpServerConfig(server: ServerConfig): void {
-  if (server.transport !== 'http') {
-    return;
-  }
-
-  if (!server.oauth) {
-    throw new DataAgentMcpError(
-      'CONFIG_OAUTH_REQUIRED',
-      'server.oauth is required when server.transport is http (set oauth.enabled: false for local CI smoke tests only)',
-      false,
-    );
-  }
+  publicUrl?: string;
 }
 
 function parseEnvBoolean(name: string, value: string): boolean {
@@ -40,114 +32,91 @@ function parseEnvBoolean(name: string, value: string): boolean {
 
   throw new DataAgentMcpError(
     'CONFIG_INVALID_ENV',
-    `Invalid boolean value for ${name}: "${value}" (use true/false, 1/0, or yes/no)`,
+    `Invalid boolean value for ${name}: "${value}"`,
     false,
     { env: name, value },
   );
 }
 
-function parseEnvPort(name: string, value: string): number {
-  const port = Number.parseInt(value, 10);
-  if (Number.isNaN(port) || port <= 0) {
-    throw new DataAgentMcpError(
-      'CONFIG_INVALID_ENV',
-      `Invalid port value for ${name}: "${value}"`,
-      false,
-      { env: name, value },
-    );
-  }
-  return port;
-}
-
-function parseEnvTransport(name: string, value: string): ServerConfig['transport'] {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'stdio' || normalized === 'http') {
-    return normalized;
-  }
-
-  throw new DataAgentMcpError(
-    'CONFIG_INVALID_ENV',
-    `Invalid transport value for ${name}: "${value}" (use stdio or http)`,
-    false,
-    { env: name, value },
-  );
+function readOptionalEnv(name: string): string | undefined {
+  // Env key is always one of the fixed literals passed from readEnvOverrides.
+  // eslint-disable-next-line security/detect-object-injection
+  const value = process.env[name];
+  return value !== undefined && value !== '' ? value : undefined;
 }
 
 function readEnvOverrides(): Partial<ServerCliOverrides> & {
   oauthEnabled?: boolean;
   oauthIssuer?: string;
   oauthResourceUrl?: string;
+  corsAllowedOrigins?: string[];
 } {
   const overrides: Partial<ServerCliOverrides> & {
     oauthEnabled?: boolean;
     oauthIssuer?: string;
     oauthResourceUrl?: string;
+    corsAllowedOrigins?: string[];
   } = {};
 
-  assignPortOverride(overrides);
-  assignTransportOverride(overrides);
-  assignHostOverride(overrides);
-  assignHttpPathOverride(overrides);
-  assignLogLevelOverride(overrides);
-  assignOauthOverrides(overrides);
-
-  return overrides;
-}
-
-function assignPortOverride(overrides: Partial<ServerCliOverrides>): void {
-  const port = process.env.PORT;
-  if (port !== undefined && port !== '') {
-    overrides.port = parseEnvPort('PORT', port);
+  const port = readOptionalEnv('PORT');
+  if (port) {
+    overrides.port = parsePort('PORT', port);
   }
-}
 
-function assignTransportOverride(overrides: Partial<ServerCliOverrides>): void {
-  const transport = process.env.MCP_TRANSPORT;
-  if (transport !== undefined && transport !== '') {
-    overrides.transport = parseEnvTransport('MCP_TRANSPORT', transport);
+  const transport = readOptionalEnv('MCP_TRANSPORT');
+  if (transport) {
+    const normalized = transport.trim().toLowerCase();
+    if (normalized === 'stdio' || normalized === 'http') {
+      overrides.transport = normalized;
+    } else {
+      throw new Error(`Invalid transport value for MCP_TRANSPORT: "${transport}"`);
+    }
   }
-}
 
-function assignHostOverride(overrides: Partial<ServerCliOverrides>): void {
-  const host = process.env.MCP_HOST;
-  if (host !== undefined && host !== '') {
+  const host = readOptionalEnv('MCP_HOST');
+  if (host) {
     overrides.host = host;
   }
-}
 
-function assignHttpPathOverride(overrides: Partial<ServerCliOverrides>): void {
-  const httpPath = process.env.MCP_HTTP_PATH;
-  if (httpPath !== undefined && httpPath !== '') {
+  const httpPath = readOptionalEnv('MCP_HTTP_PATH');
+  if (httpPath) {
     overrides.httpPath = httpPath;
   }
-}
 
-function assignLogLevelOverride(overrides: Partial<ServerCliOverrides>): void {
-  const logLevel = process.env.MCP_LOG_LEVEL;
-  if (logLevel !== undefined && logLevel !== '') {
+  const publicUrl = readOptionalEnv('MCP_PUBLIC_URL');
+  if (publicUrl) {
+    overrides.publicUrl = publicUrl;
+  }
+
+  const logLevel = readOptionalEnv('MCP_LOG_LEVEL');
+  if (logLevel) {
     overrides.logLevel = logLevel;
   }
-}
 
-function assignOauthOverrides(overrides: {
-  oauthEnabled?: boolean;
-  oauthIssuer?: string;
-  oauthResourceUrl?: string;
-}): void {
-  const oauthEnabled = process.env.MCP_OAUTH_ENABLED;
-  if (oauthEnabled !== undefined && oauthEnabled !== '') {
+  const oauthEnabled = readOptionalEnv('MCP_OAUTH_ENABLED');
+  if (oauthEnabled) {
     overrides.oauthEnabled = parseEnvBoolean('MCP_OAUTH_ENABLED', oauthEnabled);
   }
 
-  const oauthIssuer = process.env.MCP_OAUTH_ISSUER;
-  if (oauthIssuer !== undefined && oauthIssuer !== '') {
+  const oauthIssuer = readOptionalEnv('MCP_OAUTH_ISSUER');
+  if (oauthIssuer) {
     overrides.oauthIssuer = oauthIssuer;
   }
 
-  const oauthResourceUrl = process.env.MCP_OAUTH_RESOURCE_URL;
-  if (oauthResourceUrl !== undefined && oauthResourceUrl !== '') {
+  const oauthResourceUrl = readOptionalEnv('MCP_OAUTH_RESOURCE_URL');
+  if (oauthResourceUrl) {
     overrides.oauthResourceUrl = oauthResourceUrl;
   }
+
+  const corsOrigins = readOptionalEnv('MCP_CORS_ALLOWED_ORIGINS');
+  if (corsOrigins) {
+    overrides.corsAllowedOrigins = corsOrigins
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+  }
+
+  return overrides;
 }
 
 function ensureHttpDefaults(server: ServerConfig): void {
@@ -155,20 +124,33 @@ function ensureHttpDefaults(server: ServerConfig): void {
     return;
   }
 
-  server.host = server.host ?? DEFAULT_HTTP_HOST;
-  server.port = server.port ?? DEFAULT_HTTP_PORT;
+  const bindHost = server.bind?.host ?? server.host ?? DEFAULT_HTTP_HOST;
+  const bindPort = server.bind?.port ?? server.port ?? DEFAULT_HTTP_PORT;
+  server.bind = { host: bindHost, port: bindPort };
+  server.host = bindHost;
+  server.port = bindPort;
+
+  if (!server.public_url && server.oauth?.resource_url) {
+    server.public_url = server.oauth.resource_url;
+  }
+
+  const pathFromPublic = server.public_url
+    ? new URL(server.public_url).pathname
+    : DEFAULT_HTTP_PATH;
+
   server.http = {
-    path: server.http?.path ?? DEFAULT_HTTP_PATH,
+    ...server.http,
+    path: server.http?.path ?? pathFromPublic,
   };
+
+  if (server.oauth && !server.oauth.resource_url && server.public_url) {
+    server.oauth.resource_url = server.public_url;
+  }
 }
 
-function applyServerOverrides(
+function applyBasicServerOverrides(
   server: ServerConfig,
-  overrides: Partial<ServerCliOverrides> & {
-    oauthEnabled?: boolean;
-    oauthIssuer?: string;
-    oauthResourceUrl?: string;
-  },
+  overrides: Partial<ServerCliOverrides> & { corsAllowedOrigins?: string[] },
 ): void {
   if (overrides.transport !== undefined) {
     server.transport = overrides.transport;
@@ -178,16 +160,41 @@ function applyServerOverrides(
   }
   if (overrides.host !== undefined) {
     server.host = overrides.host;
+    server.bind = { ...server.bind, host: overrides.host };
   }
   if (overrides.port !== undefined) {
     server.port = overrides.port;
+    server.bind = { ...server.bind, port: overrides.port };
+  }
+  if (overrides.publicUrl !== undefined) {
+    server.public_url = overrides.publicUrl;
+    if (server.oauth) {
+      server.oauth.resource_url = overrides.publicUrl;
+    }
+    server.http = {
+      ...server.http,
+      path: new URL(overrides.publicUrl).pathname,
+    };
   }
   if (overrides.httpPath !== undefined) {
-    server.http = { path: overrides.httpPath };
+    server.http = { ...server.http, path: overrides.httpPath };
   }
+  if (overrides.corsAllowedOrigins !== undefined) {
+    server.http = {
+      ...server.http,
+      cors: { allowed_origins: overrides.corsAllowedOrigins },
+    };
+  }
+}
 
-  ensureHttpDefaults(server);
-
+function applyOAuthEnvOverrides(
+  server: ServerConfig,
+  overrides: {
+    oauthEnabled?: boolean;
+    oauthIssuer?: string;
+    oauthResourceUrl?: string;
+  },
+): void {
   if (server.transport !== 'http') {
     return;
   }
@@ -203,35 +210,60 @@ function applyServerOverrides(
     oauthPatch.resource_url = overrides.oauthResourceUrl;
   }
 
-  if (Object.keys(oauthPatch).length > 0) {
-    if (!server.oauth) {
-      throw new DataAgentMcpError(
-        'CONFIG_OAUTH_REQUIRED',
-        'server.oauth is required when applying OAuth environment overrides',
-        false,
-      );
-    }
-    server.oauth = { ...server.oauth, ...oauthPatch };
+  if (Object.keys(oauthPatch).length === 0) {
+    return;
   }
+
+  if (!server.oauth) {
+    throw new Error('server.oauth is required when applying OAuth environment overrides');
+  }
+
+  server.oauth = { ...server.oauth, ...oauthPatch };
+  if (oauthPatch.resource_url) {
+    server.public_url = oauthPatch.resource_url;
+    server.http = {
+      ...server.http,
+      path: new URL(oauthPatch.resource_url).pathname,
+    };
+  }
+}
+
+function applyServerOverrides(
+  server: ServerConfig,
+  overrides: Partial<ServerCliOverrides> & {
+    oauthEnabled?: boolean;
+    oauthIssuer?: string;
+    oauthResourceUrl?: string;
+    corsAllowedOrigins?: string[];
+  },
+): void {
+  applyBasicServerOverrides(server, overrides);
+  ensureHttpDefaults(server);
+  applyOAuthEnvOverrides(server, overrides);
 }
 
 /**
  * Apply environment and optional CLI overrides to a loaded config.
  * Precedence: CLI > environment variables > existing YAML values > defaults.
+ * Returns a new config object; the input is not mutated.
  */
-export function applyRuntimeOverrides(config: AppConfig, cli?: ServerCliOverrides): void {
+export function applyRuntimeOverrides(config: AppConfig, cli?: ServerCliOverrides): AppConfig {
+  const next = structuredClone(config);
   const envOverrides = readEnvOverrides();
-  applyServerOverrides(config.server, envOverrides);
+  applyServerOverrides(next.server, envOverrides);
 
   if (cli) {
-    applyServerOverrides(config.server, {
+    applyServerOverrides(next.server, {
       transport: cli.transport,
       logLevel: cli.logLevel,
       host: cli.host,
       port: cli.port,
       httpPath: cli.httpPath,
+      publicUrl: cli.publicUrl,
     });
   }
 
-  validateHttpServerConfig(config.server);
+  validateHttpUrlConsistency(next.server);
+  validateHttpServerConfig(next.server);
+  return next;
 }

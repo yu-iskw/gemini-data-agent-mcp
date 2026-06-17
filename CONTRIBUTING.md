@@ -87,16 +87,19 @@ MCP servers resolve settings in layers. **Precedence (highest wins):** CLI flags
 
 ### Environment variables
 
-| Variable                 | Maps to                     | Notes                                    |
-| ------------------------ | --------------------------- | ---------------------------------------- |
-| `PORT`                   | `server.port`               | Cloud Run injects this                   |
-| `MCP_TRANSPORT`          | `server.transport`          | `stdio` or `http`                        |
-| `MCP_HOST`               | `server.host`               | e.g. `0.0.0.0` in containers             |
-| `MCP_HTTP_PATH`          | `server.http.path`          | Default `/mcp`                           |
-| `MCP_LOG_LEVEL`          | `server.log_level`          | `DEBUG`, `INFO`, `WARN`, `ERROR`         |
-| `MCP_OAUTH_ENABLED`      | `server.oauth.enabled`      | `true`/`false`, `1`/`0`, `yes`/`no`      |
-| `MCP_OAUTH_ISSUER`       | `server.oauth.issuer`       | Identity Platform or Keycloak issuer URL |
-| `MCP_OAUTH_RESOURCE_URL` | `server.oauth.resource_url` | Public MCP URL for this deployment       |
+| Variable                   | Maps to                            | Notes                                                  |
+| -------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| `PORT`                     | `server.bind.port`                 | Cloud Run injects this; must be 1–65535                |
+| `MCP_TRANSPORT`            | `server.transport`                 | `stdio` or `http`                                      |
+| `MCP_HOST`                 | `server.bind.host`                 | e.g. `0.0.0.0` in containers                           |
+| `MCP_PUBLIC_URL`           | `server.public_url`                | Canonical public MCP URL (required for HTTP)           |
+| `MCP_HTTP_PATH`            | `server.http.path`                 | Must match `public_url` pathname if both set           |
+| `MCP_CORS_ALLOWED_ORIGINS` | `server.http.cors.allowed_origins` | Comma-separated browser origins                        |
+| `MCP_LOG_LEVEL`            | `server.log_level`                 | `DEBUG`, `INFO`, `WARN`, `ERROR`                       |
+| `MCP_OAUTH_ENABLED`        | `server.oauth.enabled`             | `true`/`false`, `1`/`0`, `yes`/`no`                    |
+| `MCP_OAUTH_ISSUER`         | `server.oauth.issuer`              | Identity Platform or Keycloak issuer URL               |
+| `MCP_OAUTH_RESOURCE_URL`   | `server.oauth.resource_url`        | Defaults from `public_url` when omitted                |
+| `MCP_ALLOW_INSECURE_HTTP`  | (guard only)                       | Must be `true` when `oauth.enabled: false` on loopback |
 
 Agent tools, impersonation, and scopes remain YAML-only. Invalid env values throw `CONFIG_INVALID_ENV`.
 
@@ -105,11 +108,15 @@ Example container env block (conceptual):
 ```bash
 MCP_TRANSPORT=http
 MCP_HOST=0.0.0.0
-MCP_OAUTH_RESOURCE_URL=https://analyst-mcp-xxx.run.app/mcp
+MCP_PUBLIC_URL=https://analyst-mcp-xxx.run.app/mcp
 MCP_OAUTH_ISSUER=https://securetoken.google.com/PROJECT_ID
 ```
 
-HTTP transport requires a `server.oauth` block in YAML (set `oauth.enabled: false` only for local CI smoke tests). Runtime overrides that set `transport: http` are validated the same way.
+HTTP transport requires `server.public_url` (or `server.oauth.resource_url` during migration) and a `server.oauth` block. Set `oauth.enabled: false` only for local CI smoke tests with `MCP_ALLOW_INSECURE_HTTP=true` on a loopback bind host; this mode is rejected when `NODE_ENV=production`.
+
+Session limits (`server.http.sessions`: `max_sessions`, `idle_ttl_ms`, `max_sessions_per_principal`) and CORS allowlists (`server.http.cors.allowed_origins`) are configured in YAML. When no CORS origins are set, CORS middleware is omitted (native MCP clients are unaffected).
+
+Runtime overrides that set `transport: http` are validated the same way.
 
 Tests live under `packages/*/src/**/*.test.ts`. Run the full suite with `pnpm test` from the repository root.
 

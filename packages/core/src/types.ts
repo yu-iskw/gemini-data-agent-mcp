@@ -63,8 +63,26 @@ export interface SecurityConfig {
   raw_passthrough: RawPassthroughSecurityConfig;
 }
 
+export interface HttpCorsConfig {
+  allowed_origins?: string[];
+}
+
+export interface HttpSessionConfig {
+  max_sessions?: number;
+  idle_ttl_ms?: number;
+  max_sessions_per_principal?: number;
+}
+
+export interface HttpBindConfig {
+  host?: string;
+  port?: number;
+}
+
 export interface HttpServerConfig {
-  path: string;
+  path?: string;
+  cors?: HttpCorsConfig;
+  sessions?: HttpSessionConfig;
+  max_body_bytes?: number;
 }
 
 export interface OAuthServerConfig {
@@ -78,8 +96,12 @@ export interface ServerConfig {
   name: string;
   log_level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   transport: 'stdio' | 'http';
+  /** @deprecated Use bind.host */
   host?: string;
+  /** @deprecated Use bind.port */
   port?: number;
+  public_url?: string;
+  bind?: HttpBindConfig;
   http?: HttpServerConfig;
   oauth?: OAuthServerConfig;
 }

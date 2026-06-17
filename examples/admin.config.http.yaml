@@ -6,8 +6,10 @@ api_version: v1beta
 server:
   name: gemini-data-agent-admin
   transport: http
-  host: 127.0.0.1
-  port: 3001
+  bind:
+    host: 127.0.0.1
+    port: 3001
+  public_url: http://localhost:3001/mcp
   http:
     path: /mcp
   oauth:
