@@ -7,8 +7,8 @@ import { registerResources } from './mcp/resources.js';
 import { InMemorySessionStore } from './session/store.js';
 import { registerTools } from './tools.js';
 
-import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 import type { SessionStore } from './session/store.js';
+import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 
 export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);

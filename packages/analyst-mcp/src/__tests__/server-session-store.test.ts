@@ -38,7 +38,7 @@ function jsonResponse(body: unknown) {
 }
 
 function setupFetchRouter(): void {
-  mockFetch.mockImplementation(async (input: string | URL, init?: RequestInit) => {
+  mockFetch.mockImplementation(async (input: string | URL, _init?: RequestInit) => {
     const url = typeof input === 'string' ? input : String(input);
     if (url.includes(':chat')) {
       return jsonResponse([{ systemMessage: { text: { parts: ['MCP chat response'] } } }]);
