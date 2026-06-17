@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "gemini-data-analyst": {
+      "type": "stdio",
+      "command": "gemini-data-analyst-mcp",
+      "args": ["--config", "${workspaceFolder}/config/analyst.config.yaml"]
+    }
+  }
+}

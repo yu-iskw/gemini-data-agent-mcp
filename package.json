@@ -25,6 +25,7 @@
     "knip": "knip",
     "schema:export": "pnpm --filter @gemini-data-agents/core build && node scripts/export-config-schema.mjs",
     "codeql:local": "bash dev/codeql.sh",
+    "smoke:mcp": "bash dev/mcp-inspector-smoke.sh",
     "test": "vitest run",
     "publish:npm:analyst": "pnpm config set node-linker hoisted && pnpm install && pnpm build && pnpm publish --filter @gemini-data-agents/analyst-mcp --no-git-checks --access public"
   },
