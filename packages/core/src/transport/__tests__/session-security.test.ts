@@ -63,6 +63,7 @@ function buildConfig(port: number): AppConfig {
         resource_url: baseUrl,
         issuer: testIssuer,
         scopes_supported: ['mcp:tools'],
+        required_scopes: ['mcp:tools'],
       },
     },
     security: {
@@ -114,13 +115,15 @@ afterEach(async () => {
 });
 
 describe('derivePrincipalId', () => {
-  it('prefers sub:azp composite when both are present', () => {
-    expect(derivePrincipalId({ sub: 'user-1', azp: 'client-a' })).toBe('user-1:client-a');
+  it('prefers namespaced sub|client composite when both are present', () => {
+    expect(derivePrincipalId({ sub: 'user-1', azp: 'client-a' })).toBe(
+      'sub:user-1|client:client-a',
+    );
   });
 
-  it('falls back to sub or azp', () => {
-    expect(derivePrincipalId({ sub: 'user-1' })).toBe('user-1');
-    expect(derivePrincipalId({ azp: 'client-a' })).toBe('client-a');
+  it('falls back to namespaced sub or client', () => {
+    expect(derivePrincipalId({ sub: 'user-1' })).toBe('sub:user-1');
+    expect(derivePrincipalId({ azp: 'client-a' })).toBe('client:client-a');
   });
 });
 

@@ -7,19 +7,19 @@ import { startMcpHttpServer } from '../start-http-server.js';
 import type { AppConfig } from '../../types.js';
 
 function createTestMcpServer(): McpServer {
-  const server = new McpServer({ name: 'http-cors-test', version: '0.1.0' });
+  const server = new McpServer({ name: 'session-limits-test', version: '0.1.0' });
   server.tool('ping', 'Ping', { message: z.string().optional() }, async ({ message }) => ({
     content: [{ type: 'text', text: message ?? 'pong' }],
   }));
   return server;
 }
 
-function buildConfig(allowedOrigins: string[]): AppConfig {
+function buildConfig(maxSessions: number): AppConfig {
   const baseUrl = 'http://127.0.0.1:0/mcp';
   return {
     api_version: 'v1beta',
     server: {
-      name: 'http-cors-test',
+      name: 'session-limits-test',
       log_level: 'ERROR',
       transport: 'http',
       host: '127.0.0.1',
@@ -27,7 +27,11 @@ function buildConfig(allowedOrigins: string[]): AppConfig {
       public_url: baseUrl,
       http: {
         path: '/mcp',
-        cors: { allowed_origins: allowedOrigins },
+        sessions: {
+          max_sessions: maxSessions,
+          idle_ttl_ms: 60_000,
+          max_sessions_per_principal: 10,
+        },
       },
       oauth: {
         enabled: false,
@@ -63,6 +67,17 @@ function buildConfig(allowedOrigins: string[]): AppConfig {
   };
 }
 
+const initializeBody = {
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-03-26',
+    capabilities: {},
+    clientInfo: { name: 'session-limits-test', version: '0.1.0' },
+  },
+};
+
 const activeServers: Array<{ close: () => Promise<void> }> = [];
 
 afterEach(async () => {
@@ -73,43 +88,30 @@ afterEach(async () => {
   }
 });
 
-describe('HTTP CORS allowlist', () => {
-  it('allows preflight from an allowed origin', async () => {
+describe('HTTP session limits', () => {
+  it('returns 503 when concurrent initializes exceed max_sessions', async () => {
     process.env.MCP_ALLOW_INSECURE_HTTP = 'true';
     const handle = await startMcpHttpServer({
-      config: buildConfig(['https://app.example.com']),
+      config: buildConfig(1),
       createMcpServer: createTestMcpServer,
     });
     activeServers.push(handle);
 
-    const response = await fetch(handle.bindUrl.href, {
-      method: 'OPTIONS',
-      headers: {
-        Origin: 'https://app.example.com',
-        'Access-Control-Request-Method': 'POST',
-      },
-    });
+    const responses = await Promise.all(
+      Array.from({ length: 3 }, (_, index) =>
+        fetch(handle.bindUrl.href, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json, text/event-stream',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...initializeBody, id: index + 1 }),
+        }),
+      ),
+    );
 
-    expect(response.status).toBe(204);
-    expect(response.headers.get('access-control-allow-origin')).toBe('https://app.example.com');
-  });
-
-  it('omits CORS headers for foreign origins', async () => {
-    process.env.MCP_ALLOW_INSECURE_HTTP = 'true';
-    const handle = await startMcpHttpServer({
-      config: buildConfig(['https://app.example.com']),
-      createMcpServer: createTestMcpServer,
-    });
-    activeServers.push(handle);
-
-    const response = await fetch(handle.bindUrl.href, {
-      method: 'OPTIONS',
-      headers: {
-        Origin: 'https://evil.example.com',
-        'Access-Control-Request-Method': 'POST',
-      },
-    });
-
-    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 503).length).toBeGreaterThanOrEqual(2);
   });
 });

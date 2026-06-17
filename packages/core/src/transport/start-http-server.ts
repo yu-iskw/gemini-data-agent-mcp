@@ -27,10 +27,12 @@ import {
   resolveBindPort,
   resolveHttpPath,
 } from '../config/http-config-validation.js';
+import { logFingerprint } from '../observability/fingerprints.js';
 import { logError, logInfo } from '../observability/logging.js';
 
 import { sendJsonRpcError, sendSessionError } from './http-errors.js';
 import { buildOAuthMetadata, createJwtTokenVerifier, getPrincipalIdFromAuth } from './oauth.js';
+import { createOriginValidationMiddleware } from './origin-validation.js';
 import { createSessionManager } from './session-manager.js';
 
 import type { AppConfig } from '../types.js';
@@ -58,6 +60,40 @@ export interface McpHttpServerHandle {
 interface McpRoutesContext {
   sessionManager: SessionManager;
   oauthEnabled: boolean;
+}
+
+function createMcpHttpShutdown(
+  listener: ReturnType<express.Application['listen']>,
+  routesContext: McpRoutesContext | undefined,
+): () => Promise<void> {
+  return async () => {
+    const errors: unknown[] = [];
+
+    if (routesContext) {
+      routesContext.sessionManager.stopSweeper();
+      try {
+        await routesContext.sessionManager.closeAll();
+      } catch (err) {
+        errors.push(err);
+      }
+    }
+
+    await new Promise<void>((closeResolve, closeReject) => {
+      listener.close((err) => {
+        if (err) {
+          closeReject(err);
+          return;
+        }
+        closeResolve();
+      });
+    }).catch((err) => {
+      errors.push(err);
+    });
+
+    if (errors.length > 0) {
+      throw new AggregateError(errors, 'Failed to shut down MCP HTTP server cleanly');
+    }
+  };
 }
 
 export async function startMcpHttpServer(
@@ -137,20 +173,22 @@ export async function startMcpHttpServer(
       }),
     );
 
-    const authMiddleware = requireBearerAuth({
-      verifier: tokenVerifier,
-      requiredScopes: oauth.scopes_supported,
-      resourceMetadataUrl,
-    });
-
     routesContext = registerMcpRoutes(app, httpPath, createMcpServer, {
-      authMiddleware,
+      authMiddleware: requireBearerAuth({
+        verifier: tokenVerifier,
+        requiredScopes: oauth.required_scopes,
+        resourceMetadataUrl,
+      }),
       oauthEnabled: true,
+      publicUrl: resourceServerUrl,
+      allowedOrigins,
       ...mcpRouteOptions,
     });
   } else {
     routesContext = registerMcpRoutes(app, httpPath, createMcpServer, {
       oauthEnabled: false,
+      publicUrl: resourceServerUrl,
+      allowedOrigins,
       ...mcpRouteOptions,
     });
   }
@@ -175,34 +213,7 @@ export async function startMcpHttpServer(
       resolve({
         baseUrl,
         bindUrl,
-        close: async () => {
-          const errors: unknown[] = [];
-
-          if (routesContext) {
-            routesContext.sessionManager.stopSweeper();
-            try {
-              await routesContext.sessionManager.closeAll();
-            } catch (err) {
-              errors.push(err);
-            }
-          }
-
-          await new Promise<void>((closeResolve, closeReject) => {
-            listener.close((err) => {
-              if (err) {
-                closeReject(err);
-                return;
-              }
-              closeResolve();
-            });
-          }).catch((err) => {
-            errors.push(err);
-          });
-
-          if (errors.length > 0) {
-            throw new AggregateError(errors, 'Failed to shut down MCP HTTP server cleanly');
-          }
-        },
+        close: createMcpHttpShutdown(listener, routesContext),
       });
     });
     listener.on('error', reject);
@@ -212,6 +223,8 @@ export async function startMcpHttpServer(
 interface RegisterMcpRoutesOptions {
   authMiddleware?: express.RequestHandler;
   oauthEnabled: boolean;
+  publicUrl: URL;
+  allowedOrigins: string[];
   usesUserToken: boolean;
   googleAccessTokenHeader: string;
   sessionOptions: {
@@ -287,6 +300,10 @@ function registerMcpRoutes(
 ): McpRoutesContext {
   const sessionManager = createSessionManager(options.sessionOptions);
   sessionManager.startSweeper();
+  const originMiddleware = createOriginValidationMiddleware(
+    new Set(options.allowedOrigins),
+    options.publicUrl,
+  );
 
   const mcpPostHandler = async (req: Request, res: Response): Promise<void> => {
     const sessionId = parseSessionId(req);
@@ -320,17 +337,17 @@ function registerMcpRoutes(
       return;
     }
 
-    const acceptResult = sessionManager.canAcceptSession(principalId);
-    if (!acceptResult.ok) {
+    const reservation = sessionManager.reserve(principalId);
+    if (!reservation.ok) {
       logInfo('transport', 'session_rejected', {
-        reason: acceptResult.reason,
-        principal_id: principalId,
+        reason: reservation.reason,
+        ...(principalId ? { principal_fingerprint: logFingerprint(principalId) } : {}),
         sessions_active: sessionManager.activeCount(),
       });
       sendJsonRpcError(
         res,
         503,
-        acceptResult.reason === 'principal_limit'
+        reservation.reason === 'principal_limit'
           ? 'Service Unavailable: per-principal session limit exceeded'
           : 'Service Unavailable: session limit exceeded',
       );
@@ -338,17 +355,28 @@ function registerMcpRoutes(
     }
 
     const server = createMcpServer();
-    const transport = createTransport(sessionManager, server, principalId);
-    await server.connect(transport);
-    await forwardTransportRequest({
-      label: 'MCP HTTP initialize failed',
-      transport,
-      req,
-      res,
-      usesUserToken: options.usesUserToken,
-      googleAccessTokenHeader: options.googleAccessTokenHeader,
-      body: req.body,
-    });
+    const transport = createTransport(sessionManager, server, principalId, reservation.token);
+    try {
+      await server.connect(transport);
+      await forwardTransportRequest({
+        label: 'MCP HTTP initialize failed',
+        transport,
+        req,
+        res,
+        usesUserToken: options.usesUserToken,
+        googleAccessTokenHeader: options.googleAccessTokenHeader,
+        body: req.body,
+      });
+    } catch (err) {
+      logError('transport', 'MCP HTTP initialize failed', { error: String(err) });
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    } finally {
+      if (!transport.sessionId) {
+        sessionManager.release(reservation.token);
+      }
+    }
   };
 
   const handleSessionRequest = async (req: Request, res: Response): Promise<void> => {
@@ -382,13 +410,13 @@ function registerMcpRoutes(
   };
 
   if (options.authMiddleware) {
-    app.post(httpPath, options.authMiddleware, mcpPostHandler);
-    app.get(httpPath, options.authMiddleware, handleSessionRequest);
-    app.delete(httpPath, options.authMiddleware, handleSessionRequest);
+    app.post(httpPath, originMiddleware, options.authMiddleware, mcpPostHandler);
+    app.get(httpPath, originMiddleware, options.authMiddleware, handleSessionRequest);
+    app.delete(httpPath, originMiddleware, options.authMiddleware, handleSessionRequest);
   } else {
-    app.post(httpPath, mcpPostHandler);
-    app.get(httpPath, handleSessionRequest);
-    app.delete(httpPath, handleSessionRequest);
+    app.post(httpPath, originMiddleware, mcpPostHandler);
+    app.get(httpPath, originMiddleware, handleSessionRequest);
+    app.delete(httpPath, originMiddleware, handleSessionRequest);
   }
 
   return { sessionManager, oauthEnabled: options.oauthEnabled };
@@ -398,11 +426,12 @@ function createTransport(
   sessionManager: SessionManager,
   server: McpServer,
   principalId: string | undefined,
+  reservationToken: string,
 ): StreamableHTTPServerTransport {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (newSessionId) => {
-      sessionManager.register(newSessionId, {
+      sessionManager.commit(reservationToken, newSessionId, {
         transport,
         server,
         principalId,

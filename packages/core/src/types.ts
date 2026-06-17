@@ -92,6 +92,8 @@ export interface OAuthServerConfig {
   resource_url: string;
   issuer: string;
   scopes_supported: string[];
+  /** Scopes enforced on MCP access tokens (subset of or equal to scopes_supported). */
+  required_scopes: string[];
 }
 
 export interface ServerConfig {

@@ -98,6 +98,7 @@ function buildOAuthConfig(
     resource_url: oauthInput?.resource_url ?? publicUrl,
     issuer: oauthInput!.issuer,
     scopes_supported: oauthInput?.scopes_supported ?? ['mcp:tools'],
+    required_scopes: oauthInput!.required_scopes,
   };
 }
 

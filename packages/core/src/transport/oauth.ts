@@ -90,23 +90,37 @@ async function fetchOidcDiscovery(issuer: string): Promise<OidcDiscoveryDocument
   return parsed.data;
 }
 
-export function derivePrincipalId(payload: JWTPayload): string {
-  const sub = typeof payload.sub === 'string' ? payload.sub : undefined;
-  const azp =
-    (typeof payload.azp === 'string' && payload.azp) ||
-    (typeof payload.client_id === 'string' && payload.client_id) ||
-    undefined;
+class MissingPrincipalIdError extends Error {
+  constructor() {
+    super('Access token lacks a stable principal identifier: expected sub, azp, or client_id');
+    this.name = 'MissingPrincipalIdError';
+  }
+}
 
-  if (sub && azp) {
-    return `${sub}:${azp}`;
+function extractTokenClientId(payload: JWTPayload): string | undefined {
+  if (typeof payload.azp === 'string' && payload.azp) {
+    return payload.azp;
+  }
+  if (typeof payload.client_id === 'string' && payload.client_id) {
+    return payload.client_id;
+  }
+  return undefined;
+}
+
+export function derivePrincipalId(payload: JWTPayload): string {
+  const sub = typeof payload.sub === 'string' && payload.sub ? payload.sub : undefined;
+  const clientId = extractTokenClientId(payload);
+
+  if (sub && clientId) {
+    return `sub:${encodeURIComponent(sub)}|client:${encodeURIComponent(clientId)}`;
   }
   if (sub) {
-    return sub;
+    return `sub:${encodeURIComponent(sub)}`;
   }
-  if (azp) {
-    return azp;
+  if (clientId) {
+    return `client:${encodeURIComponent(clientId)}`;
   }
-  return 'unknown';
+  throw new MissingPrincipalIdError();
 }
 
 function parseScopeClaim(scopeClaim: unknown): string[] {
@@ -114,6 +128,13 @@ function parseScopeClaim(scopeClaim: unknown): string[] {
     return scopeClaim.split(/\s+/).filter(Boolean);
   }
   return [];
+}
+
+export function getMissingRequiredScopes(
+  requiredScopes: readonly string[],
+  tokenScopes: readonly string[],
+): string[] {
+  return requiredScopes.filter((scope) => !tokenScopes.includes(scope));
 }
 
 export async function buildOAuthMetadata(oauth: OAuthServerConfig): Promise<OAuthMetadata> {
@@ -167,15 +188,12 @@ export function createJwtTokenVerifier(oauth: OAuthServerConfig): OAuthTokenVeri
       }
 
       const scopes = parseScopeClaim(payload.scope);
-      const missing = oauth.scopes_supported.filter((s) => !scopes.includes(s));
+      const missing = getMissingRequiredScopes(oauth.required_scopes, scopes);
       if (missing.length > 0) {
         throw new Error(`Token is missing required OAuth scopes: ${missing.join(', ')}`);
       }
 
-      const clientId =
-        (typeof payload.azp === 'string' && payload.azp) ||
-        (typeof payload.client_id === 'string' && payload.client_id) ||
-        'unknown';
+      const clientId = extractTokenClientId(payload) ?? 'unknown';
 
       const principalId = derivePrincipalId(payload);
 

@@ -56,6 +56,7 @@ function buildHttpTestConfig(port: number, oauthEnabled: boolean): AppConfig {
         resource_url: baseUrl,
         issuer: testIssuer,
         scopes_supported: ['mcp:tools'],
+        required_scopes: ['mcp:tools'],
       },
     },
     security: {

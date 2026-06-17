@@ -44,7 +44,7 @@ afterEach(() => {
   clearEnv();
 });
 
-describe('applyRuntimeOverrides', () => {
+describe('applyRuntimeOverrides environment', () => {
   it('applies PORT, MCP_HOST, and MCP_OAUTH_RESOURCE_URL from environment', () => {
     process.env.PORT = '9000';
     process.env.MCP_HOST = '0.0.0.0';
@@ -229,6 +229,77 @@ describe('applyRuntimeOverrides', () => {
       expect(err).toBeInstanceOf(DataAgentMcpError);
       expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID');
       expect((err as DataAgentMcpError).message).toContain('https');
+    }
+  });
+});
+
+describe('applyRuntimeOverrides CLI precedence', () => {
+  it('CLI --public-url wins over MCP_OAUTH_RESOURCE_URL from environment', () => {
+    process.env.MCP_OAUTH_RESOURCE_URL = 'https://env.example.com/mcp';
+
+    const config = validateConfig(httpOauthInput);
+    const result = applyRuntimeOverrides(config, {
+      publicUrl: 'https://cli.example.com/mcp',
+    });
+
+    expect(result.server.public_url).toBe('https://cli.example.com/mcp');
+    expect(result.server.oauth?.resource_url).toBe('https://cli.example.com/mcp');
+  });
+
+  it('CLI --public-url wins over MCP_PUBLIC_URL from environment', () => {
+    process.env.MCP_PUBLIC_URL = 'https://env-public.example.com/mcp';
+
+    const config = validateConfig(httpOauthInput);
+    const result = applyRuntimeOverrides(config, {
+      publicUrl: 'https://cli.example.com/mcp',
+    });
+
+    expect(result.server.public_url).toBe('https://cli.example.com/mcp');
+  });
+
+  it('CLI --http-path wins over MCP_HTTP_PATH from environment', () => {
+    process.env.MCP_PUBLIC_URL = 'http://127.0.0.1:8080/cli-path';
+    process.env.MCP_HTTP_PATH = '/env-path';
+
+    const config = validateConfig(httpOauthInput);
+    const result = applyRuntimeOverrides(config, { httpPath: '/cli-path' });
+
+    expect(result.server.http?.path).toBe('/cli-path');
+    expect(result.server.public_url).toBe('http://127.0.0.1:8080/cli-path');
+  });
+
+  it('CLI --transport wins over MCP_TRANSPORT from environment', () => {
+    process.env.MCP_TRANSPORT = 'stdio';
+
+    const config = validateConfig({
+      ...httpOauthInput,
+      server: { ...httpOauthInput.server, transport: 'http' },
+    });
+    const result = applyRuntimeOverrides(config, { transport: 'http' });
+
+    expect(result.server.transport).toBe('http');
+  });
+
+  it('CLI --log-level wins over MCP_LOG_LEVEL from environment', () => {
+    process.env.MCP_LOG_LEVEL = 'debug';
+
+    const config = validateConfig(httpOauthInput);
+    const result = applyRuntimeOverrides(config, { logLevel: 'error' });
+
+    expect(result.server.log_level).toBe('ERROR');
+  });
+
+  it('throws CONFIG_INVALID_ENV for invalid MCP_TRANSPORT', () => {
+    process.env.MCP_TRANSPORT = 'websocket';
+
+    const config = validateConfig(baseInput);
+
+    expect(() => applyRuntimeOverrides(config)).toThrow(DataAgentMcpError);
+    try {
+      applyRuntimeOverrides(config);
+    } catch (err) {
+      expect(err).toBeInstanceOf(DataAgentMcpError);
+      expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID_ENV');
     }
   });
 });

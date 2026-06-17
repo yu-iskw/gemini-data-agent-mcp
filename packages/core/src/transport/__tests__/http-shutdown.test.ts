@@ -31,6 +31,7 @@ function buildConfig(): AppConfig {
         resource_url: baseUrl,
         issuer: 'http://localhost:8080/realms/master',
         scopes_supported: ['mcp:tools'],
+        required_scopes: ['mcp:tools'],
       },
     },
     security: {

@@ -70,7 +70,12 @@ function readEnvOverrides(): Partial<ServerCliOverrides> & {
     if (normalized === 'stdio' || normalized === 'http') {
       overrides.transport = normalized;
     } else {
-      throw new Error(`Invalid transport value for MCP_TRANSPORT: "${transport}"`);
+      throw new DataAgentMcpError(
+        'CONFIG_INVALID_ENV',
+        `Invalid transport value for MCP_TRANSPORT: "${transport}"`,
+        false,
+        { env: 'MCP_TRANSPORT', value: transport },
+      );
     }
   }
 
@@ -234,7 +239,11 @@ function applyOAuthEnvOverrides(
   }
 
   if (!server.oauth) {
-    throw new Error('server.oauth is required when applying OAuth environment overrides');
+    throw new DataAgentMcpError(
+      'CONFIG_OAUTH_REQUIRED',
+      'server.oauth is required when applying OAuth environment overrides',
+      false,
+    );
   }
 
   server.oauth = { ...server.oauth, ...oauthPatch };
@@ -293,12 +302,14 @@ export function applyRuntimeOverrides(config: AppConfig, cli?: ServerCliOverride
       host: cli.host,
       port: cli.port,
       httpPath: cli.httpPath,
-      publicUrl: cli.publicUrl,
     });
   }
 
-  // OAuth env overrides run after transport is finalized (env or CLI may enable HTTP).
   applyOAuthEnvOverrides(next.server, pickOAuthEnvOverrides(envOverrides));
+
+  if (cli?.publicUrl !== undefined) {
+    applyServerOverrides(next.server, { publicUrl: cli.publicUrl });
+  }
 
   validateHttpUrlConsistency(next.server);
   validateHttpServerConfig(next.server);

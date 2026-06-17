@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildOAuthMetadata,
   derivePrincipalId,
+  getMissingRequiredScopes,
   resetOidcDiscoveryCacheForTests,
 } from '../oauth.js';
 
@@ -37,6 +38,7 @@ describe('OIDC discovery hardening', () => {
         resource_url: 'https://mcp.example.com/mcp',
         issuer: testIssuer,
         scopes_supported: ['mcp:tools'],
+        required_scopes: ['mcp:tools'],
       }),
     ).rejects.toThrow(/Invalid OIDC discovery document/);
   });
@@ -55,6 +57,7 @@ describe('OIDC discovery hardening', () => {
         resource_url: 'https://mcp.example.com/mcp',
         issuer: testIssuer,
         scopes_supported: ['mcp:tools'],
+        required_scopes: ['mcp:tools'],
       }),
     ).rejects.toThrow(/issuer mismatch/);
   });
@@ -73,6 +76,7 @@ describe('OIDC discovery hardening', () => {
       resource_url: 'https://mcp.example.com/mcp',
       issuer: testIssuer,
       scopes_supported: ['mcp:tools'],
+      required_scopes: ['mcp:tools'],
     };
 
     await buildOAuthMetadata(oauth);
@@ -83,7 +87,29 @@ describe('OIDC discovery hardening', () => {
 });
 
 describe('derivePrincipalId', () => {
-  it('returns unknown when no identifiers are present', () => {
-    expect(derivePrincipalId({})).toBe('unknown');
+  it('throws when no identifiers are present', () => {
+    expect(() => derivePrincipalId({})).toThrow(/stable principal identifier/);
+  });
+
+  it('namespaces sub and client to avoid delimiter collisions', () => {
+    expect(derivePrincipalId({ sub: 'a:b', azp: 'client-a' })).toBe('sub:a%3Ab|client:client-a');
+    expect(derivePrincipalId({ sub: 'a', azp: 'b:c' })).toBe('sub:a|client:b%3Ac');
+    expect(derivePrincipalId({ sub: 'a:b' })).not.toBe(derivePrincipalId({ sub: 'a', azp: 'b' }));
+  });
+});
+
+describe('getMissingRequiredScopes', () => {
+  it('requires only configured scopes, not every advertised scope', () => {
+    const missing = getMissingRequiredScopes(
+      ['mcp:tools:read'],
+      ['mcp:tools:read', 'mcp:tools:admin'],
+    );
+    expect(missing).toEqual([]);
+  });
+
+  it('reports missing required scopes', () => {
+    expect(
+      getMissingRequiredScopes(['mcp:tools:read', 'mcp:tools:admin'], ['mcp:tools:read']),
+    ).toEqual(['mcp:tools:admin']);
   });
 });

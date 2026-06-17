@@ -145,6 +145,14 @@
                   },
                   "default": ["mcp:tools"],
                   "description": "Scopes advertised in Protected Resource Metadata."
+                },
+                "required_scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "OAuth scopes required on MCP access tokens (enforced at ingress)."
                 }
               },
               "required": ["issuer"],

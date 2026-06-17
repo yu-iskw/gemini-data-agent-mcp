@@ -29,45 +29,55 @@ const ClientOverrideSchema = z.object({
     ),
 });
 
-const AgentInputSchema = z.object({
-  data_agent: z
-    .string()
-    .min(1, 'data_agent is required')
-    .regex(
-      DATA_AGENT_RESOURCE_PATTERN,
-      'data_agent must be a full resource name: projects/{project}/locations/{location}/dataAgents/{id}',
-    )
-    .describe('Full Gemini Data Agent resource name.'),
-  tools: z
-    .array(z.enum(ALLOWED_AGENT_TOOLS))
-    .min(1, 'tools must contain at least one allowed tool name')
-    .describe(
-      'MCP tool names enabled for this agent: query_data_agent, chat_data_agent, create_data_agent_conversation, list_conversation_messages.',
+const AgentInputSchema = z
+  .object({
+    data_agent: z
+      .string()
+      .min(1, 'data_agent is required')
+      .regex(
+        DATA_AGENT_RESOURCE_PATTERN,
+        'data_agent must be a full resource name: projects/{project}/locations/{location}/dataAgents/{id}',
+      )
+      .describe('Full Gemini Data Agent resource name.'),
+    tools: z
+      .array(z.enum(ALLOWED_AGENT_TOOLS))
+      .min(1, 'tools must contain at least one allowed tool name')
+      .describe(
+        'MCP tool names enabled for this agent: query_data_agent, chat_data_agent, create_data_agent_conversation, list_conversation_messages.',
+      ),
+    impersonate_service_account: z
+      .string()
+      .optional()
+      .describe(
+        'Optional service account email to impersonate. Omit to use Application Default Credentials (ADC).',
+      ),
+    auth_mode: z
+      .enum(['adc', 'user_token'])
+      .optional()
+      .describe(
+        'Egress auth mode: adc (default) or user_token (HTTP only; requires X-Google-Access-Token header).',
+      ),
+    api_version: ApiVersionSchema.optional().describe(
+      'Optional per-agent API version override. Defaults to root api_version.',
     ),
-  impersonate_service_account: z
-    .string()
-    .optional()
-    .describe(
-      'Optional service account email to impersonate. Omit to use Application Default Credentials (ADC).',
+    client: ClientOverrideSchema.optional().describe(
+      'Optional API client project/location when routing differs from the data_agent resource.',
     ),
-  auth_mode: z
-    .enum(['adc', 'user_token'])
-    .optional()
-    .describe(
-      'Egress auth mode: adc (default) or user_token (HTTP only; requires X-Google-Access-Token header).',
+    display_name: z.string().optional().describe('Human-readable agent label for MCP resources.'),
+    description: z.string().optional().describe('Short description of the agent purpose.'),
+    generation_options: AgentGenerationOptionsSchema.optional().describe(
+      'Default Gemini Data Agents generation options for query_data_agent.',
     ),
-  api_version: ApiVersionSchema.optional().describe(
-    'Optional per-agent API version override. Defaults to root api_version.',
-  ),
-  client: ClientOverrideSchema.optional().describe(
-    'Optional API client project/location when routing differs from the data_agent resource.',
-  ),
-  display_name: z.string().optional().describe('Human-readable agent label for MCP resources.'),
-  description: z.string().optional().describe('Short description of the agent purpose.'),
-  generation_options: AgentGenerationOptionsSchema.optional().describe(
-    'Default Gemini Data Agents generation options for query_data_agent.',
-  ),
-});
+  })
+  .superRefine((agent, ctx) => {
+    if (agent.auth_mode === 'user_token' && agent.impersonate_service_account) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['auth_mode'],
+        message: 'auth_mode user_token cannot be combined with impersonate_service_account',
+      });
+    }
+  });
 
 const HttpCorsConfigSchema = z.object({
   allowed_origins: z
@@ -133,19 +143,31 @@ const HttpServerConfigSchema = z.object({
     ),
 });
 
-const OAuthServerConfigSchema = z.object({
-  enabled: z.boolean().default(true).describe('Require OAuth Bearer tokens on HTTP MCP requests.'),
-  resource_url: z
-    .string()
-    .url()
-    .optional()
-    .describe('Canonical MCP resource URL. Defaults to server.public_url when omitted.'),
-  issuer: z.string().url().describe('OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.).'),
-  scopes_supported: z
-    .array(z.string().min(1))
-    .default(['mcp:tools'])
-    .describe('Scopes advertised in Protected Resource Metadata.'),
-});
+const OAuthServerConfigSchema = z
+  .object({
+    enabled: z
+      .boolean()
+      .default(true)
+      .describe('Require OAuth Bearer tokens on HTTP MCP requests.'),
+    resource_url: z
+      .string()
+      .url()
+      .optional()
+      .describe('Canonical MCP resource URL. Defaults to server.public_url when omitted.'),
+    issuer: z.string().url().describe('OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.).'),
+    scopes_supported: z
+      .array(z.string().min(1))
+      .default(['mcp:tools'])
+      .describe('Scopes advertised in Protected Resource Metadata.'),
+    required_scopes: z
+      .array(z.string().min(1))
+      .optional()
+      .describe('OAuth scopes required on MCP access tokens (enforced at ingress).'),
+  })
+  .transform((oauth) => ({
+    ...oauth,
+    required_scopes: oauth.required_scopes ?? oauth.scopes_supported,
+  }));
 
 const ServerConfigSchema = z.object({
   name: z.string().default('gemini-data-agent').describe('MCP server name reported to clients.'),

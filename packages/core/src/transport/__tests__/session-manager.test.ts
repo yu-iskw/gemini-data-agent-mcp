@@ -36,7 +36,7 @@ describe('createSessionManager', () => {
     });
 
     manager.register('session-1', createMockRecord('user-a'));
-    const result = manager.canAcceptSession('user-b');
+    const result = manager.reserve('user-b');
 
     expect(result).toEqual({ ok: false, reason: 'global_limit' });
     expect(manager.activeCount()).toBe(1);
@@ -50,9 +50,45 @@ describe('createSessionManager', () => {
     });
 
     manager.register('session-1', createMockRecord('user-a'));
-    const result = manager.canAcceptSession('user-a');
+    const result = manager.reserve('user-a');
 
     expect(result).toEqual({ ok: false, reason: 'principal_limit' });
+  });
+
+  it('allows only one concurrent reservation when global cap is 1', () => {
+    const manager = createSessionManager({
+      maxSessions: 1,
+      idleTtlMs: 60_000,
+      maxSessionsPerPrincipal: 10,
+    });
+
+    const first = manager.reserve('user-a');
+    const second = manager.reserve('user-b');
+
+    expect(first.ok).toBe(true);
+    expect(second).toEqual({ ok: false, reason: 'global_limit' });
+
+    if (first.ok) {
+      manager.release(first.token);
+    }
+  });
+
+  it('commits a reservation into an active session', () => {
+    const manager = createSessionManager({
+      maxSessions: 10,
+      idleTtlMs: 60_000,
+      maxSessionsPerPrincipal: 10,
+    });
+
+    const reservation = manager.reserve('user-a');
+    expect(reservation.ok).toBe(true);
+    if (!reservation.ok) {
+      return;
+    }
+
+    manager.commit(reservation.token, 'session-1', createMockRecord('user-a'));
+    expect(manager.activeCount()).toBe(1);
+    expect(manager.get('session-1')).toBeDefined();
   });
 
   it('evicts idle sessions after TTL', async () => {

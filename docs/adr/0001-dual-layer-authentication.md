@@ -140,7 +140,8 @@ agents:
 ### Negative / limits (Phase 1)
 
 - `user_token` requires the BFF to send a Google access token on every MCP HTTP request (no refresh vault yet).
-- In-memory sessions remain per Cloud Run instance (see Cloud Run package readiness ADR/plan).
+- `user_token` mode requires a **trusted confidential BFF**: the MCP ingress principal is not cryptographically bound to the Google access token in `X-Google-Access-Token`; arbitrary MCP clients must not be able to supply their own secondary token.
+- In-memory HTTP sessions are **single-instance only**: multi-instance Cloud Run (or any horizontal scale-out) needs session affinity, an external session store, or clients must tolerate `404` on session reuse until Phase 2.
 
 ### Anti-patterns
 
