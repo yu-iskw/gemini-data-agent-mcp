@@ -1,4 +1,4 @@
-/** Validated Google/OIDC access-token principal (from introspection). */
+/** Validated Google principal identity (from verified ID token). */
 export interface GooglePrincipalIdentity {
   issuer: string;
   subject: string;

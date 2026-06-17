@@ -119,6 +119,9 @@ function buildNormalizedHttpConfig(
     ...(httpInput?.google_access_token_header
       ? { google_access_token_header: httpInput.google_access_token_header }
       : {}),
+    ...(httpInput?.google_id_token_header
+      ? { google_id_token_header: httpInput.google_id_token_header }
+      : {}),
     ...(httpInput?.user_token ? { user_token: httpInput.user_token } : {}),
   };
 }
@@ -317,12 +320,23 @@ function validateUserTokenBindingPolicy(config: AppConfig): void {
     );
   }
 
-  const hasIntrospectionUrl = Boolean(userToken.google_token.introspection_url);
-  const oauthIssuer = config.server.oauth?.issuer;
-  if (!hasIntrospectionUrl && !oauthIssuer) {
+  if (userToken.google_identity.audiences.length === 0) {
     throw new DataAgentMcpError(
       'CONFIG_INVALID',
-      'server.http.user_token.google_token.introspection_url or server.oauth.issuer is required for user_token mode',
+      'server.http.user_token.google_identity.audiences must be non-empty',
+      false,
+    );
+  }
+}
+
+function validateHomogeneousAuthModes(config: AppConfig): void {
+  const agents = Object.values(config.agents);
+  const hasUserTokenAgent = agents.some((agent) => agent.auth.mode === 'user_token');
+  const hasNonUserTokenAgent = agents.some((agent) => agent.auth.mode !== 'user_token');
+  if (hasUserTokenAgent && hasNonUserTokenAgent) {
+    throw new DataAgentMcpError(
+      'CONFIG_MIXED_AUTH_MODES_UNSUPPORTED',
+      'user_token agents cannot share an MCP server with adc/impersonation agents; use separate deployments or endpoints',
       false,
     );
   }
@@ -340,6 +354,8 @@ function runSemanticValidation(config: AppConfig): void {
   const hasUserTokenAgent = Object.values(config.agents).some(
     (agent) => agent.auth.mode === 'user_token',
   );
+
+  validateHomogeneousAuthModes(config);
 
   for (const [name, agent] of Object.entries(config.agents)) {
     validateUserTokenAgentRequirements(name, agent, config);

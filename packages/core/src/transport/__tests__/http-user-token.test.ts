@@ -1,12 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createStubTokenIntrospector } from '../../auth/oauth-introspection.js';
+import { createStubIdTokenVerifier } from '../../auth/google-id-token-verifier.js';
 import { clearCredentialCache, resolveCredentials } from '../../auth/resolver.js';
 import { createStubTokenVerifier, resetOidcDiscoveryCacheForTests } from '../oauth.js';
 import { startMcpHttpServer } from '../start-http-server.js';
 
 import {
+  defaultGoogleIdToken,
+  defaultGoogleIdentityHeaders,
   defaultHttpOauthFields,
   defaultUserTokenConfig,
   testIssuer,
@@ -15,7 +17,7 @@ import {
 import type { AppConfig } from '../../types.js';
 
 const mcpToken = 'mcp-access-token';
-const userGoogleToken = 'user-google-access-token';
+const userGoogleAccessToken = 'user-google-access-token';
 const googleUserSub = 'google-user-1';
 
 function stubOidcDiscovery(): void {
@@ -31,7 +33,6 @@ function stubOidcDiscovery(): void {
             authorization_endpoint: `${testIssuer}/protocol/openid-connect/auth`,
             token_endpoint: `${testIssuer}/protocol/openid-connect/token`,
             jwks_uri: `${testIssuer}/protocol/openid-connect/certs`,
-            introspection_endpoint: 'https://auth.example.com/introspect',
           }),
           { status: 200 },
         );
@@ -115,10 +116,10 @@ function createTestVerifiers() {
       ],
     ]),
   );
-  const introspector = createStubTokenIntrospector(
+  const idVerifier = createStubIdTokenVerifier(
     new Map([
       [
-        userGoogleToken,
+        defaultGoogleIdToken,
         {
           issuer: 'https://accounts.google.com',
           subject: googleUserSub,
@@ -128,7 +129,7 @@ function createTestVerifiers() {
       ],
     ]),
   );
-  return { verifier, introspector };
+  return { verifier, idVerifier };
 }
 
 const initializeBody = {
@@ -147,6 +148,7 @@ const activeServers: Array<{ close: () => Promise<void> }> = [];
 afterEach(async () => {
   resetOidcDiscoveryCacheForTests();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   while (activeServers.length > 0) {
     const server = activeServers.pop();
     await server?.close();
@@ -172,15 +174,20 @@ async function readJsonRpcResult(response: Response): Promise<unknown> {
 describe('HTTP user_token egress', () => {
   it('uses X-Google-Access-Token for Data Agent egress, not MCP Authorization', async () => {
     stubOidcDiscovery();
-    const { verifier, introspector } = createTestVerifiers();
+    const { verifier, idVerifier } = createTestVerifiers();
 
     const handle = await startMcpHttpServer({
       config: buildUserTokenConfig(0),
       createMcpServer: createEgressProbeServer,
       testTokenVerifier: verifier,
-      testTokenIntrospector: introspector,
+      testIdTokenVerifier: idVerifier,
     });
     activeServers.push(handle);
+
+    const googleHeaders = {
+      ...defaultGoogleIdentityHeaders(),
+      'X-Google-Access-Token': userGoogleAccessToken,
+    };
 
     const initResponse = await fetch(handle.bindUrl.href, {
       method: 'POST',
@@ -188,7 +195,7 @@ describe('HTTP user_token egress', () => {
         Accept: 'application/json, text/event-stream',
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
-        'X-Google-Access-Token': userGoogleToken,
+        ...googleHeaders,
       },
       body: JSON.stringify(initializeBody),
     });
@@ -203,7 +210,7 @@ describe('HTTP user_token egress', () => {
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
         'Mcp-Session-Id': sessionId!,
-        'X-Google-Access-Token': userGoogleToken,
+        ...googleHeaders,
       },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
     });
@@ -215,7 +222,7 @@ describe('HTTP user_token egress', () => {
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
         'Mcp-Session-Id': sessionId!,
-        'X-Google-Access-Token': userGoogleToken,
+        ...googleHeaders,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -230,13 +237,13 @@ describe('HTTP user_token egress', () => {
       content?: Array<{ type: string; text?: string }>;
     };
     const egressAuth = result.content?.[0]?.text ?? '';
-    expect(egressAuth).toBe(`Bearer ${userGoogleToken}`);
+    expect(egressAuth).toBe(`Bearer ${userGoogleAccessToken}`);
     expect(egressAuth).not.toContain(mcpToken);
   });
 
   it('does not read user token when no agent uses user_token mode', async () => {
     stubOidcDiscovery();
-    const { verifier, introspector } = createTestVerifiers();
+    const { verifier, idVerifier } = createTestVerifiers();
 
     const config = buildUserTokenConfig(0);
     config.agents['my-agent'].auth = { mode: 'adc' };
@@ -246,7 +253,7 @@ describe('HTTP user_token egress', () => {
       config,
       createMcpServer: createEgressProbeServer,
       testTokenVerifier: verifier,
-      testTokenIntrospector: introspector,
+      testIdTokenVerifier: idVerifier,
     });
     activeServers.push(handle);
 
@@ -256,7 +263,8 @@ describe('HTTP user_token egress', () => {
         Accept: 'application/json, text/event-stream',
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
-        'X-Google-Access-Token': userGoogleToken,
+        'X-Google-Access-Token': userGoogleAccessToken,
+        'X-Google-Id-Token': defaultGoogleIdToken,
       },
       body: JSON.stringify(initializeBody),
     });
@@ -270,7 +278,6 @@ describe('HTTP user_token egress', () => {
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
         'Mcp-Session-Id': sessionId!,
-        'X-Google-Access-Token': userGoogleToken,
       },
       body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }),
     });
@@ -282,7 +289,6 @@ describe('HTTP user_token egress', () => {
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
         'Mcp-Session-Id': sessionId!,
-        'X-Google-Access-Token': userGoogleToken,
       },
       body: JSON.stringify({
         jsonrpc: '2.0',

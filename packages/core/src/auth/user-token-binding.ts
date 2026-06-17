@@ -1,4 +1,7 @@
-import type { UserTokenBindingMode, UserTokenConfig } from '../types.js';
+import { GoogleTokenValidationError } from './google-token-errors.js';
+
+import type { UserTokenConfig } from '../types.js';
+import type { VerifyGoogleIdTokenOptions } from './google-id-token-verifier.js';
 import type { GooglePrincipalIdentity } from './google-identity.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
@@ -12,7 +15,7 @@ function extractMcpJwtSub(auth: AuthInfo | undefined): string | undefined {
 }
 
 export function assertUserTokenBinding(
-  bindingMode: UserTokenBindingMode,
+  bindingMode: UserTokenConfig['binding']['mode'],
   mcpAuth: AuthInfo | undefined,
   googleIdentity: GooglePrincipalIdentity,
 ): void {
@@ -22,40 +25,29 @@ export function assertUserTokenBinding(
 
   const mcpSub = extractMcpJwtSub(mcpAuth);
   if (!mcpSub) {
-    throw new Error(
+    throw new GoogleTokenValidationError(
+      'binding_mismatch',
       'MCP access token lacks sub claim required for google_sub_matches_mcp_sub binding',
     );
   }
 
   if (mcpSub !== googleIdentity.subject) {
-    throw new Error('Google token subject does not match MCP token sub');
+    throw new GoogleTokenValidationError(
+      'binding_mismatch',
+      'Google ID token subject does not match MCP token sub',
+    );
   }
 }
 
-function resolveIntrospectionClientAuth(): { clientId?: string; clientSecret?: string } {
-  const clientId = process.env.MCP_GOOGLE_INTROSPECTION_CLIENT_ID;
-  const clientSecret = process.env.MCP_GOOGLE_INTROSPECTION_CLIENT_SECRET;
-  if (clientId && clientSecret) {
-    return { clientId, clientSecret };
-  }
-  return {};
-}
-
-export function buildIntrospectionOptions(
+export function buildIdTokenVerifyOptions(
   userTokenConfig: UserTokenConfig,
-  introspectionUrl: string,
-): {
-  introspectionUrl: string;
-  expectedIssuer: string;
-  allowedAudiences: readonly string[];
-  clientId?: string;
-  clientSecret?: string;
-} {
-  const clientAuth = resolveIntrospectionClientAuth();
+): Omit<VerifyGoogleIdTokenOptions, 'idToken' | 'accessToken'> {
+  const identity = userTokenConfig.google_identity;
   return {
-    introspectionUrl,
-    expectedIssuer: userTokenConfig.google_token.issuer,
-    allowedAudiences: userTokenConfig.google_token.audiences,
-    ...clientAuth,
+    expectedIssuer: identity.issuer,
+    audiences: identity.audiences,
+    ...(identity.jwks_uri ? { jwksUri: identity.jwks_uri } : {}),
+    ...(identity.hosted_domain ? { hostedDomain: identity.hosted_domain } : {}),
+    verifyAtHash: identity.verify_at_hash ?? true,
   };
 }

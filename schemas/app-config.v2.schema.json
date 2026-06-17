@@ -115,6 +115,11 @@
                   "minLength": 1,
                   "description": "HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token)."
                 },
+                "google_id_token_header": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "HTTP header for Google ID token identity binding in user_token mode (default x-google-id-token)."
+                },
                 "user_token": {
                   "type": "object",
                   "properties": {
@@ -127,18 +132,13 @@
                       "minItems": 1,
                       "description": "MCP JWT azp/client_id values allowed to use user_token egress."
                     },
-                    "google_token": {
+                    "google_identity": {
                       "type": "object",
                       "properties": {
-                        "introspection_url": {
-                          "type": "string",
-                          "format": "uri",
-                          "description": "OIDC token introspection endpoint. Omit to use issuer discovery introspection_endpoint."
-                        },
                         "issuer": {
                           "type": "string",
                           "format": "uri",
-                          "description": "Expected issuer (iss) on introspected Google/OIDC access tokens."
+                          "description": "Expected issuer (iss) on the Google ID token used for identity binding."
                         },
                         "audiences": {
                           "type": "array",
@@ -147,7 +147,21 @@
                             "minLength": 1
                           },
                           "minItems": 1,
-                          "description": "Allowed aud/client_id values for introspected egress tokens."
+                          "description": "Allowed aud values on the Google ID token (OAuth client IDs)."
+                        },
+                        "jwks_uri": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "JWKS URI for verifying Google ID tokens. Defaults to https://www.googleapis.com/oauth2/v3/certs."
+                        },
+                        "hosted_domain": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "When set, require ID token hd claim to match this Google Workspace domain."
+                        },
+                        "verify_at_hash": {
+                          "type": "boolean",
+                          "description": "When true (default), verify ID token at_hash against the access token per OIDC."
                         }
                       },
                       "required": ["issuer", "audiences"],
@@ -166,9 +180,9 @@
                       "additionalProperties": false
                     }
                   },
-                  "required": ["trusted_ingress_client_ids", "google_token", "binding"],
+                  "required": ["trusted_ingress_client_ids", "google_identity", "binding"],
                   "additionalProperties": false,
-                  "description": "Required when any agent uses auth_mode user_token: ingress allowlist and Google token introspection binding."
+                  "description": "Required when any agent uses auth_mode user_token: ingress allowlist and Google ID token binding."
                 }
               },
               "additionalProperties": false,

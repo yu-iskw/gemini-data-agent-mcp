@@ -1,4 +1,7 @@
-import { DEFAULT_GOOGLE_ACCESS_TOKEN_HEADER } from './request-context.js';
+import {
+  DEFAULT_GOOGLE_ACCESS_TOKEN_HEADER,
+  DEFAULT_GOOGLE_ID_TOKEN_HEADER,
+} from './request-context.js';
 
 import type { AppConfig, UserTokenConfig } from '../types.js';
 
@@ -10,6 +13,12 @@ export function resolveGoogleAccessTokenHeaderName(config: AppConfig): string {
   return (
     config.server.http?.google_access_token_header?.toLowerCase() ??
     DEFAULT_GOOGLE_ACCESS_TOKEN_HEADER
+  );
+}
+
+export function resolveGoogleIdTokenHeaderName(config: AppConfig): string {
+  return (
+    config.server.http?.google_id_token_header?.toLowerCase() ?? DEFAULT_GOOGLE_ID_TOKEN_HEADER
   );
 }
 

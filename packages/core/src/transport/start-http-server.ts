@@ -14,6 +14,7 @@ import { runWithAuthRequestContextAsync } from '../auth/request-context.js';
 import {
   configUsesUserToken,
   resolveGoogleAccessTokenHeaderName,
+  resolveGoogleIdTokenHeaderName,
   resolveUserTokenConfig,
 } from '../auth/user-token-config.js';
 import {
@@ -30,12 +31,7 @@ import { logError, logInfo } from '../observability/logging.js';
 
 import { sendJsonRpcError, sendSessionError } from './http-errors.js';
 import { createIngressClientAllowlistMiddleware } from './ingress-policy.js';
-import {
-  buildOAuthMetadata,
-  createJwtTokenVerifier,
-  getPrincipalIdFromAuth,
-  resolveIntrospectionUrl,
-} from './oauth.js';
+import { buildOAuthMetadata, createJwtTokenVerifier, getPrincipalIdFromAuth } from './oauth.js';
 import { createOriginValidationMiddleware } from './origin-validation.js';
 import { createSessionManager } from './session-manager.js';
 import {
@@ -44,8 +40,8 @@ import {
   validateGoogleTokenForRequest,
 } from './user-token-middleware.js';
 
+import type { GoogleIdTokenVerifier } from '../auth/google-id-token-verifier.js';
 import type { GooglePrincipalIdentity } from '../auth/google-identity.js';
-import type { TokenIntrospector } from '../auth/oauth-introspection.js';
 import type { AppConfig } from '../types.js';
 import type { SessionManager } from './session-manager.js';
 import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
@@ -58,8 +54,8 @@ export interface StartMcpHttpServerOptions {
   createMcpServer: () => McpServer;
   /** Test-only: bypass JWT verification with a fixed principal per bearer token. */
   testTokenVerifier?: OAuthTokenVerifier;
-  /** Test-only: bypass Google token introspection with a fixed identity per token. */
-  testTokenIntrospector?: TokenIntrospector;
+  /** Test-only: bypass Google ID token verification with a fixed identity per token. */
+  testIdTokenVerifier?: GoogleIdTokenVerifier;
 }
 
 export interface McpHttpServerHandle {
@@ -166,17 +162,19 @@ export async function startMcpHttpServer(
 
   const usesUserToken = configUsesUserToken(config);
   const googleAccessTokenHeader = resolveGoogleAccessTokenHeaderName(config);
-  const userTokenIngress = await resolveUserTokenIngressContext(
+  const googleIdTokenHeader = resolveGoogleIdTokenHeaderName(config);
+  const userTokenIngress = resolveUserTokenIngressContext(
     options,
     config,
-    oauth,
     usesUserToken,
     googleAccessTokenHeader,
+    googleIdTokenHeader,
   );
 
   const mcpRouteOptions = {
     usesUserToken,
     googleAccessTokenHeader,
+    googleIdTokenHeader,
     sessionOptions,
     userTokenIngress,
   };
@@ -246,13 +244,13 @@ interface RegisterMcpRoutesOptions {
   };
 }
 
-async function resolveUserTokenIngressContext(
+function resolveUserTokenIngressContext(
   options: StartMcpHttpServerOptions,
   config: AppConfig,
-  oauth: NonNullable<AppConfig['server']['oauth']>,
   usesUserToken: boolean,
   googleAccessTokenHeader: string,
-): Promise<UserTokenIngressContext | undefined> {
+  googleIdTokenHeader: string,
+): UserTokenIngressContext | undefined {
   if (!usesUserToken) {
     return undefined;
   }
@@ -262,16 +260,11 @@ async function resolveUserTokenIngressContext(
     throw new Error('server.http.user_token is required when any agent uses auth_mode user_token');
   }
 
-  const introspectionUrl = await resolveIntrospectionUrl(
-    oauth,
-    userTokenConfig.google_token.introspection_url,
-  );
-
   return {
     userTokenConfig,
-    introspectionUrl,
     googleAccessTokenHeader,
-    testIntrospector: options.testTokenIntrospector,
+    googleIdTokenHeader,
+    testIdTokenVerifier: options.testIdTokenVerifier,
   };
 }
 
@@ -428,8 +421,7 @@ async function handleMcpPostInitialize(
   );
   try {
     await server.connect(transport);
-    await forwardTransportRequest({
-      label: 'MCP HTTP initialize failed',
+    await forwardTransportRequestOrThrow({
       transport,
       req,
       res,
@@ -439,12 +431,15 @@ async function handleMcpPostInitialize(
     });
   } catch (err) {
     logError('transport', 'MCP HTTP initialize failed', { error: String(err) });
+    if (transport.sessionId) {
+      await sessionManager.remove(transport.sessionId);
+    } else {
+      sessionManager.release(reservation.token);
+    }
+    await transport.close().catch(() => undefined);
+    await server.close().catch(() => undefined);
     if (!res.headersSent) {
       res.status(500).end();
-    }
-  } finally {
-    if (!transport.sessionId) {
-      sessionManager.release(reservation.token);
     }
   }
 }
@@ -506,8 +501,7 @@ function isPrincipalMismatch(
   return Boolean(oauthEnabled && record.principalId && principalId !== record.principalId);
 }
 
-interface ForwardTransportRequestParams {
-  label: string;
+interface ForwardTransportRequestCore {
   transport: StreamableHTTPServerTransport;
   req: Request;
   res: Response;
@@ -516,20 +510,18 @@ interface ForwardTransportRequestParams {
   body?: unknown;
 }
 
-async function forwardTransportRequest(params: ForwardTransportRequestParams): Promise<void> {
-  const { label, transport, req, res, usesUserToken, validatedGoogle, body } = params;
+interface ForwardTransportRequestParams extends ForwardTransportRequestCore {
+  label: string;
+}
+
+async function forwardTransportRequestOrThrow(params: ForwardTransportRequestCore): Promise<void> {
+  const { transport, req, res, usesUserToken, validatedGoogle, body } = params;
+
   const runHandler = async (): Promise<void> => {
-    try {
-      if (body === undefined) {
-        await transport.handleRequest(req, res);
-      } else {
-        await transport.handleRequest(req, res, body);
-      }
-    } catch (err) {
-      logError('transport', label, { error: String(err) });
-      if (!res.headersSent) {
-        res.status(500).end();
-      }
+    if (body === undefined) {
+      await transport.handleRequest(req, res);
+    } else {
+      await transport.handleRequest(req, res, body);
     }
   };
 
@@ -539,8 +531,7 @@ async function forwardTransportRequest(params: ForwardTransportRequestParams): P
   }
 
   if (!validatedGoogle) {
-    sendJsonRpcError(res, 500, 'Internal error: missing validated Google credentials');
-    return;
+    throw new Error('Internal error: missing validated Google credentials');
   }
 
   await runWithAuthRequestContextAsync(
@@ -550,6 +541,18 @@ async function forwardTransportRequest(params: ForwardTransportRequestParams): P
     },
     runHandler,
   );
+}
+
+async function forwardTransportRequest(params: ForwardTransportRequestParams): Promise<void> {
+  const { label, ...rest } = params;
+  try {
+    await forwardTransportRequestOrThrow(rest);
+  } catch (err) {
+    logError('transport', label, { error: String(err) });
+    if (!params.res.headersSent) {
+      params.res.status(500).end();
+    }
+  }
 }
 
 async function resolveValidatedGoogleToken(

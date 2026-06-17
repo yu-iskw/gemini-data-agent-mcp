@@ -10,7 +10,7 @@ export function createIngressClientAllowlistMiddleware(
     const auth = (req as Request & { auth?: AuthInfo }).auth;
     const clientId = auth?.clientId;
     if (!clientId || !trustedClientIds.has(clientId)) {
-      sendJsonRpcError(res, 403, 'Forbidden: MCP client is not authorized for user_token egress');
+      sendJsonRpcError(res, 403, 'Invalid or unauthorized MCP client', -32_001);
       return;
     }
     next();

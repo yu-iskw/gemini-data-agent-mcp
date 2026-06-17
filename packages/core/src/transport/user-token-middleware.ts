@@ -1,12 +1,22 @@
 import {
+  createGoogleIdTokenVerifier,
+  type GoogleIdTokenVerifier,
+} from '../auth/google-id-token-verifier.js';
+import {
   googleIdentityKey,
   isGoogleIdentityExpired,
   type GooglePrincipalIdentity,
 } from '../auth/google-identity.js';
-import { introspectAccessToken, type TokenIntrospector } from '../auth/oauth-introspection.js';
+import {
+  classifyGoogleTokenError,
+  GOOGLE_CREDENTIAL_CLIENT_MESSAGE,
+  GoogleTokenValidationError,
+  type GoogleTokenRejectionReason,
+} from '../auth/google-token-errors.js';
 import { parseGoogleAccessTokenHeader } from '../auth/request-context.js';
-import { assertUserTokenBinding, buildIntrospectionOptions } from '../auth/user-token-binding.js';
+import { assertUserTokenBinding, buildIdTokenVerifyOptions } from '../auth/user-token-binding.js';
 import { logFingerprint } from '../observability/fingerprints.js';
+import { logInfo } from '../observability/logging.js';
 
 import { sendJsonRpcError, sendSessionError } from './http-errors.js';
 
@@ -14,11 +24,13 @@ import type { UserTokenBindingMode, UserTokenConfig } from '../types.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import type { Request, Response } from 'express';
 
+export const GOOGLE_CREDENTIAL_ERROR_CODE = -32_001;
+
 export interface UserTokenIngressContext {
   userTokenConfig: UserTokenConfig;
-  introspectionUrl: string;
   googleAccessTokenHeader: string;
-  testIntrospector?: TokenIntrospector;
+  googleIdTokenHeader: string;
+  testIdTokenVerifier?: GoogleIdTokenVerifier;
 }
 
 export interface ValidatedGoogleRequest {
@@ -26,17 +38,35 @@ export interface ValidatedGoogleRequest {
   googleIdentity: GooglePrincipalIdentity;
 }
 
-function sendUserTokenError(
+function sendRedactedGoogleCredentialError(
   res: Response,
   status: number,
-  message: string,
   useSessionError: boolean,
 ): void {
   if (useSessionError) {
-    sendSessionError(res, status, message);
+    sendSessionError(res, status, GOOGLE_CREDENTIAL_CLIENT_MESSAGE);
     return;
   }
-  sendJsonRpcError(res, status, message);
+  sendJsonRpcError(res, status, GOOGLE_CREDENTIAL_CLIENT_MESSAGE, GOOGLE_CREDENTIAL_ERROR_CODE);
+}
+
+function logGoogleTokenRejection(reason: GoogleTokenRejectionReason, err: unknown): void {
+  logInfo('auth', 'google_token_rejected', {
+    reason_code: reason,
+    ...(err instanceof GoogleTokenValidationError && err.message.includes('sub') ? {} : {}),
+  });
+}
+
+function rejectGoogleCredential(
+  res: Response,
+  status: number,
+  reason: GoogleTokenRejectionReason,
+  err: unknown,
+  useSessionError: boolean,
+): undefined {
+  logGoogleTokenRejection(reason, err);
+  sendRedactedGoogleCredentialError(res, status, useSessionError);
+  return undefined;
 }
 
 export async function validateGoogleTokenForRequest(
@@ -50,60 +80,51 @@ export async function validateGoogleTokenForRequest(
     useSessionError?: boolean;
   },
 ): Promise<ValidatedGoogleRequest | undefined> {
-  const headerValue = req.get(ctx.googleAccessTokenHeader);
-  const googleAccessToken = parseGoogleAccessTokenHeader(headerValue ?? undefined);
+  const useSessionError = Boolean(options.useSessionError);
+  const accessHeader = req.get(ctx.googleAccessTokenHeader);
+  const googleAccessToken = parseGoogleAccessTokenHeader(accessHeader ?? undefined);
   if (!googleAccessToken) {
-    sendUserTokenError(
-      res,
-      401,
-      'Unauthorized: Google access token header is required for user_token mode',
-      Boolean(options.useSessionError),
-    );
-    return undefined;
+    return rejectGoogleCredential(res, 401, 'missing_access_token', null, useSessionError);
+  }
+
+  const idHeader = req.get(ctx.googleIdTokenHeader);
+  const googleIdToken = parseGoogleAccessTokenHeader(idHeader ?? undefined);
+  if (!googleIdToken) {
+    return rejectGoogleCredential(res, 401, 'missing_id_token', null, useSessionError);
   }
 
   let googleIdentity: GooglePrincipalIdentity;
   try {
-    if (ctx.testIntrospector) {
-      googleIdentity = await ctx.testIntrospector.introspect(googleAccessToken);
+    if (ctx.testIdTokenVerifier) {
+      googleIdentity = await ctx.testIdTokenVerifier.verify(googleIdToken, googleAccessToken);
     } else {
-      googleIdentity = await introspectAccessToken({
-        ...buildIntrospectionOptions(ctx.userTokenConfig, ctx.introspectionUrl),
-        token: googleAccessToken,
-      });
+      const verifier = createGoogleIdTokenVerifier(buildIdTokenVerifyOptions(ctx.userTokenConfig));
+      googleIdentity = await verifier.verify(googleIdToken, googleAccessToken);
     }
     assertUserTokenBinding(options.bindingMode, options.mcpAuth, googleIdentity);
   } catch (err) {
-    sendUserTokenError(
-      res,
-      403,
-      `Forbidden: ${err instanceof Error ? err.message : String(err)}`,
-      Boolean(options.useSessionError),
-    );
-    return undefined;
+    const reason = classifyGoogleTokenError(err);
+    return rejectGoogleCredential(res, 403, reason, err, useSessionError);
   }
 
   if (isGoogleIdentityExpired(googleIdentity)) {
-    sendUserTokenError(
-      res,
-      401,
-      'Unauthorized: Google access token has expired',
-      Boolean(options.useSessionError),
-    );
-    return undefined;
+    return rejectGoogleCredential(res, 401, 'expired_id_token', null, useSessionError);
   }
 
   if (options.sessionGoogleIdentity) {
     const expected = googleIdentityKey(options.sessionGoogleIdentity);
     const actual = googleIdentityKey(googleIdentity);
     if (expected !== actual) {
-      sendUserTokenError(
+      return rejectGoogleCredential(
         res,
         403,
-        'Forbidden: Google identity does not match session-bound principal',
-        Boolean(options.useSessionError),
+        'session_identity_mismatch',
+        new GoogleTokenValidationError(
+          'session_identity_mismatch',
+          'Google identity does not match session-bound principal',
+        ),
+        useSessionError,
       );
-      return undefined;
     }
   }
 

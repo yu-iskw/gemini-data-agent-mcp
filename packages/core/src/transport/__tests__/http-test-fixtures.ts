@@ -2,6 +2,9 @@ import type { OAuthServerConfig, UserTokenConfig } from '../../types.js';
 
 export const testIssuer = 'https://auth.example.com/realms/test';
 
+export const defaultGoogleIdToken = 'google-id-token';
+export const defaultGoogleAccessToken = 'google-access-token';
+
 export function defaultTestOAuth(overrides: Partial<OAuthServerConfig> = {}): OAuthServerConfig {
   const resourceUrl = overrides.resource_url ?? 'http://127.0.0.1:8080/mcp';
   return {
@@ -20,11 +23,11 @@ export function defaultTestOAuth(overrides: Partial<OAuthServerConfig> = {}): OA
 export function defaultUserTokenConfig(overrides: Partial<UserTokenConfig> = {}): UserTokenConfig {
   return {
     trusted_ingress_client_ids: ['bff-client'],
-    google_token: {
-      introspection_url: 'https://auth.example.com/introspect',
+    google_identity: {
       issuer: 'https://accounts.google.com',
       audiences: ['google-client'],
-      ...overrides.google_token,
+      verify_at_hash: false,
+      ...overrides.google_identity,
     },
     binding: {
       mode: 'google_sub_matches_mcp_sub',
@@ -45,5 +48,12 @@ export function defaultHttpOauthFields(oauth?: Partial<OAuthServerConfig>) {
     allowed_audiences: config.allowed_audiences,
     scope_claims: config.scope_claims,
     token_profile: config.token_profile,
+  };
+}
+
+export function defaultGoogleIdentityHeaders(): Record<string, string> {
+  return {
+    'X-Google-Access-Token': defaultGoogleAccessToken,
+    'X-Google-Id-Token': defaultGoogleIdToken,
   };
 }

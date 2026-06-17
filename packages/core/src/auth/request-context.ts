@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { GooglePrincipalIdentity } from './google-identity.js';
 
 export const DEFAULT_GOOGLE_ACCESS_TOKEN_HEADER = 'x-google-access-token';
+export const DEFAULT_GOOGLE_ID_TOKEN_HEADER = 'x-google-id-token';
 
 interface AuthRequestContext {
   googleAccessToken?: string;

@@ -127,7 +127,41 @@ describe('validateConfig', () => {
       }),
     ).toThrow(DataAgentMcpError);
   });
+});
 
+function mixedAuthModesConfig() {
+  return {
+    api_version: 'v1beta' as const,
+    server: {
+      transport: 'http' as const,
+      public_url: 'https://mcp.example.com/mcp',
+      oauth: { issuer: 'https://auth.example.com' },
+      http: {
+        user_token: {
+          trusted_ingress_client_ids: ['bff-client'],
+          google_identity: {
+            issuer: 'https://accounts.google.com',
+            audiences: ['google-client'],
+          },
+          binding: { mode: 'google_sub_matches_mcp_sub' as const },
+        },
+      },
+    },
+    agents: {
+      platform: {
+        data_agent: 'projects/p/locations/l/dataAgents/platform',
+        tools: ['query_data_agent'],
+      },
+      personal: {
+        data_agent: 'projects/p/locations/l/dataAgents/personal',
+        tools: ['query_data_agent'],
+        auth_mode: 'user_token' as const,
+      },
+    },
+  };
+}
+
+describe('validateConfig user_token', () => {
   it('builds user_token auth when auth_mode is user_token on http transport', () => {
     const config = validateConfig({
       api_version: 'v1beta',
@@ -138,8 +172,7 @@ describe('validateConfig', () => {
         http: {
           user_token: {
             trusted_ingress_client_ids: ['bff-client'],
-            google_token: {
-              introspection_url: 'https://auth.example.com/introspect',
+            google_identity: {
               issuer: 'https://accounts.google.com',
               audiences: ['google-client'],
             },
@@ -249,6 +282,18 @@ describe('validateConfig', () => {
     ).toThrow(DataAgentMcpError);
   });
 
+  it('rejects mixed user_token and adc agents on one server', () => {
+    try {
+      validateConfig(mixedAuthModesConfig());
+      expect.fail('expected CONFIG_MIXED_AUTH_MODES_UNSUPPORTED');
+    } catch (err) {
+      expect(err).toBeInstanceOf(DataAgentMcpError);
+      expect((err as DataAgentMcpError).code).toBe('CONFIG_MIXED_AUTH_MODES_UNSUPPORTED');
+    }
+  });
+});
+
+describe('validateConfig oauth scopes', () => {
   it('rejects required_scopes not listed in scopes_supported', () => {
     expect(() =>
       validateConfig({

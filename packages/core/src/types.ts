@@ -85,15 +85,21 @@ export interface HttpServerConfig {
   max_body_bytes?: number;
   /** HTTP header carrying the end-user Google access token when auth.mode is user_token. */
   google_access_token_header?: string;
+  /** HTTP header carrying the Google ID token for identity binding in user_token mode. */
+  google_id_token_header?: string;
   user_token?: UserTokenConfig;
 }
 
 export type UserTokenBindingMode = 'ingress_client_only' | 'google_sub_matches_mcp_sub';
 
-export interface UserTokenGoogleTokenConfig {
-  introspection_url?: string;
+export const DEFAULT_GOOGLE_JWKS_URI = 'https://www.googleapis.com/oauth2/v3/certs';
+
+export interface UserTokenGoogleIdentityConfig {
   issuer: string;
   audiences: string[];
+  jwks_uri?: string;
+  hosted_domain?: string;
+  verify_at_hash?: boolean;
 }
 
 export interface UserTokenBindingConfig {
@@ -102,7 +108,7 @@ export interface UserTokenBindingConfig {
 
 export interface UserTokenConfig {
   trusted_ingress_client_ids: string[];
-  google_token: UserTokenGoogleTokenConfig;
+  google_identity: UserTokenGoogleIdentityConfig;
   binding: UserTokenBindingConfig;
 }
 

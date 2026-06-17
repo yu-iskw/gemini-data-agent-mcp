@@ -100,6 +100,47 @@ describe('OIDC discovery hardening', () => {
 
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
+
+  it('rejects discovery refresh after staleUntil when fetch fails', async () => {
+    vi.useFakeTimers();
+    const discovery = {
+      issuer: testIssuer,
+      authorization_endpoint: `${testIssuer}/auth`,
+      token_endpoint: `${testIssuer}/token`,
+      jwks_uri: `${testIssuer}/jwks`,
+    };
+
+    let shouldFail = false;
+    const realFetch = globalThis.fetch.bind(globalThis);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/.well-known/openid-configuration')) {
+          if (shouldFail) {
+            throw new Error('discovery refresh failed');
+          }
+          return new Response(JSON.stringify(discovery), {
+            status: 200,
+            headers: { 'Cache-Control': 'max-age=300' },
+          });
+        }
+        return realFetch(input, init);
+      }),
+    );
+
+    const oauth = defaultTestOAuth({
+      resource_url: 'https://mcp.example.com/mcp',
+      issuer: testIssuer,
+    });
+
+    await buildOAuthMetadata(oauth);
+    vi.advanceTimersByTime(6 * 60_000);
+    shouldFail = true;
+
+    await expect(buildOAuthMetadata(oauth)).rejects.toThrow(/discovery refresh failed/);
+    vi.useRealTimers();
+  });
 });
 
 describe('derivePrincipalId', () => {

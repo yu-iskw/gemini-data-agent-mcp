@@ -2,11 +2,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { createStubTokenIntrospector } from '../../auth/oauth-introspection.js';
+import { createStubIdTokenVerifier } from '../../auth/google-id-token-verifier.js';
 import { createStubTokenVerifier, resetOidcDiscoveryCacheForTests } from '../oauth.js';
 import { startMcpHttpServer } from '../start-http-server.js';
 
 import {
+  defaultGoogleAccessToken,
+  defaultGoogleIdToken,
   defaultHttpOauthFields,
   defaultUserTokenConfig,
   testIssuer,
@@ -15,8 +17,8 @@ import {
 import type { AppConfig } from '../../types.js';
 
 const mcpToken = 'mcp-access-token';
-const googleTokenA = 'google-token-a';
-const googleTokenB = 'google-token-b';
+const googleIdTokenA = 'google-id-token-a';
+const googleIdTokenB = 'google-id-token-b';
 const googleUserSub = 'google-user-1';
 
 function stubOidcDiscovery(): void {
@@ -32,7 +34,6 @@ function stubOidcDiscovery(): void {
             authorization_endpoint: `${testIssuer}/auth`,
             token_endpoint: `${testIssuer}/token`,
             jwks_uri: `${testIssuer}/jwks`,
-            introspection_endpoint: 'https://auth.example.com/introspect',
           }),
           { status: 200 },
         );
@@ -108,6 +109,13 @@ afterEach(async () => {
   }
 });
 
+function googleHeaders(idToken: string): Record<string, string> {
+  return {
+    'X-Google-Access-Token': defaultGoogleAccessToken,
+    'X-Google-Id-Token': idToken,
+  };
+}
+
 describe('user_token session binding', () => {
   it('rejects Google identity switch on an existing MCP session', async () => {
     stubOidcDiscovery();
@@ -124,10 +132,10 @@ describe('user_token session binding', () => {
         ],
       ]),
     );
-    const introspector = createStubTokenIntrospector(
+    const idVerifier = createStubIdTokenVerifier(
       new Map([
         [
-          googleTokenA,
+          googleIdTokenA,
           {
             issuer: 'https://accounts.google.com',
             subject: googleUserSub,
@@ -136,7 +144,7 @@ describe('user_token session binding', () => {
           },
         ],
         [
-          googleTokenB,
+          googleIdTokenB,
           {
             issuer: 'https://accounts.google.com',
             subject: 'other-user',
@@ -157,7 +165,7 @@ describe('user_token session binding', () => {
         return server;
       },
       testTokenVerifier: verifier,
-      testTokenIntrospector: introspector,
+      testIdTokenVerifier: idVerifier,
     });
     activeServers.push(handle);
 
@@ -167,7 +175,7 @@ describe('user_token session binding', () => {
         Accept: 'application/json, text/event-stream',
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
-        'X-Google-Access-Token': googleTokenA,
+        ...googleHeaders(googleIdTokenA),
       },
       body: JSON.stringify(initializeBody),
     });
@@ -182,7 +190,7 @@ describe('user_token session binding', () => {
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
         'Mcp-Session-Id': sessionId!,
-        'X-Google-Access-Token': googleTokenB,
+        ...googleHeaders(googleIdTokenB),
       },
       body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
     });
@@ -201,10 +209,10 @@ describe('user_token session binding', () => {
         ],
       ]),
     );
-    const introspector = createStubTokenIntrospector(
+    const idVerifier = createStubIdTokenVerifier(
       new Map([
         [
-          googleTokenA,
+          defaultGoogleIdToken,
           {
             issuer: 'https://accounts.google.com',
             subject: googleUserSub,
@@ -218,7 +226,7 @@ describe('user_token session binding', () => {
       config: buildBindingConfig(0),
       createMcpServer: () => new McpServer({ name: 'binding-test', version: '0.1.0' }),
       testTokenVerifier: verifier,
-      testTokenIntrospector: introspector,
+      testIdTokenVerifier: idVerifier,
     });
     activeServers.push(handle);
 
@@ -228,7 +236,7 @@ describe('user_token session binding', () => {
         Accept: 'application/json, text/event-stream',
         Authorization: `Bearer ${mcpToken}`,
         'Content-Type': 'application/json',
-        'X-Google-Access-Token': googleTokenA,
+        ...googleHeaders(defaultGoogleIdToken),
       },
       body: JSON.stringify(initializeBody),
     });

@@ -24,6 +24,16 @@ The supported **MCP ingress** token profile is:
 
 Identity Platform (`securetoken.google.com`) deployments must set `allowed_audiences` to the Firebase/Google project identifier; MCP `public_url` is not assumed to be the JWT audience.
 
+### Google egress identity (user_token)
+
+When agents use `auth_mode: user_token`, the BFF sends **three** credentials on each MCP HTTP request:
+
+1. `Authorization: Bearer <mcp_jwt>` — verified per this ADR
+2. `X-Google-Access-Token` — opaque Google access token for Data Agent API egress only
+3. `X-Google-Id-Token` — Google OIDC ID token verified locally via Google JWKS for session identity binding
+
+Google API access tokens are not identity tokens and must not be validated via RFC 7662 introspection.
+
 ## Consequences
 
 - Documentation and schema descriptions must not claim generic OIDC compatibility beyond this profile.

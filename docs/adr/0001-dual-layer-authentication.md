@@ -72,18 +72,26 @@ sequenceDiagram
 
   User->>BFF: Login Google
   BFF->>MCP: Authorization MCP_token
-  BFF->>MCP: X-Google-Access-Token user_Google_token
-  Note over MCP: Ingress client allowlist + introspection + session identity binding
-  MCP->>API: User Google token only
+  BFF->>MCP: X-Google-Access-Token access_token
+  BFF->>MCP: X-Google-Id-Token id_token
+  Note over MCP: Ingress allowlist + ID token JWKS verify + session identity binding
+  MCP->>API: User Google access token only
 ```
 
-Default header: `X-Google-Access-Token` (configurable via `server.http.google_access_token_header`). The MCP `Authorization` header is never used for Google API calls.
+Default headers:
+
+- `X-Google-Access-Token` — Google **access token** for Data Agent API egress (configurable via `server.http.google_access_token_header`)
+- `X-Google-Id-Token` — Google **ID token** for identity binding (configurable via `server.http.google_id_token_header`)
+
+Google API access tokens are opaque credentials; they are **not** RFC 7662 introspection tokens. Identity binding verifies the ID token locally against Google JWKS (`iss`, `aud`, `exp`, `sub`, optional `hd`, optional `at_hash`).
 
 `server.http.user_token` is **required** when any agent uses `auth_mode: user_token`:
 
 - `trusted_ingress_client_ids` — only listed MCP JWT `azp`/`client_id` values may call user_token agents
-- `google_token` — OIDC introspection URL (or issuer discovery), expected issuer, allowed audiences
-- `binding.mode` — `ingress_client_only` or `google_sub_matches_mcp_sub` (MCP JWT `sub` must match introspected Google `sub`)
+- `google_identity` — expected ID token `issuer`, allowed `audiences`, optional `jwks_uri`, optional `hosted_domain`, optional `verify_at_hash`
+- `binding.mode` — `ingress_client_only` or `google_sub_matches_mcp_sub` (MCP JWT `sub` must match ID token `sub`)
+
+**One HTTP server = one egress auth domain.** Configurations mixing `user_token` agents with `adc`/`impersonation` agents are rejected at load time (`CONFIG_MIXED_AUTH_MODES_UNSUPPORTED`). Deploy separate MCP endpoints or servers for platform vs user-delegated tools.
 
 The HTTP session stores a validated Google identity tuple; later requests with a different Google principal are rejected.
 
@@ -134,10 +142,11 @@ server:
   http:
     user_token:
       trusted_ingress_client_ids: [bff-client-id]
-      google_token:
-        introspection_url: https://auth.example.com/introspect
+      google_identity:
         issuer: https://accounts.google.com
         audiences: [google-oauth-client-id]
+        jwks_uri: https://www.googleapis.com/oauth2/v3/certs
+        verify_at_hash: true
       binding:
         mode: google_sub_matches_mcp_sub
 agents:
@@ -157,7 +166,7 @@ agents:
 
 ### Negative / limits
 
-- `user_token` requires the BFF to send a Google access token on every MCP HTTP request (no refresh vault yet).
+- `user_token` requires the BFF to send **both** a Google access token and ID token on every MCP HTTP request (no refresh vault yet).
 - `user_token` requires `server.http.user_token` binding policy and HTTPS `public_url`.
 - MCP ingress uses a **JWT-at-JWKS** profile only (`server.oauth.token_profile: jwt_jwks`); opaque MCP access tokens are not supported.
 - In-memory HTTP sessions are **single-instance only**: multi-instance Cloud Run needs session affinity, an external session store, or clients must tolerate `404` on session reuse.

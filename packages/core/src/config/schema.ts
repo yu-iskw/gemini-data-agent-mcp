@@ -121,22 +121,31 @@ const HttpBindConfigSchema = z.object({
     .describe('HTTP bind port (1-65535). Defaults to 8080 when transport is http.'),
 });
 
-const UserTokenGoogleTokenSchema = z.object({
-  introspection_url: z
+const UserTokenGoogleIdentitySchema = z.object({
+  issuer: z
+    .string()
+    .url()
+    .describe('Expected issuer (iss) on the Google ID token used for identity binding.'),
+  audiences: z
+    .array(z.string().min(1))
+    .min(1)
+    .describe('Allowed aud values on the Google ID token (OAuth client IDs).'),
+  jwks_uri: z
     .string()
     .url()
     .optional()
     .describe(
-      'OIDC token introspection endpoint. Omit to use issuer discovery introspection_endpoint.',
+      'JWKS URI for verifying Google ID tokens. Defaults to https://www.googleapis.com/oauth2/v3/certs.',
     ),
-  issuer: z
+  hosted_domain: z
     .string()
-    .url()
-    .describe('Expected issuer (iss) on introspected Google/OIDC access tokens.'),
-  audiences: z
-    .array(z.string().min(1))
     .min(1)
-    .describe('Allowed aud/client_id values for introspected egress tokens.'),
+    .optional()
+    .describe('When set, require ID token hd claim to match this Google Workspace domain.'),
+  verify_at_hash: z
+    .boolean()
+    .optional()
+    .describe('When true (default), verify ID token at_hash against the access token per OIDC.'),
 });
 
 const UserTokenBindingSchema = z.object({
@@ -150,7 +159,7 @@ const UserTokenConfigSchema = z.object({
     .array(z.string().min(1))
     .min(1)
     .describe('MCP JWT azp/client_id values allowed to use user_token egress.'),
-  google_token: UserTokenGoogleTokenSchema,
+  google_identity: UserTokenGoogleIdentitySchema,
   binding: UserTokenBindingSchema,
 });
 
@@ -174,8 +183,15 @@ const HttpServerConfigSchema = z.object({
     .describe(
       'HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token).',
     ),
+  google_id_token_header: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'HTTP header for Google ID token identity binding in user_token mode (default x-google-id-token).',
+    ),
   user_token: UserTokenConfigSchema.optional().describe(
-    'Required when any agent uses auth_mode user_token: ingress allowlist and Google token introspection binding.',
+    'Required when any agent uses auth_mode user_token: ingress allowlist and Google ID token binding.',
   ),
 });
 

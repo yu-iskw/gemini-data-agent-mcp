@@ -78,7 +78,6 @@ function assertIssuerMatches(configuredIssuer: string, discoveredIssuer: string)
 async function fetchOidcDiscoveryDocument(
   issuer: string,
   cacheKey: string,
-  staleDocument?: OidcDiscoveryDocument,
 ): Promise<OidcDiscoveryDocument> {
   const discoveryUrl = new URL('.well-known/openid-configuration', cacheKey).href;
   try {
@@ -119,9 +118,6 @@ async function fetchOidcDiscoveryDocument(
     if (cached && cached.staleUntil > Date.now()) {
       return cached.document;
     }
-    if (staleDocument) {
-      return staleDocument;
-    }
     throw err;
   }
 }
@@ -138,29 +134,13 @@ async function fetchOidcDiscovery(issuer: string): Promise<OidcDiscoveryDocument
     return inFlight;
   }
 
-  const promise = fetchOidcDiscoveryDocument(issuer, cacheKey, cached?.document);
+  const promise = fetchOidcDiscoveryDocument(issuer, cacheKey);
   oidcInFlight.set(cacheKey, promise);
   try {
     return await promise;
   } finally {
     oidcInFlight.delete(cacheKey);
   }
-}
-
-export async function resolveIntrospectionUrl(
-  oauth: OAuthServerConfig,
-  configuredUrl?: string,
-): Promise<string> {
-  if (configuredUrl) {
-    return configuredUrl;
-  }
-  const discovery = await fetchOidcDiscovery(oauth.issuer);
-  if (!discovery.introspection_endpoint) {
-    throw new Error(
-      'server.http.user_token.google_token.introspection_url is required when issuer discovery lacks introspection_endpoint',
-    );
-  }
-  return discovery.introspection_endpoint;
 }
 
 class MissingPrincipalIdError extends Error {
