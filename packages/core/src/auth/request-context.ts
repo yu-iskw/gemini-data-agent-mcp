@@ -37,6 +37,10 @@ export function parseGoogleAccessTokenHeader(
     return undefined;
   }
 
-  const bearerMatch = /^Bearer\s+(.+)$/i.exec(trimmed);
-  return bearerMatch?.[1] ?? trimmed;
+  if (trimmed.toLowerCase().startsWith('bearer')) {
+    const token = trimmed.slice('bearer'.length).trimStart();
+    return token.length > 0 ? token : undefined;
+  }
+
+  return trimmed;
 }
