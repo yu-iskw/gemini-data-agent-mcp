@@ -4,15 +4,14 @@ import {
   DataAgentMcpError,
   loadConfig,
   validateConfig,
-  DEFAULT_LOG_LEVEL,
+  applyRuntimeOverrides,
   LOG_LEVELS,
-  parseLogLevel,
 } from '@gemini-data-agents/core';
 import { Command } from 'commander';
 
 import { startServer } from './server.js';
 
-import type { ServerConfig } from '@gemini-data-agents/core';
+import type { ServerCliOverrides, ServerConfig } from '@gemini-data-agents/core';
 
 const program = new Command();
 const configPathOptionFlags = '-c, --config <path>';
@@ -33,6 +32,41 @@ function parseTransport(value: string): ServerConfig['transport'] {
   );
 }
 
+function buildCliOverrides(
+  command: Command,
+  options: {
+    logLevel?: string;
+    transport?: string;
+    host?: string;
+    port?: string;
+    httpPath?: string;
+  },
+): ServerCliOverrides | undefined {
+  const overrides: ServerCliOverrides = {};
+
+  if (command.getOptionValueSource('logLevel') === 'cli' && options.logLevel) {
+    overrides.logLevel = options.logLevel;
+  }
+  if (command.getOptionValueSource('transport') === 'cli' && options.transport) {
+    overrides.transport = parseTransport(options.transport);
+  }
+  if (command.getOptionValueSource('host') === 'cli' && options.host) {
+    overrides.host = options.host;
+  }
+  if (command.getOptionValueSource('port') === 'cli' && options.port) {
+    const port = Number.parseInt(options.port, 10);
+    if (Number.isNaN(port) || port <= 0) {
+      throw new Error(`Invalid port "${options.port}"`);
+    }
+    overrides.port = port;
+  }
+  if (command.getOptionValueSource('httpPath') === 'cli' && options.httpPath) {
+    overrides.httpPath = options.httpPath;
+  }
+
+  return Object.keys(overrides).length > 0 ? overrides : undefined;
+}
+
 program
   .name('gemini-data-analyst-mcp')
   .description(
@@ -44,29 +78,37 @@ program
   .command('start', { isDefault: true })
   .description('Start the MCP server (default command).')
   .option(configPathOptionFlags, configPathOptionDescription, defaultConfigPath)
-  .option('-l, --log-level <level>', logLevelOptionDescription, DEFAULT_LOG_LEVEL)
-  .option('-t, --transport <type>', transportOptionDescription, 'stdio')
-  .action(async (options: { config: string; logLevel: string; transport: string }) => {
-    try {
-      const config = loadConfig(options.config);
-
-      if (options.logLevel) {
-        config.server.log_level = parseLogLevel(options.logLevel);
+  .option('-l, --log-level <level>', logLevelOptionDescription)
+  .option('-t, --transport <type>', transportOptionDescription)
+  .option('--host <host>', 'HTTP bind host (overrides MCP_HOST and YAML)')
+  .option('--port <port>', 'HTTP port (overrides PORT env and YAML)')
+  .option('--http-path <path>', 'MCP HTTP endpoint path (overrides MCP_HTTP_PATH and YAML)')
+  .action(
+    async (
+      options: {
+        config: string;
+        logLevel?: string;
+        transport?: string;
+        host?: string;
+        port?: string;
+        httpPath?: string;
+      },
+      command: Command,
+    ) => {
+      try {
+        const config = loadConfig(options.config);
+        applyRuntimeOverrides(config, buildCliOverrides(command, options));
+        await startServer(config);
+      } catch (err) {
+        if (err instanceof DataAgentMcpError) {
+          process.stderr.write(`\nFatal error [${err.code}]: ${err.message}\n`);
+        } else {
+          process.stderr.write(`\nFatal error: ${String(err)}\n`);
+        }
+        process.exit(1);
       }
-      if (options.transport) {
-        config.server.transport = parseTransport(options.transport);
-      }
-
-      await startServer(config);
-    } catch (err) {
-      if (err instanceof DataAgentMcpError) {
-        process.stderr.write(`\nFatal error [${err.code}]: ${err.message}\n`);
-      } else {
-        process.stderr.write(`\nFatal error: ${String(err)}\n`);
-      }
-      process.exit(1);
-    }
-  });
+    },
+  );
 
 program
   .command('validate-config')
@@ -98,6 +140,7 @@ program
   .action((options: { config: string }) => {
     try {
       const config = loadConfig(options.config);
+      applyRuntimeOverrides(config);
 
       const redactedConfig = {
         api_version: config.api_version,

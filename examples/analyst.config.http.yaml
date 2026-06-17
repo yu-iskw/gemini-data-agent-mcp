@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Analyst MCP over Streamable HTTP with OAuth (local dev).
+# Manual test: start Keycloak or Identity Platform, then:
+#   pnpm build && node packages/analyst-mcp/dist/cli.js --transport http --config examples/analyst.config.http.yaml
+# Connect Cursor/VS Code HTTP MCP client to http://localhost:3000/mcp
+
+api_version: v1beta
+
+server:
+  name: gemini-data-analyst
+  transport: http
+  host: 127.0.0.1
+  port: 3000
+  http:
+    path: /mcp
+  oauth:
+    enabled: true
+    resource_url: http://localhost:3000/mcp
+    issuer: http://localhost:8080/realms/master
+    scopes_supported:
+      - mcp:tools
+
+agents:
+  my-agent:
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent

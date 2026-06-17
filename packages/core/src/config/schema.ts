@@ -63,6 +63,23 @@ const AgentInputSchema = z.object({
   ),
 });
 
+const HttpServerConfigSchema = z.object({
+  path: z.string().default('/mcp').describe('HTTP path for the MCP Streamable HTTP endpoint.'),
+});
+
+const OAuthServerConfigSchema = z.object({
+  enabled: z.boolean().default(true).describe('Require OAuth Bearer tokens on HTTP MCP requests.'),
+  resource_url: z
+    .string()
+    .url()
+    .describe('Canonical MCP resource URL (OAuth audience / RFC 8707 resource).'),
+  issuer: z.string().url().describe('OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.).'),
+  scopes_supported: z
+    .array(z.string().min(1))
+    .default(['mcp:tools'])
+    .describe('Scopes advertised in Protected Resource Metadata.'),
+});
+
 const ServerConfigSchema = z.object({
   name: z.string().default('gemini-data-agent').describe('MCP server name reported to clients.'),
   log_level: z
@@ -72,9 +89,21 @@ const ServerConfigSchema = z.object({
   transport: z
     .enum(['stdio', 'http'])
     .default('stdio')
-    .describe('MCP transport. Only stdio is supported today.'),
-  host: z.string().optional().describe('HTTP transport host (not yet supported).'),
-  port: z.number().int().positive().optional().describe('HTTP transport port (not yet supported).'),
+    .describe('MCP transport: stdio (local subprocess) or http (Streamable HTTP).'),
+  host: z
+    .string()
+    .optional()
+    .describe('HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 to bind all interfaces.'),
+  port: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('HTTP port. Defaults to process.env.PORT or 8080 when transport is http.'),
+  http: HttpServerConfigSchema.optional().describe('HTTP transport settings.'),
+  oauth: OAuthServerConfigSchema.optional().describe(
+    'OAuth resource-server settings for HTTP transport.',
+  ),
 });
 
 /** v2 YAML input schema (user-facing configuration). */

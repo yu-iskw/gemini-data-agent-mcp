@@ -6,6 +6,12 @@ import { extractProjectAndLocation } from '../google-api/endpoints.js';
 import { DataAgentMcpError } from '../types.js';
 
 import { DEFAULT_SECURITY, DEFAULT_SERVER } from './defaults.js';
+import {
+  DEFAULT_HTTP_HOST,
+  DEFAULT_HTTP_PATH,
+  DEFAULT_HTTP_PORT,
+  validateHttpServerConfig,
+} from './runtime-overrides.js';
 import { AppConfigInputSchema } from './schema.js';
 
 import type { AgentConfig, AppConfig, AuthConfig } from '../types.js';
@@ -80,6 +86,37 @@ export function validateConfig(raw: unknown): AppConfig {
   return config;
 }
 
+export { validateHttpServerConfig } from './runtime-overrides.js';
+
+function normalizeServerConfig(input: AppConfigInput): AppConfig['server'] {
+  const serverInput = input.server;
+  const transport = serverInput?.transport ?? DEFAULT_SERVER.transport;
+
+  const server: AppConfig['server'] = {
+    ...DEFAULT_SERVER,
+    ...serverInput,
+    transport,
+  };
+
+  if (transport === 'http') {
+    server.host = serverInput?.host ?? DEFAULT_HTTP_HOST;
+    server.port = serverInput?.port ?? DEFAULT_HTTP_PORT;
+    server.http = {
+      path: serverInput?.http?.path ?? DEFAULT_HTTP_PATH,
+    };
+    if (serverInput?.oauth) {
+      server.oauth = {
+        enabled: serverInput.oauth.enabled ?? true,
+        resource_url: serverInput.oauth.resource_url,
+        issuer: serverInput.oauth.issuer,
+        scopes_supported: serverInput.oauth.scopes_supported ?? ['mcp:tools'],
+      };
+    }
+  }
+
+  return server;
+}
+
 function normalizeConfig(input: AppConfigInput): AppConfig {
   const agents = Object.fromEntries(
     Object.entries(input.agents).map(([name, agentInput]) => [
@@ -88,9 +125,12 @@ function normalizeConfig(input: AppConfigInput): AppConfig {
     ]),
   ) as Record<string, AgentConfig>;
 
+  const server = normalizeServerConfig(input);
+  validateHttpServerConfig(server);
+
   return {
     api_version: input.api_version,
-    server: { ...DEFAULT_SERVER, ...input.server },
+    server,
     security: structuredClone(DEFAULT_SECURITY),
     agents,
   };

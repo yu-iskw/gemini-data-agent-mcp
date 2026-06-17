@@ -1,4 +1,12 @@
-export { loadConfig, validateConfig } from './config/loader.js';
+export {
+  startMcpHttpServer,
+  type McpHttpServerHandle,
+  type StartMcpHttpServerOptions,
+} from './transport/index.js';
+export { buildOAuthMetadata, createJwtTokenVerifier } from './transport/index.js';
+
+export { loadConfig, validateConfig, validateHttpServerConfig } from './config/loader.js';
+export { applyRuntimeOverrides, type ServerCliOverrides } from './config/runtime-overrides.js';
 export {
   resolveAgentConfig,
   resolveApiVersion,
@@ -68,5 +76,7 @@ export {
   type AuthConfig,
   type AuthMode,
   type GoogleApiResponse,
+  type HttpServerConfig,
+  type OAuthServerConfig,
   type ServerConfig,
 } from './types.js';

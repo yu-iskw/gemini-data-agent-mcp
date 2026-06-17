@@ -126,10 +126,10 @@ describe.sequential('MCP stdio conformance', () => {
     expect(stderrText).toContain('MCP server connected via stdio');
   });
 
-  it('fails deterministically for unsupported http transport', async () => {
+  it('fails when http transport is requested without oauth config', async () => {
     const result = await runCliWithArgs(['--transport', 'http']);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('Transport "http" is not yet supported. Use "stdio".');
+    expect(result.stderr).toContain('CONFIG_OAUTH_REQUIRED');
   });
 });

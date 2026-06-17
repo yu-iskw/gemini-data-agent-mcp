@@ -63,12 +63,25 @@ export interface SecurityConfig {
   raw_passthrough: RawPassthroughSecurityConfig;
 }
 
+export interface HttpServerConfig {
+  path: string;
+}
+
+export interface OAuthServerConfig {
+  enabled: boolean;
+  resource_url: string;
+  issuer: string;
+  scopes_supported: string[];
+}
+
 export interface ServerConfig {
   name: string;
   log_level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   transport: 'stdio' | 'http';
   host?: string;
   port?: number;
+  http?: HttpServerConfig;
+  oauth?: OAuthServerConfig;
 }
 
 export interface AppConfig {

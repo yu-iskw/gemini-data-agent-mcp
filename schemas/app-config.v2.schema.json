@@ -27,16 +27,60 @@
               "type": "string",
               "enum": ["stdio", "http"],
               "default": "stdio",
-              "description": "MCP transport. Only stdio is supported today."
+              "description": "MCP transport: stdio (local subprocess) or http (Streamable HTTP)."
             },
             "host": {
               "type": "string",
-              "description": "HTTP transport host (not yet supported)."
+              "description": "HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 to bind all interfaces."
             },
             "port": {
               "type": "integer",
               "exclusiveMinimum": 0,
-              "description": "HTTP transport port (not yet supported)."
+              "description": "HTTP port. Defaults to process.env.PORT or 8080 when transport is http."
+            },
+            "http": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/mcp",
+                  "description": "HTTP path for the MCP Streamable HTTP endpoint."
+                }
+              },
+              "additionalProperties": false,
+              "description": "HTTP transport settings."
+            },
+            "oauth": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Require OAuth Bearer tokens on HTTP MCP requests."
+                },
+                "resource_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Canonical MCP resource URL (OAuth audience / RFC 8707 resource)."
+                },
+                "issuer": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "OAuth/OIDC issuer URL (Identity Platform, Keycloak, etc.)."
+                },
+                "scopes_supported": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": ["mcp:tools"],
+                  "description": "Scopes advertised in Protected Resource Metadata."
+                }
+              },
+              "required": ["resource_url", "issuer"],
+              "additionalProperties": false,
+              "description": "OAuth resource-server settings for HTTP transport."
             }
           },
           "additionalProperties": false,

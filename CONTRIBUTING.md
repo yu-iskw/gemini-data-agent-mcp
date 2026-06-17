@@ -4,11 +4,11 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
 
 ## Repository layout
 
-| Package                                        | npm name                          | Published?         | Role                                                                                                                                                                                 |
-| ---------------------------------------------- | --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`packages/core`](packages/core)               | `@gemini-data-agents/core`        | No (`private`)     | Shared config (Zod), YAML load/validate, registry YAML serialize/diff, ADC/impersonation auth, Gemini Data Agents REST client, redaction, audit logging helpers. **No MCP runtime.** |
-| [`packages/analyst-mcp`](packages/analyst-mcp) | `@gemini-data-agents/analyst-mcp` | **Yes**            | Analyst MCP server. Binary: **`gemini-data-analyst-mcp`**. Bundles core.                                                                                                             |
-| [`packages/admin-mcp`](packages/admin-mcp)     | `@gemini-data-agents/admin-mcp`   | No (publish-ready) | Admin MCP server. Binary: **`gemini-data-agent-admin-mcp`**. Bundles core.                                                                                                           |
+| Package                                        | npm name                          | Published?         | Role                                                                                                                                                                                                                |
+| ---------------------------------------------- | --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`packages/core`](packages/core)               | `@gemini-data-agents/core`        | No (`private`)     | Shared config (Zod), YAML load/validate, registry YAML serialize/diff, ADC/impersonation auth, Gemini Data Agents REST client, redaction, audit logging helpers, and **shared MCP HTTP transport + OAuth** helpers. |
+| [`packages/analyst-mcp`](packages/analyst-mcp) | `@gemini-data-agents/analyst-mcp` | **Yes**            | Analyst MCP server. Binary: **`gemini-data-analyst-mcp`**. Bundles core.                                                                                                                                            |
+| [`packages/admin-mcp`](packages/admin-mcp)     | `@gemini-data-agents/admin-mcp`   | No (publish-ready) | Admin MCP server. Binary: **`gemini-data-agent-admin-mcp`**. Bundles core.                                                                                                                                          |
 
 ## Architecture
 
@@ -17,7 +17,8 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
                     │  @gemini-data-agents/core   │
                     │  (private workspace only)   │
                     │  config · client · security │
-                    │  registry YAML helpers      │
+                    │  HTTP transport · OAuth   │
+                    │  registry YAML helpers    │
                     └──────────────┬──────────────┘
            ┌───────────────────────┼───────────────────────┐
            ▼                       ▼
@@ -26,7 +27,7 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
 │ (read-only registry│   │ (YAML artifacts,  │
 │  + sessions)       │   │  lifecycle stubs)  │
 └─────────┬──────────┘   └─────────┬──────────┘
-          │ stdio MCP             │ stdio MCP
+          │ stdio or HTTP MCP       │ stdio or HTTP MCP
           ▼                       ▼
    Static YAML file          Human copies YAML
    on disk                   to Git / PR manually
@@ -38,7 +39,7 @@ Thanks for contributing to **gemini-data-agent-mcp**. End-user documentation liv
 ### Non-goals (current scope)
 
 - **No GitHub automation** from the admin server (no commit, push, or PR APIs).
-- **No HTTP MCP transport** unless added later (`stdio` is supported).
+- **No Cloud Run / Docker deploy docs** in this iteration (HTTP + OAuth work locally first).
 - Analyst server **does not** expose raw REST passthrough or admin-only lifecycle tools.
 - **Core is not published** to npm; it is bundled into each MCP package tarball.
 - **Admin MCP is not published** to npm yet (monorepo/dev only).
@@ -71,6 +72,44 @@ Run servers from built artifacts (without a global npm install):
 node packages/analyst-mcp/dist/cli.js --config config.yaml
 node packages/admin-mcp/dist/cli.js --config admin-config.yaml
 ```
+
+## Configuration
+
+MCP servers resolve settings in layers. **Precedence (highest wins):** CLI flags → environment variables → YAML → built-in defaults.
+
+| Layer       | Owns                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------- |
+| YAML        | Agent registry, stable `server.name`, default transport, optional OAuth issuer        |
+| Environment | Container deploy-time overrides (`PORT`, `MCP_HOST`, OAuth URLs, etc.)                |
+| CLI         | Local dev overrides (`--transport`, `--log-level`, `--host`, `--port`, `--http-path`) |
+
+`inspect-config` applies **YAML + environment only** (CLI flags are not reflected).
+
+### Environment variables
+
+| Variable                 | Maps to                     | Notes                                    |
+| ------------------------ | --------------------------- | ---------------------------------------- |
+| `PORT`                   | `server.port`               | Cloud Run injects this                   |
+| `MCP_TRANSPORT`          | `server.transport`          | `stdio` or `http`                        |
+| `MCP_HOST`               | `server.host`               | e.g. `0.0.0.0` in containers             |
+| `MCP_HTTP_PATH`          | `server.http.path`          | Default `/mcp`                           |
+| `MCP_LOG_LEVEL`          | `server.log_level`          | `DEBUG`, `INFO`, `WARN`, `ERROR`         |
+| `MCP_OAUTH_ENABLED`      | `server.oauth.enabled`      | `true`/`false`, `1`/`0`, `yes`/`no`      |
+| `MCP_OAUTH_ISSUER`       | `server.oauth.issuer`       | Identity Platform or Keycloak issuer URL |
+| `MCP_OAUTH_RESOURCE_URL` | `server.oauth.resource_url` | Public MCP URL for this deployment       |
+
+Agent tools, impersonation, and scopes remain YAML-only. Invalid env values throw `CONFIG_INVALID_ENV`.
+
+Example container env block (conceptual):
+
+```bash
+MCP_TRANSPORT=http
+MCP_HOST=0.0.0.0
+MCP_OAUTH_RESOURCE_URL=https://analyst-mcp-xxx.run.app/mcp
+MCP_OAUTH_ISSUER=https://securetoken.google.com/PROJECT_ID
+```
+
+HTTP transport requires a `server.oauth` block in YAML (set `oauth.enabled: false` only for local CI smoke tests). Runtime overrides that set `transport: http` are validated the same way.
 
 Tests live under `packages/*/src/**/*.test.ts`. Run the full suite with `pnpm test` from the repository root.
 
