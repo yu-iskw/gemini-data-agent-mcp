@@ -231,15 +231,30 @@ function applyOAuthEnvOverrides(
 function applyServerOverrides(
   server: ServerConfig,
   overrides: Partial<ServerCliOverrides> & {
-    oauthEnabled?: boolean;
-    oauthIssuer?: string;
-    oauthResourceUrl?: string;
     corsAllowedOrigins?: string[];
   },
 ): void {
   applyBasicServerOverrides(server, overrides);
   ensureHttpDefaults(server);
-  applyOAuthEnvOverrides(server, overrides);
+}
+
+function pickOAuthEnvOverrides(
+  overrides: Partial<ServerCliOverrides> & {
+    oauthEnabled?: boolean;
+    oauthIssuer?: string;
+    oauthResourceUrl?: string;
+    corsAllowedOrigins?: string[];
+  },
+): {
+  oauthEnabled?: boolean;
+  oauthIssuer?: string;
+  oauthResourceUrl?: string;
+} {
+  return {
+    oauthEnabled: overrides.oauthEnabled,
+    oauthIssuer: overrides.oauthIssuer,
+    oauthResourceUrl: overrides.oauthResourceUrl,
+  };
 }
 
 /**
@@ -262,6 +277,9 @@ export function applyRuntimeOverrides(config: AppConfig, cli?: ServerCliOverride
       publicUrl: cli.publicUrl,
     });
   }
+
+  // OAuth env overrides run after transport is finalized (env or CLI may enable HTTP).
+  applyOAuthEnvOverrides(next.server, pickOAuthEnvOverrides(envOverrides));
 
   validateHttpUrlConsistency(next.server);
   validateHttpServerConfig(next.server);

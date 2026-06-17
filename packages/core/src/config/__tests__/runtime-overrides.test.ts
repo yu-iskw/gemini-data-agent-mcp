@@ -186,4 +186,24 @@ describe('applyRuntimeOverrides', () => {
       'https://admin.example.com',
     ]);
   });
+
+  it('applies OAuth env overrides when CLI enables HTTP on stdio YAML', () => {
+    process.env.MCP_OAUTH_ISSUER = 'https://env-issuer.example.com';
+    process.env.MCP_OAUTH_RESOURCE_URL = 'https://example.run.app/mcp';
+
+    const config = validateConfig({
+      ...httpOauthInput,
+      server: {
+        oauth: httpOauthInput.server.oauth,
+        transport: 'stdio',
+      },
+    });
+
+    const result = applyRuntimeOverrides(config, { transport: 'http' });
+
+    expect(result.server.transport).toBe('http');
+    expect(result.server.oauth?.issuer).toBe('https://env-issuer.example.com');
+    expect(result.server.oauth?.resource_url).toBe('https://example.run.app/mcp');
+    expect(result.server.public_url).toBe('https://example.run.app/mcp');
+  });
 });
