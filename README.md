@@ -40,10 +40,10 @@ gemini-data-analyst-mcp --help
 
 MCP hosts need a **client config** that tells them how to spawn or connect to a server. That is separate from the **server YAML** (`--config`) that defines which Gemini Data Agents and tools are exposed.
 
-| Layer | File | Purpose |
-| ----- | ---- | ------- |
-| Client | `mcp.json` / `.mcp.json` / `.cursor/mcp.json` | Spawn the MCP server (`command`, `args`, `env`) |
-| Server | `analyst.config.yaml` | Agent registry, GCP resources, auth, enabled tools |
+| Layer  | File                                          | Purpose                                            |
+| ------ | --------------------------------------------- | -------------------------------------------------- |
+| Client | `mcp.json` / `.mcp.json` / `.cursor/mcp.json` | Spawn the MCP server (`command`, `args`, `env`)    |
+| Server | `analyst.config.yaml`                         | Agent registry, GCP resources, auth, enabled tools |
 
 ### End users (npm install)
 
@@ -60,31 +60,31 @@ MCP hosts need a **client config** that tells them how to spawn or connect to a 
 
 ### Where each client looks
 
-| Client | Config path | Root key |
-| ------ | ----------- | -------- |
-| **Cursor** | `.cursor/mcp.json`, `~/.cursor/mcp.json` | `mcpServers` |
-| **Claude Agent SDK** | `.mcp.json` (project root) | `mcpServers` |
-| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) | `mcpServers` |
-| **Deep Agents Code** | `~/.deepagents/.mcp.json`, `.deepagents/.mcp.json`, `.mcp.json` | `mcpServers` |
-| **VS Code** | `.vscode/mcp.json` | `servers` |
+| Client               | Config path                                                               | Root key     |
+| -------------------- | ------------------------------------------------------------------------- | ------------ |
+| **Cursor**           | `.cursor/mcp.json`, `~/.cursor/mcp.json`                                  | `mcpServers` |
+| **Claude Agent SDK** | `.mcp.json` (project root)                                                | `mcpServers` |
+| **Claude Desktop**   | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) | `mcpServers` |
+| **Deep Agents Code** | `~/.deepagents/.mcp.json`, `.deepagents/.mcp.json`, `.mcp.json`           | `mcpServers` |
+| **VS Code**          | `.vscode/mcp.json`                                                        | `servers`    |
 
 ### Claude Agent SDK
 
 `.mcp.json` loads when `settingSources` includes `"project"` (default). Or pass servers in code and allow tools explicitly:
 
 ```typescript
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { query } from '@anthropic-ai/claude-agent-sdk';
 
 for await (const message of query({
-  prompt: "List configured data agents",
+  prompt: 'List configured data agents',
   options: {
     mcpServers: {
-      "gemini-data-analyst": {
-        command: "gemini-data-analyst-mcp",
-        args: ["--config", "/absolute/path/to/analyst.config.yaml"],
+      'gemini-data-analyst': {
+        command: 'gemini-data-analyst-mcp',
+        args: ['--config', '/absolute/path/to/analyst.config.yaml'],
       },
     },
-    allowedTools: ["mcp__gemini-data-analyst__*"],
+    allowedTools: ['mcp__gemini-data-analyst__*'],
   },
 })) {
   // handle messages
