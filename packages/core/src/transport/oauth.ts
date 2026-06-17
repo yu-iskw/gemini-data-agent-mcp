@@ -60,6 +60,13 @@ export async function buildOAuthMetadata(oauth: OAuthServerConfig): Promise<OAut
   };
 }
 
+function parseScopeClaim(scopeClaim: unknown): string[] {
+  if (typeof scopeClaim === 'string') {
+    return scopeClaim.split(/\s+/).filter(Boolean);
+  }
+  return [];
+}
+
 export function createJwtTokenVerifier(oauth: OAuthServerConfig): OAuthTokenVerifier {
   const resourceUrl = new URL(oauth.resource_url);
   let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
@@ -90,11 +97,11 @@ export function createJwtTokenVerifier(oauth: OAuthServerConfig): OAuthTokenVeri
         );
       }
 
-      const scopeClaim = payload.scope;
-      const scopes =
-        typeof scopeClaim === 'string'
-          ? scopeClaim.split(/\s+/).filter(Boolean)
-          : oauth.scopes_supported;
+      const scopes = parseScopeClaim(payload.scope);
+      const missing = oauth.scopes_supported.filter((s) => !scopes.includes(s));
+      if (missing.length > 0) {
+        throw new Error(`Token is missing required OAuth scopes: ${missing.join(', ')}`);
+      }
 
       const clientId =
         (typeof payload.azp === 'string' && payload.azp) ||
