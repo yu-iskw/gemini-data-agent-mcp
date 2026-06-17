@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "gemini-data-analyst": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/packages/analyst-mcp/dist/cli.js",
+        "--config",
+        "${workspaceFolder}/examples/analyst.config.minimal.yaml"
+      ]
+    },
+    "gemini-data-agent-admin": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/packages/admin-mcp/dist/cli.js",
+        "--config",
+        "${workspaceFolder}/examples/admin.config.minimal.yaml"
+      ]
+    }
+  }
+}

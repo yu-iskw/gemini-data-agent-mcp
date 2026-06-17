@@ -9,7 +9,7 @@ Install role-separated MCP packages under **`@gemini-data-agents`**:
 | **`@gemini-data-agents/analyst-mcp`** | Data analysts, coding agents | `gemini-data-analyst-mcp`     | `npm install -g @gemini-data-agents/analyst-mcp` |
 | **`@gemini-data-agents/admin-mcp`**   | Operators                    | `gemini-data-agent-admin-mcp` | Monorepo/dev only (not published yet)            |
 
-Works with Cursor, Claude Code, Codex, and any MCP client that supports **stdio** transport.
+Works with Cursor, Claude Code, Claude Agent SDK, Deep Agents, Codex, and any MCP client that supports **stdio** transport.
 
 ## Architecture
 
@@ -36,6 +36,69 @@ Verify (analyst binary only — admin requires a monorepo clone; see [Quickstart
 gemini-data-analyst-mcp --help
 ```
 
+## MCP client configuration (`mcp.json`)
+
+MCP hosts need a **client config** that tells them how to spawn or connect to a server. That is separate from the **server YAML** (`--config`) that defines which Gemini Data Agents and tools are exposed.
+
+| Layer | File | Purpose |
+| ----- | ---- | ------- |
+| Client | `mcp.json` / `.mcp.json` / `.cursor/mcp.json` | Spawn the MCP server (`command`, `args`, `env`) |
+| Server | `analyst.config.yaml` | Agent registry, GCP resources, auth, enabled tools |
+
+### End users (npm install)
+
+1. Copy [examples/mcp.json](examples/mcp.json) to your project as `.mcp.json` (or `.cursor/mcp.json` for Cursor).
+2. Create `config/analyst.config.yaml` from [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml).
+3. Authenticate: `gcloud auth application-default login`.
+4. Validate: `gemini-data-analyst-mcp validate-config --config config/analyst.config.yaml`.
+
+### Monorepo contributors
+
+1. Build: `pnpm install && pnpm build`.
+2. Use [.cursor/mcp.json](.cursor/mcp.json) in this repo, or copy [examples/mcp.monorepo-dev.json](examples/mcp.monorepo-dev.json) to `.mcp.json`.
+3. Edit [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml) with real `data_agent` resource names.
+
+### Where each client looks
+
+| Client | Config path | Root key |
+| ------ | ----------- | -------- |
+| **Cursor** | `.cursor/mcp.json`, `~/.cursor/mcp.json` | `mcpServers` |
+| **Claude Agent SDK** | `.mcp.json` (project root) | `mcpServers` |
+| **Claude Desktop** | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) | `mcpServers` |
+| **Deep Agents Code** | `~/.deepagents/.mcp.json`, `.deepagents/.mcp.json`, `.mcp.json` | `mcpServers` |
+| **VS Code** | `.vscode/mcp.json` | `servers` |
+
+### Claude Agent SDK
+
+`.mcp.json` loads when `settingSources` includes `"project"` (default). Or pass servers in code and allow tools explicitly:
+
+```typescript
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+for await (const message of query({
+  prompt: "List configured data agents",
+  options: {
+    mcpServers: {
+      "gemini-data-analyst": {
+        command: "gemini-data-analyst-mcp",
+        args: ["--config", "/absolute/path/to/analyst.config.yaml"],
+      },
+    },
+    allowedTools: ["mcp__gemini-data-analyst__*"],
+  },
+})) {
+  // handle messages
+}
+```
+
+MCP tools are named `mcp__{server}__{tool}`.
+
+### Deep Agents Code
+
+Deep Agents auto-discovers `.mcp.json` at the project root (Claude Code compatible). Project-level stdio servers may require approval on first run; use `--trust-project-mcp` in CI or non-interactive mode.
+
+ADC and impersonation stay in server YAML, not `mcp.json`. Only **stdio** transport is supported today; configure `http` in YAML is rejected at startup.
+
 ## Quickstart: analyst server
 
 1. Create a config file. Start from [examples/analyst.config.minimal.yaml](examples/analyst.config.minimal.yaml) or see [examples/analyst.config.full.yaml](examples/analyst.config.full.yaml) for all optional fields.
@@ -46,18 +109,7 @@ gemini-data-analyst-mcp --help
    gcloud auth application-default login
    ```
 
-3. Register the server in your MCP client:
-
-```json
-{
-  "mcpServers": {
-    "gemini-data-analyst": {
-      "command": "gemini-data-analyst-mcp",
-      "args": ["--config", "/absolute/path/to/config.yaml"]
-    }
-  }
-}
-```
+3. Register the server in your MCP client — see [MCP client configuration (`mcp.json`)](#mcp-client-configuration-mcpjson).
 
 4. Validate your config before connecting:
 
@@ -75,22 +127,7 @@ For operators generating registry YAML that analysts will commit (monorepo clone
 node packages/admin-mcp/dist/cli.js --config /absolute/path/to/admin-config.yaml
 ```
 
-Example MCP client entry:
-
-```json
-{
-  "mcpServers": {
-    "gemini-data-agent-admin": {
-      "command": "node",
-      "args": [
-        "/absolute/path/to/gemini-data-agent-mcp/packages/admin-mcp/dist/cli.js",
-        "--config",
-        "/absolute/path/to/admin-config.yaml"
-      ]
-    }
-  }
-}
-```
+Register the server in your MCP client — see [MCP client configuration (`mcp.json`)](#mcp-client-configuration-mcpjson) and [examples/mcp.monorepo-dev.json](examples/mcp.monorepo-dev.json) for the admin entry.
 
 Typical workflow:
 

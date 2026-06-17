@@ -87,7 +87,7 @@ jobs:
           smoke_dir=$(mktemp -d)
           npm install --prefix "$smoke_dir" "$tgz"
           "$smoke_dir/node_modules/.bin/gemini-data-analyst-mcp" validate-config \
-            --config "${GITHUB_WORKSPACE}/examples/analyst.config.yaml"
+            --config "${GITHUB_WORKSPACE}/examples/analyst.config.minimal.yaml"
       - name: Require npm CLI for OIDC trusted publishing
         run: |
           set -euo pipefail

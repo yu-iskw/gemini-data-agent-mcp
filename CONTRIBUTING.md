@@ -74,6 +74,17 @@ node packages/admin-mcp/dist/cli.js --config admin-config.yaml
 
 Tests live under `packages/*/src/**/*.test.ts`. Run the full suite with `pnpm test` from the repository root.
 
+### MCP smoke test (Inspector)
+
+After building, run a non-interactive MCP Inspector handshake against the analyst and admin servers:
+
+```bash
+pnpm build
+pnpm smoke:mcp
+```
+
+Inspector configs live under [`dev/`](dev/) (`mcp-inspector.analyst.json`, `mcp-inspector.admin.json`). Use [`.cursor/mcp.json`](.cursor/mcp.json) for Cursor in this repo.
+
 Suggested pre-commit gate:
 
 ```bash
