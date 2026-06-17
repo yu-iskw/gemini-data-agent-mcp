@@ -4,7 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { registerPrompts } from './mcp/prompts.js';
 import { registerResources } from './mcp/resources.js';
-import { InMemorySessionStore } from './session/store.js';
+import { createSessionStore } from './session/create-session-store.js';
 import { registerTools } from './tools.js';
 
 import type { SessionStore } from './session/store.js';
@@ -13,7 +13,7 @@ import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);
 
-  const sessionStore = new InMemorySessionStore();
+  const sessionStore = createSessionStore();
   const agentCount = Object.keys(config.agents).length;
   logInfo('server', `Starting ${config.server.name}`, {
     transport: config.server.transport,
@@ -28,6 +28,13 @@ export async function startServer(config: AppConfig): Promise<McpHttpServerHandl
     logInfo('server', 'MCP server connected via stdio');
     return undefined;
   } else if (config.server.transport === 'http') {
+    if (process.env.K_SERVICE) {
+      logInfo(
+        'server',
+        'In-memory MCP and analyst sessions are per instance; use max-instances=1 or an external session store for multi-instance Cloud Run',
+      );
+    }
+
     return await startMcpHttpServer({
       config,
       createMcpServer: () => createMcpServer(config, sessionStore),
@@ -41,7 +48,7 @@ export async function startServer(config: AppConfig): Promise<McpHttpServerHandl
 
 export function createMcpServer(
   config: AppConfig,
-  sessionStore: SessionStore = new InMemorySessionStore(),
+  sessionStore: SessionStore = createSessionStore(),
 ): McpServer {
   const server = new McpServer({
     name: config.server.name,

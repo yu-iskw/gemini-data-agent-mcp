@@ -37,6 +37,7 @@ function clearEnv(): void {
   delete process.env.MCP_OAUTH_RESOURCE_URL;
   delete process.env.MCP_CORS_ALLOWED_ORIGINS;
   delete process.env.MCP_ALLOW_INSECURE_HTTP;
+  delete process.env.NODE_ENV;
 }
 
 afterEach(() => {
@@ -205,5 +206,29 @@ describe('applyRuntimeOverrides', () => {
     expect(result.server.oauth?.issuer).toBe('https://env-issuer.example.com');
     expect(result.server.oauth?.resource_url).toBe('https://example.run.app/mcp');
     expect(result.server.public_url).toBe('https://example.run.app/mcp');
+  });
+
+  it('defaults bind host to 0.0.0.0 when PORT is set and MCP_HOST is unset', () => {
+    process.env.PORT = '8080';
+
+    const config = validateConfig(httpOauthInput);
+    const result = applyRuntimeOverrides(config);
+
+    expect(result.server.host).toBe('0.0.0.0');
+    expect(result.server.bind?.host).toBe('0.0.0.0');
+  });
+
+  it('rejects non-HTTPS public_url when NODE_ENV is production', () => {
+    const config = validateConfig(httpOauthInput);
+    process.env.NODE_ENV = 'production';
+
+    expect(() => applyRuntimeOverrides(config)).toThrow(DataAgentMcpError);
+    try {
+      applyRuntimeOverrides(config);
+    } catch (err) {
+      expect(err).toBeInstanceOf(DataAgentMcpError);
+      expect((err as DataAgentMcpError).code).toBe('CONFIG_INVALID');
+      expect((err as DataAgentMcpError).message).toContain('https');
+    }
   });
 });

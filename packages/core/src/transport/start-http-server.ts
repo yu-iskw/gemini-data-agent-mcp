@@ -82,6 +82,10 @@ export async function startMcpHttpServer(
   const app = express();
   let routesContext: McpRoutesContext | undefined;
 
+  app.get('/healthz', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+  });
+
   app.use(
     json({
       limit: maxBodyBytes,

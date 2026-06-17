@@ -5,6 +5,7 @@ import {
   DEFAULT_HTTP_HOST,
   DEFAULT_HTTP_PATH,
   DEFAULT_HTTP_PORT,
+  resolveBindHost,
   validateHttpServerConfig,
   validateHttpUrlConsistency,
 } from './http-config-validation.js';
@@ -119,12 +120,30 @@ function readEnvOverrides(): Partial<ServerCliOverrides> & {
   return overrides;
 }
 
+function resolveRuntimeBindHost(server: ServerConfig): string {
+  const mcpHostEnv = process.env.MCP_HOST;
+  if (mcpHostEnv !== undefined && mcpHostEnv !== '') {
+    return resolveBindHost(server);
+  }
+
+  const portEnv = process.env.PORT;
+  if (portEnv !== undefined && portEnv !== '') {
+    const currentHost = server.bind?.host ?? server.host;
+    if (currentHost !== undefined && currentHost !== DEFAULT_HTTP_HOST) {
+      return currentHost;
+    }
+    return '0.0.0.0';
+  }
+
+  return resolveBindHost(server);
+}
+
 function ensureHttpDefaults(server: ServerConfig): void {
   if (server.transport !== 'http') {
     return;
   }
 
-  const bindHost = server.bind?.host ?? server.host ?? DEFAULT_HTTP_HOST;
+  const bindHost = resolveRuntimeBindHost(server);
   const bindPort = server.bind?.port ?? server.port ?? DEFAULT_HTTP_PORT;
   server.bind = { host: bindHost, port: bindPort };
   server.host = bindHost;

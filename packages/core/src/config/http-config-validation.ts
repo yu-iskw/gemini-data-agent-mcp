@@ -79,6 +79,17 @@ export function validateHttpServerConfig(server: ServerConfig): void {
 
   validateHttpUrlConsistency(server);
 
+  if (process.env.NODE_ENV === 'production') {
+    const scheme = new URL(server.public_url).protocol;
+    if (scheme !== 'https:') {
+      throw new DataAgentMcpError(
+        'CONFIG_INVALID',
+        'server.public_url must use https when NODE_ENV=production',
+        false,
+      );
+    }
+  }
+
   if (server.oauth.enabled === false) {
     const bindHost = resolveBindHost(server);
     const allowInsecure = process.env.MCP_ALLOW_INSECURE_HTTP === 'true';
