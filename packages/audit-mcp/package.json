@@ -1,0 +1,45 @@
+{
+  "name": "@gemini-data-agents/audit-mcp",
+  "version": "0.1.0",
+  "private": false,
+  "description": "MCP server for audit, governance, and usage analysis of Gemini Data Agents.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "gemini-data-agent-audit-mcp": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yu-iskw/gemini-data-agent-mcp.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc && node ../../scripts/rm-dist-tests.mjs",
+    "start": "node dist/cli.js",
+    "test": "pnpm --workspace-root exec vitest run packages/audit-mcp/src"
+  },
+  "dependencies": {
+    "@gemini-data-agents/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "commander": "^13.1.0",
+    "google-auth-library": "^10.6.2",
+    "zod": "^3.24.3"
+  },
+  "bundledDependencies": [
+    "@gemini-data-agents/core"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.15.3"
+  }
+}

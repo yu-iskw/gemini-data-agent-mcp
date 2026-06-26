@@ -140,6 +140,7 @@ vite.config.ts.timestamp-*
 
 TODO.md
 .todo_list/
+dev/local/
 
 # Claude Code
 .claude/settings.local.json

@@ -1,6 +1,6 @@
 import { ALLOWED_API_VERSIONS, DEFAULT_TIMEOUT_SECONDS, WARN_ON_V1ALPHA } from './defaults.js';
 
-import type { AppConfig, AgentConfig } from '../types.js';
+import type { AppConfig, AgentConfig, ApiVersion } from '../types.js';
 
 export function resolveAgentConfig(config: AppConfig, agentName: string): AgentConfig {
   // Agent name is validated by callers against configured registry keys.
@@ -23,14 +23,14 @@ export function resolveApiVersion(
   config: AppConfig,
   agent: AgentConfig,
   requestedVersion?: string,
-): string {
+): ApiVersion {
   if (requestedVersion) {
     if (!ALLOWED_API_VERSIONS.includes(requestedVersion as AppConfig['api_version'])) {
       throw new Error(
         `API version "${requestedVersion}" is not allowed. Allowed versions: ${ALLOWED_API_VERSIONS.join(', ')}`,
       );
     }
-    return requestedVersion;
+    return requestedVersion as ApiVersion;
   }
 
   return agent.api_version;

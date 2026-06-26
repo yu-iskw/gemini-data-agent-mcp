@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "gemini-data-agent-agentops": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "packages/agentops-mcp/dist/cli.js",
+        "--config",
+        "examples/agentops.config.minimal.yaml"
+      ]
+    }
+  }
+}

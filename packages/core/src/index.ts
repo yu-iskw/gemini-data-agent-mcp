@@ -37,8 +37,98 @@ export {
   buildRawUrl,
   normalizeDataAgentName,
   normalizeConversationName,
+  extractProjectAndLocation,
 } from './google-api/endpoints.js';
 export { parseGoogleApiError } from './google-api/errors.js';
+
+export {
+  createGoogleRestTransport,
+  type GoogleRestTransport,
+  type GoogleRestRequest,
+} from './google/transport.js';
+export {
+  createDataAgentsClient,
+  DataAgentsClient,
+  type ListDataAgentsInput,
+  type GetDataAgentInput,
+  type GetIamPolicyInput,
+} from './google/data-agents-client.js';
+export {
+  createConversationsClient,
+  ConversationsClient,
+  type ListConversationsInput,
+  type GetConversationInput,
+  type CreateConversationInput,
+} from './google/conversations-client.js';
+export {
+  createConversationMessagesClient,
+  ConversationMessagesClient,
+  type ListConversationMessagesInput,
+} from './google/conversation-messages-client.js';
+export {
+  createOperationsClient,
+  OperationsClient,
+  type GetOperationInput,
+} from './google/operations-client.js';
+export {
+  createLoggingClientStub,
+  type LoggingClient,
+  type LogQueryInput,
+  type LogQueryResult,
+} from './google/logging-client.js';
+export {
+  createEvaluationClientStub,
+  validateOfflineEvalCases,
+  type EvaluationClient,
+  type OfflineEvalCase,
+  type OfflineEvalRunInput,
+  type OfflineEvalRunResult,
+} from './google/evaluation-client.js';
+export type {
+  DataAgent,
+  ListDataAgentsResponse,
+  Conversation,
+  ListConversationsResponse,
+  ConversationMessage,
+  ListConversationMessagesResponse,
+  Operation,
+  IamPolicy,
+} from './google/types.js';
+
+export { annotations, type OfficialToolAnnotations } from './mcp/annotations.js';
+export {
+  buildToolResult,
+  buildToolErrorResult,
+  normalizeToolError,
+  toolErrorFromMcpError,
+  type ToolResultEnvelope,
+  type McpStructuredToolResult,
+} from './mcp/results.js';
+export {
+  ListDataAgentsResultSchema,
+  GovernanceReportSchema,
+  OfflineEvalCaseSchema,
+  OfflineEvalSummarySchema,
+  mcpInputSchemas,
+  type ListDataAgentsResult,
+  type GovernanceReport,
+} from './mcp/schemas.js';
+export {
+  createRoleGoogleClients,
+  resolveDefaultAgentName,
+  resolveAgentForRole,
+  type RoleGoogleClients,
+} from './mcp/role-clients.js';
+export {
+  createServerAuditEmitter,
+  executeRoleGoogleTool,
+  executeLocalRfcTool,
+  type RoleToolContext,
+  type ServerAuditEmitter,
+} from './mcp/tool-runner.js';
+export { mapDataAgentSummary, mapInventoryAgent, buildInventoryFindings } from './mcp/inventory.js';
+
+export { createFakeGoogleRestTransport } from './testing/fake-transport.js';
 
 export { redact, redactServiceAccount } from './security/redaction.js';
 export {

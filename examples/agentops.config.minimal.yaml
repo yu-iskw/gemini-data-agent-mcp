@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Minimal agentops MCP config.
+
+api_version: v1beta
+
+server:
+  name: gemini-data-agent-agentops-mcp
+  log_level: INFO
+  transport: stdio
+
+agents:
+  my-agent:
+    data_agent: projects/my-gcp-project/locations/global/dataAgents/my-agent
+    tools:
+      - query_data_agent

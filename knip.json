@@ -14,6 +14,12 @@
     },
     "packages/admin-mcp": {
       "ignoreDependencies": ["js-yaml"]
+    },
+    "packages/audit-mcp": {
+      "ignoreDependencies": ["google-auth-library"]
+    },
+    "packages/agentops-mcp": {
+      "ignoreDependencies": ["google-auth-library"]
     }
   }
 }

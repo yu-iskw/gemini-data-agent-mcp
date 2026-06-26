@@ -7,23 +7,23 @@ import { createMcpServer } from '../server.js';
 
 import type { AppConfig } from '@gemini-data-agents/core';
 
-const adminConfig: AppConfig = validateConfig({
+const auditConfig: AppConfig = validateConfig({
   api_version: 'v1beta',
   agents: {
-    admin: {
-      data_agent: 'projects/my-project/locations/us-central1/dataAgents/x',
+    audit: {
+      data_agent: 'projects/my-project/locations/global/dataAgents/audit-agent',
       tools: ['query_data_agent'],
     },
   },
 });
 
-describe('admin MCP tool inventory', () => {
+describe('audit MCP tool inventory', () => {
   let client: Client | undefined;
   let cleanup: (() => Promise<void>) | undefined;
 
   beforeAll(async () => {
-    const server = createMcpServer(adminConfig);
-    const clientInst = new Client({ name: 'admin-inventory', version: '0.1.0' });
+    const server = createMcpServer(auditConfig);
+    const clientInst = new Client({ name: 'audit-inventory', version: '0.1.0' });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     await server.connect(serverTransport);
     await clientInst.connect(clientTransport);
@@ -38,21 +38,12 @@ describe('admin MCP tool inventory', () => {
     await cleanup?.();
   });
 
-  it('includes YAML and inspection tools', async () => {
+  it('registers audit thin-slice tools', async () => {
     const { tools } = await client!.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('generate_analyst_registry_yaml');
-    expect(names).toContain('validate_analyst_registry_yaml');
-    expect(names).toContain('diff_analyst_registry_yaml');
-    expect(names).toContain('inspect_admin_auth');
-  });
-
-  it('includes RFC admin lifecycle read tools', async () => {
-    const { tools } = await client!.listTools();
-    const names = tools.map((t) => t.name);
-    expect(names).toContain('data_agents.list');
-    expect(names).toContain('data_agents.get');
-    expect(names).toContain('data_agents.get_iam_policy');
-    expect(names).toContain('operations.get');
+    expect(names).toContain('audit.conversations.list');
+    expect(names).toContain('audit.messages.list');
+    expect(names).toContain('audit.data_agents.inventory');
+    expect(names).toContain('audit.governance_report.generate');
   });
 });

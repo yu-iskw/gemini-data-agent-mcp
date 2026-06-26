@@ -15,6 +15,8 @@ import {
 } from '@gemini-data-agents/core';
 import { z } from 'zod';
 
+import { registerAdminRfcTools } from './admin-rfc-tools.js';
+
 import type { AppConfig } from '@gemini-data-agents/core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -24,7 +26,7 @@ export function registerAdminTools(server: McpServer, config: AppConfig): void {
   registerDiffAnalystRegistryYaml(server);
   registerInspectAdminAuth(server, config);
   registerDryRunDataAgentChange(server, config);
-  registerRemoteLifecycleStubs(server);
+  registerAdminRfcTools(server, config);
 }
 
 function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfig): void {
@@ -232,50 +234,4 @@ function registerDryRunDataAgentChange(server: McpServer, config: AppConfig): vo
       }
     },
   );
-}
-
-function registerRemoteLifecycleStubs(server: McpServer): void {
-  const stub = (
-    name: string,
-    description: string,
-    argsShape: Record<string, z.ZodTypeAny>,
-  ): void => {
-    server.tool(name, description, argsShape, async () => ({
-      content: [
-        {
-          type: 'text',
-          text: formatMcpToolError(
-            new DataAgentMcpError(
-              'NOT_IMPLEMENTED',
-              `Remote lifecycle call "${name}" is not implemented yet in the Gemini Data Agents REST client.`,
-              false,
-            ),
-          ),
-        },
-      ],
-      isError: true,
-    }));
-  };
-
-  stub('list_remote_data_agents', 'List remote Gemini Data Agents (not implemented).', {
-    project: z.string().optional(),
-    location: z.string().optional(),
-  });
-
-  stub('get_remote_data_agent', 'Get a remote Gemini Data Agent (not implemented).', {
-    name: z.string().describe('Resource name or ID.'),
-  });
-
-  stub('create_remote_data_agent', 'Create a remote Gemini Data Agent (not implemented).', {
-    body: z.record(z.unknown()).describe('Placeholder.'),
-  });
-
-  stub('update_remote_data_agent', 'Update a remote Gemini Data Agent (not implemented).', {
-    name: z.string(),
-    body: z.record(z.unknown()).describe('Placeholder.'),
-  });
-
-  stub('delete_remote_data_agent', 'Delete a remote Gemini Data Agent (not implemented).', {
-    name: z.string(),
-  });
 }

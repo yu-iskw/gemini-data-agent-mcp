@@ -204,6 +204,13 @@ export interface AuditEvent {
   error_code?: string;
   error_category?: string;
   operation_name?: string | null;
+  /** RFC tool audit extensions */
+  server?: 'admin' | 'audit' | 'agentops' | 'analyst';
+  operation_kind?: 'read' | 'create' | 'update' | 'delete' | 'iam' | 'evaluation' | 'report';
+  project?: string;
+  location?: string;
+  resource_name?: string;
+  google_request_id?: string;
 }
 
 export interface GoogleApiResponse {

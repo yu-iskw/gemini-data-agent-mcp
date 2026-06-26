@@ -33,16 +33,15 @@ echo "== Analyst: tools/call session_create (may return GCP/API tool error with 
 echo "== Admin: tools/list"
 "${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/list >/dev/null
 
-echo "== Admin: YAML tools + inspect + dry_run"
+echo "== Admin: dry_run + inspect"
 "${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name generate_analyst_registry_yaml --tool-arg use_loaded_config=true >/dev/null
 "${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name diff_analyst_registry_yaml --tool-arg baseline=a:1 --tool-arg proposed=a:2 >/dev/null
 "${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name inspect_admin_auth >/dev/null
 "${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name dry_run_data_agent_change \
 	--tool-arg agent_name=z --tool-arg proposed_agent='{"project":"my-gcp-project","location":"us-central1","api_version":"v1beta","data_agent":"z","auth":{"mode":"adc"}}' >/dev/null
 
-echo "== Admin: remote stub (expect isError)"
-OUT="$("${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name list_remote_data_agents 2>/dev/null)" || true
-echo "$OUT" | grep -q NOT_IMPLEMENTED
+echo "== Admin: RFC data_agents.list registered"
+"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/list | grep -q data_agents.list
 
 echo "== Admin: resources/list (expect exit 1, Method not found)"
 set +e
