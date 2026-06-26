@@ -53,11 +53,15 @@ agents:
       - query_data_agent
 ```
 
-Per-agent **`tools`** gate which data-agent API and session tools succeed. Registry tools (`list_data_agents`, `get_data_agent_config`) are always available. The analyst server does **not** register raw REST passthrough.
+Per-agent **`tools`** gate which data-agent API and session tools succeed. Registry tools (`gda.registry.list_agents`, `gda.registry.get_agent`) are always available. The analyst server does **not** register raw REST passthrough.
 
 ## Authentication
 
 Use ADC by default (`gcloud auth application-default login`). Set **`impersonate_service_account`** per agent for CI or shared runners (grant `roles/iam.serviceAccountTokenCreator`).
+
+## Governance
+
+**Use plane** — end-user and analyst chat against **published** Data Agent configuration. Publish and IAM are owned by **admin-mcp**; access evidence is on **audit-mcp**. See [ADR 0005](../../docs/adr/0005-mcp-governance-trust-boundaries.md).
 
 ## MCP tools
 
@@ -82,7 +86,7 @@ Mutating session tools use **optimistic concurrency**: pass `expected_revision` 
 
 Tools that call the Gemini Data Agents API using agents from your YAML registry.
 
-#### `query_data_agent`
+#### `gda.data_agents.query`
 
 Ask a natural-language analytical question to a configured Gemini Data Agent.
 
@@ -99,7 +103,7 @@ Ask a natural-language analytical question to a configured Gemini Data Agent.
 
 ---
 
-#### `chat_data_agent`
+#### `gda.locations.chat`
 
 Chat with a configured Gemini Data Agent, optionally continuing a persisted conversation.
 
@@ -113,11 +117,11 @@ Chat with a configured Gemini Data Agent, optionally continuing a persisted conv
 | `api_version`     | no       | API version override                                     |
 | `timeout_seconds` | no       | 1–600 seconds                                            |
 
-**Tool:** `chat_data_agent` must be in the agent `tools` list.
+**Capability:** `chat_data_agent` must be in the agent `tools` list.
 
 ---
 
-#### `create_data_agent_conversation`
+#### `gda.conversations.create`
 
 Create a managed conversation for multi-turn chat with a configured data agent.
 
@@ -129,11 +133,11 @@ Create a managed conversation for multi-turn chat with a configured data agent.
 | `api_version`     | no       | API version override                               |
 | `timeout_seconds` | no       | 1–600 seconds                                      |
 
-**Tool:** `create_data_agent_conversation` must be in the agent `tools` list.
+**Capability:** `create_data_agent_conversation` must be in the agent `tools` list.
 
 ---
 
-#### `list_conversation_messages`
+#### `gda.conversation_messages.list`
 
 List stored messages for a managed conversation.
 
@@ -147,11 +151,11 @@ List stored messages for a managed conversation.
 | `api_version`     | no       | API version override             |
 | `timeout_seconds` | no       | 1–600 seconds                    |
 
-**Tool:** `list_conversation_messages` must be in the agent `tools` list.
+**Capability:** `list_conversation_messages` must be in the agent `tools` list.
 
 ---
 
-#### `list_data_agents`
+#### `gda.registry.list_agents`
 
 List locally configured Gemini Data Agents from the YAML registry (no Google API call).
 
@@ -161,7 +165,7 @@ List locally configured Gemini Data Agents from the YAML registry (no Google API
 
 ---
 
-#### `get_data_agent_config`
+#### `gda.registry.get_agent`
 
 Return redacted configuration for a named Gemini Data Agent.
 
@@ -171,7 +175,7 @@ Return redacted configuration for a named Gemini Data Agent.
 
 ---
 
-#### `get_operation`
+#### `gda.operations.get`
 
 Retrieve a long-running operation for a Gemini Data Agent.
 
@@ -187,7 +191,7 @@ Retrieve a long-running operation for a Gemini Data Agent.
 
 Tools that bind **local session state** (revision, intent, ACL) to a **managed Data Agent conversation**. Use these when multiple clients or users share analytical context.
 
-#### `session_create`
+#### `gda.sessions.create`
 
 Create a shared session that binds local session state to a managed Data Agent conversation.
 
@@ -202,11 +206,11 @@ Create a shared session that binds local session state to a managed Data Agent c
 | `api_version`                         | no       | API version override                                         |
 | `timeout_seconds`                     | no       | 1–600 seconds                                                |
 
-**Tool:** `create_data_agent_conversation` must be in the agent `tools` list.
+**Capability:** `create_data_agent_conversation` must be in the agent `tools` list.
 
 ---
 
-#### `session_chat`
+#### `gda.sessions.chat`
 
 Run one chat turn against an existing shared session.
 
@@ -222,11 +226,11 @@ Run one chat turn against an existing shared session.
 | `api_version`                         | no       | API version override                         |
 | `timeout_seconds`                     | no       | 1–600 seconds                                |
 
-**Tool:** `chat_data_agent` must be in the agent `tools` list.
+**Capability:** `chat_data_agent` must be in the agent `tools` list.
 
 ---
 
-#### `session_switch_intent`
+#### `gda.sessions.switch_intent`
 
 Switch session intent with optimistic concurrency protection.
 
@@ -241,7 +245,7 @@ Switch session intent with optimistic concurrency protection.
 
 ---
 
-#### `session_fork`
+#### `gda.sessions.fork`
 
 Fork a new session from an existing shared session.
 
@@ -255,7 +259,7 @@ Fork a new session from an existing shared session.
 
 ---
 
-#### `session_reset`
+#### `gda.sessions.reset`
 
 Move a session head pointer to a prior revision.
 
@@ -269,7 +273,7 @@ Move a session head pointer to a prior revision.
 
 ---
 
-#### `session_handoff`
+#### `gda.sessions.handoff`
 
 Generate a portable handoff payload for a session (for another client or user).
 
@@ -285,11 +289,11 @@ Generate a portable handoff payload for a session (for another client or user).
 
 The analyst server **does not** register:
 
-| Tool                                                                                             | Reason                                                                |
-| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `raw_data_agent_request`                                                                         | Raw REST passthrough is disabled for analysts                         |
-| `generate_analyst_registry_yaml`, `validate_analyst_registry_yaml`, `diff_analyst_registry_yaml` | Admin/registry tools — see `@gemini-data-agents/admin-mcp` (monorepo) |
-| `create_remote_data_agent`, other lifecycle stubs                                                | Admin control plane only                                              |
+| Tool                                                                                                         | Reason                                                                |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `raw_data_agent_request`                                                                                     | Raw REST passthrough is disabled for analysts                         |
+| `gda.registry.generate_analyst_yaml`, `gda.registry.validate_analyst_yaml`, `gda.registry.diff_analyst_yaml` | Admin/registry tools — see `@gemini-data-agents/admin-mcp` (monorepo) |
+| `create_remote_data_agent`, other lifecycle stubs                                                            | Admin control plane only                                              |
 
 ## MCP resources
 
@@ -303,18 +307,18 @@ The analyst server **does not** register:
 
 ## MCP prompts
 
-| Prompt                         | Description                                                       |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `switch_intent`                | Guide an intent transition before calling `session_switch_intent` |
-| `fork_session`                 | Prepare a controlled session fork with branching rationale        |
-| `resume_session`               | Resume a session with recap and next-turn proposal                |
-| `handoff_summary`              | Generate a concise handoff summary from a handoff payload         |
-| `analyze_data_question`        | Answer a direct analytical question via a data agent              |
-| `investigate_data_issue`       | Multi-step investigation of a data issue                          |
-| `explain_generated_query`      | Explain SQL/query returned by a data agent                        |
-| `compare_segments`             | Compare two data segments                                         |
-| `find_anomalies`               | Look for anomalies in a metric or dataset                         |
-| `prepare_data_analysis_report` | Structure findings into an analysis report                        |
+| Prompt                         | Description                                                            |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `gda.prompt.switch_intent`     | Guide an intent transition before calling `gda.sessions.switch_intent` |
+| `fork_session`                 | Prepare a controlled session fork with branching rationale             |
+| `resume_session`               | Resume a session with recap and next-turn proposal                     |
+| `handoff_summary`              | Generate a concise handoff summary from a handoff payload              |
+| `analyze_data_question`        | Answer a direct analytical question via a data agent                   |
+| `investigate_data_issue`       | Multi-step investigation of a data issue                               |
+| `explain_generated_query`      | Explain SQL/query returned by a data agent                             |
+| `compare_segments`             | Compare two data segments                                              |
+| `find_anomalies`               | Look for anomalies in a metric or dataset                              |
+| `prepare_data_analysis_report` | Structure findings into an analysis report                             |
 
 ## Security defaults
 
@@ -342,6 +346,14 @@ Full repository docs: [README](../../README.md) (end users) and [CONTRIBUTING](.
 pnpm --filter @gemini-data-agents/analyst-mcp build
 node packages/analyst-mcp/dist/cli.js --config config.yaml
 ```
+
+## Related packages
+
+| Package                                                         | Audience                                 |
+| --------------------------------------------------------------- | ---------------------------------------- |
+| [`@gemini-data-agents/admin-mcp`](../admin-mcp/README.md)       | Operators (registry YAML, control plane) |
+| [`@gemini-data-agents/audit-mcp`](../audit-mcp/README.md)       | Auditors and governance                  |
+| [`@gemini-data-agents/agentops-mcp`](../agentops-mcp/README.md) | AgentOps / offline eval                  |
 
 ## License
 

@@ -1,6 +1,5 @@
 import { serializeAnalystRegistryYaml, validateConfig } from '@gemini-data-agents/core';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMcpServer } from '../server.js';
@@ -46,33 +45,26 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
   });
 
   async function connectAdminClient(config = adminConfig()) {
-    const server = createMcpServer(config);
-    const client = new Client({ name: 'admin-integration', version: '0.1.0' });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await server.connect(serverTransport);
-    await client.connect(clientTransport);
-    return {
-      client,
+    const { client, close } = await connectMcpTestClient(
+      createMcpServer,
       config,
-      close: async () => {
-        await client.close();
-        await server.close();
-      },
-    };
+      'admin-integration',
+    );
+    return { client, config, close };
   }
 
-  it('lists admin tools including YAML and lifecycle stubs', async () => {
+  it('lists admin tools including YAML and RFC read tools', async () => {
     const { client, close } = await connectAdminClient();
     try {
       const { tools } = await client.listTools();
       const names = tools.map((t) => t.name);
-      expect(names).toContain('generate_analyst_registry_yaml');
-      expect(names).toContain('validate_analyst_registry_yaml');
-      expect(names).toContain('diff_analyst_registry_yaml');
-      expect(names).toContain('inspect_admin_auth');
-      expect(names).toContain('dry_run_data_agent_change');
-      expect(names).toContain('list_remote_data_agents');
-      expect(names).toContain('delete_remote_data_agent');
+      expect(names).toContain('gda.registry.generate_analyst_yaml');
+      expect(names).toContain('gda.registry.validate_analyst_yaml');
+      expect(names).toContain('gda.registry.diff_analyst_yaml');
+      expect(names).toContain('gda.auth.inspect');
+      expect(names).toContain('gda.registry.dry_run_agent_change');
+      expect(names).toContain('gda.data_agents.list');
+      expect(names).toContain('gda.operations.get');
     } finally {
       await close();
     }
@@ -82,7 +74,7 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
     const { client, config, close } = await connectAdminClient();
     try {
       const r = await client.callTool({
-        name: 'generate_analyst_registry_yaml',
+        name: 'gda.registry.generate_analyst_yaml',
         arguments: { use_loaded_config: true },
       });
       expect(r.isError).toBeFalsy();
@@ -101,7 +93,7 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
     const { client, close } = await connectAdminClient(cfg);
     try {
       const r = await client.callTool({
-        name: 'validate_analyst_registry_yaml',
+        name: 'gda.registry.validate_analyst_yaml',
         arguments: { yaml },
       });
       expect(r.isError).toBeFalsy();
@@ -118,7 +110,7 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
     const { client, close } = await connectAdminClient();
     try {
       const r = await client.callTool({
-        name: 'diff_analyst_registry_yaml',
+        name: 'gda.registry.diff_analyst_yaml',
         arguments: { baseline: 'a: 1\n', proposed: 'a: 2\n' },
       });
       expect(r.isError).toBeFalsy();
@@ -132,7 +124,7 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
     const { client, close } = await connectAdminClient();
     try {
       const r = await client.callTool({
-        name: 'inspect_admin_auth',
+        name: 'gda.auth.inspect',
         arguments: { agent: 'admin' },
       });
       expect(r.isError).toBeFalsy();
@@ -153,7 +145,7 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
     const { client, close } = await connectAdminClient();
     try {
       const r = await client.callTool({
-        name: 'dry_run_data_agent_change',
+        name: 'gda.registry.dry_run_agent_change',
         arguments: {
           agent_name: 'new-agent',
           proposed_agent: {
@@ -164,37 +156,6 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
       });
       expect(r.isError).toBeFalsy();
       expect(JSON.stringify(r.content)).toContain('valid');
-    } finally {
-      await close();
-    }
-  });
-
-  it('remote lifecycle stubs return NOT_IMPLEMENTED', async () => {
-    const { client, close } = await connectAdminClient();
-    try {
-      for (const name of [
-        'list_remote_data_agents',
-        'get_remote_data_agent',
-        'create_remote_data_agent',
-        'update_remote_data_agent',
-        'delete_remote_data_agent',
-      ] as const) {
-        const args: Record<string, unknown> =
-          name === 'list_remote_data_agents'
-            ? {}
-            : name === 'get_remote_data_agent'
-              ? { name: 'projects/p/locations/l/dataAgents/x' }
-              : name === 'create_remote_data_agent'
-                ? { body: {} }
-                : name === 'update_remote_data_agent'
-                  ? { name: 'projects/p/locations/l/dataAgents/x', body: {} }
-                  : { name: 'projects/p/locations/l/dataAgents/x' };
-
-        const r = await client.callTool({ name, arguments: args });
-        expect(r.isError).toBe(true);
-        const text = JSON.stringify(r.content);
-        expect(text).toContain('NOT_IMPLEMENTED');
-      }
     } finally {
       await close();
     }

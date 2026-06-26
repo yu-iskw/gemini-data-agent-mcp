@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "gemini-data-agent-audit": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["packages/audit-mcp/dist/cli.js", "--config", "examples/audit.config.minimal.yaml"]
+    }
+  }
+}

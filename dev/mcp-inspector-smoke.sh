@@ -16,8 +16,8 @@ SRV_ADMIN="gemini-data-agent-admin"
 echo "== Analyst: tools/list"
 "${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method tools/list >/dev/null
 
-echo "== Analyst: tools/call list_data_agents"
-"${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method tools/call --tool-name list_data_agents >/dev/null
+echo "== Analyst: tools/call gda.registry.list_agents"
+"${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method tools/call --tool-name gda.registry.list_agents >/dev/null
 
 echo "== Analyst: resources/list + prompts/list"
 "${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method resources/list >/dev/null
@@ -26,23 +26,22 @@ echo "== Analyst: resources/list + prompts/list"
 echo "== Analyst: resources/read"
 "${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method resources/read --uri "gemini-data-agent://agents/my-agent" >/dev/null
 
-echo "== Analyst: tools/call session_create (may return GCP/API tool error with placeholder project)"
-"${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method tools/call --tool-name session_create \
+echo "== Analyst: tools/call gda.sessions.create (may return GCP/API tool error with placeholder project)"
+"${INSPECTOR[@]}" --config "$CFG_ANALYST" --server "$SRV_ANALYST" --method tools/call --tool-name gda.sessions.create \
 	--tool-arg agent=my-agent --tool-arg tenant_id=t1 --tool-arg user_id=u1 --tool-arg client_name=mcp-inspector-smoke >/dev/null || true
 
 echo "== Admin: tools/list"
 "${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/list >/dev/null
 
-echo "== Admin: YAML tools + inspect + dry_run"
-"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name generate_analyst_registry_yaml --tool-arg use_loaded_config=true >/dev/null
-"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name diff_analyst_registry_yaml --tool-arg baseline=a:1 --tool-arg proposed=a:2 >/dev/null
-"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name inspect_admin_auth >/dev/null
-"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name dry_run_data_agent_change \
+echo "== Admin: dry_run + inspect"
+"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name gda.registry.generate_analyst_yaml --tool-arg use_loaded_config=true >/dev/null
+"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name gda.registry.diff_analyst_yaml --tool-arg baseline=a:1 --tool-arg proposed=a:2 >/dev/null
+"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name gda.auth.inspect >/dev/null
+"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name gda.registry.dry_run_agent_change \
 	--tool-arg agent_name=z --tool-arg proposed_agent='{"project":"my-gcp-project","location":"us-central1","api_version":"v1beta","data_agent":"z","auth":{"mode":"adc"}}' >/dev/null
 
-echo "== Admin: remote stub (expect isError)"
-OUT="$("${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/call --tool-name list_remote_data_agents 2>/dev/null)" || true
-echo "$OUT" | grep -q NOT_IMPLEMENTED
+echo "== Admin: RFC gda.data_agents.list registered"
+"${INSPECTOR[@]}" --config "$CFG_ADMIN" --server "$SRV_ADMIN" --method tools/list | grep -q gda.data_agents.list
 
 echo "== Admin: resources/list (expect exit 1, Method not found)"
 set +e

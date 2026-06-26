@@ -1,4 +1,5 @@
-import { validateConfig } from '@gemini-data-agents/core';
+import { gdaToolNames, validateConfig, type AppConfig } from '@gemini-data-agents/core';
+import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -7,8 +8,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createMcpServer } from '../server.js';
 import { InMemorySessionStore } from '../session/store.js';
 import { registerTools } from '../tools.js';
-
-import type { AppConfig } from '@gemini-data-agents/core';
 
 const minimalConfig: AppConfig = validateConfig({
   api_version: 'v1beta',
@@ -26,39 +25,34 @@ const minimalConfig: AppConfig = validateConfig({
 });
 
 describe('analyst MCP tool inventory', () => {
-  let client: Client | undefined;
-  let transportCleanup: (() => Promise<void>) | undefined;
+  let client: Client;
+  let close: () => Promise<void>;
 
   beforeAll(async () => {
-    const server = createMcpServer(minimalConfig);
-    const clientInst = new Client({ name: 'inventory-test', version: '0.1.0' });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await server.connect(serverTransport);
-    await clientInst.connect(clientTransport);
-    client = clientInst;
-    transportCleanup = async () => {
-      await clientInst.close();
-      await server.close();
-    };
+    ({ client, close } = await connectMcpTestClient(
+      createMcpServer,
+      minimalConfig,
+      'inventory-test',
+    ));
   });
 
   afterAll(async () => {
-    await transportCleanup?.();
+    await close();
   });
 
   it('includes analyst and session tools', async () => {
-    const { tools } = await client!.listTools();
+    const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('query_data_agent');
-    expect(names).toContain('session_create');
-    expect(names).toContain('list_data_agents');
+    expect(names).toContain(gdaToolNames.dataAgents.query);
+    expect(names).toContain(gdaToolNames.sessions.create);
+    expect(names).toContain(gdaToolNames.registry.listAgents);
   });
 
   it('does not expose raw passthrough or admin/registry mutation tools', async () => {
     const { tools } = await client!.listTools();
     const names = tools.map((t) => t.name);
     expect(names).not.toContain('raw_data_agent_request');
-    expect(names).not.toContain('generate_analyst_registry_yaml');
+    expect(names).not.toContain(gdaToolNames.registry.generateAnalystYaml);
     expect(names).not.toContain('create_remote_data_agent');
   });
 });
@@ -76,7 +70,7 @@ describe('registerTools standalone inventory', () => {
       const { tools } = await clientInst.listTools();
       const names = tools.map((t) => t.name);
       expect(names.length).toBeGreaterThan(10);
-      expect(names).toContain('get_operation');
+      expect(names).toContain(gdaToolNames.operations.get);
     } finally {
       await clientInst.close();
       await server.close();

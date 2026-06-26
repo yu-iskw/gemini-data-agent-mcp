@@ -101,7 +101,7 @@ describe.sequential('MCP stdio conformance', () => {
     const prompts = await client!.listPrompts();
 
     expect(tools.tools.length).toBeGreaterThan(0);
-    expect(tools.tools.some((tool) => tool.name === 'list_data_agents')).toBe(true);
+    expect(tools.tools.some((tool) => tool.name === 'gda.registry.list_agents')).toBe(true);
     expect(resources.resources.length).toBeGreaterThan(0);
     expect(
       resources.resources.some((resource) =>
@@ -112,7 +112,7 @@ describe.sequential('MCP stdio conformance', () => {
   });
 
   it('calls a representative tool with MCP content contract', async () => {
-    const result = await client!.callTool({ name: 'list_data_agents', arguments: {} });
+    const result = await client!.callTool({ name: 'gda.registry.list_agents', arguments: {} });
     const content = result.content as Array<{ type?: string; text?: string }>;
 
     expect(result.isError).toBeFalsy();

@@ -37,8 +37,128 @@ export {
   buildRawUrl,
   normalizeDataAgentName,
   normalizeConversationName,
+  extractProjectAndLocation,
 } from './google-api/endpoints.js';
 export { parseGoogleApiError } from './google-api/errors.js';
+
+export {
+  createGoogleRestTransport,
+  type GoogleRestTransport,
+  type GoogleRestRequest,
+} from './google/transport.js';
+export {
+  createDataAgentsClient,
+  DataAgentsClient,
+  type ListDataAgentsInput,
+  type GetDataAgentInput,
+  type GetIamPolicyInput,
+  type DataAgentMutationBody,
+  type CreateDataAgentInput,
+  type PatchDataAgentInput,
+  type DeleteDataAgentInput,
+  type SetIamPolicyInput,
+  type ListAllAgentsResult,
+} from './google/data-agents-client.js';
+export {
+  createConversationsClient,
+  ConversationsClient,
+  type ListConversationsInput,
+  type GetConversationInput,
+  type CreateConversationInput,
+} from './google/conversations-client.js';
+export {
+  createConversationMessagesClient,
+  ConversationMessagesClient,
+  type ListConversationMessagesInput,
+} from './google/conversation-messages-client.js';
+export {
+  createOperationsClient,
+  OperationsClient,
+  type GetOperationInput,
+} from './google/operations-client.js';
+export {
+  createLoggingClientStub,
+  type LoggingClient,
+  type LogQueryInput,
+  type LogQueryResult,
+} from './google/logging-client.js';
+export {
+  createEvaluationClientStub,
+  validateOfflineEvalCases,
+  type EvaluationClient,
+  type OfflineEvalCase,
+  type OfflineEvalRunInput,
+  type OfflineEvalRunResult,
+} from './google/evaluation-client.js';
+export type {
+  DataAgent,
+  ListDataAgentsResponse,
+  Conversation,
+  ListConversationsResponse,
+  ConversationMessage,
+  ListConversationMessagesResponse,
+  Operation,
+  IamPolicy,
+} from './google/types.js';
+
+export { annotations, type OfficialToolAnnotations } from './mcp/annotations.js';
+export {
+  buildToolResult,
+  buildToolErrorResult,
+  normalizeToolError,
+  toolErrorFromMcpError,
+  type ToolResultEnvelope,
+  type McpStructuredToolResult,
+} from './mcp/results.js';
+export {
+  ListDataAgentsResultSchema,
+  GovernanceReportSchema,
+  OfflineEvalCaseSchema,
+  OfflineEvalSummarySchema,
+  DataAgentBodySchema,
+  IamPolicySchema,
+  AgentUsageSummarySchema,
+  mcpInputSchemas,
+  type ListDataAgentsResult,
+  type GovernanceReport,
+  type IamPolicyInput,
+} from './mcp/schemas.js';
+export { buildGovernanceReport, MAX_POSSIBLY_UNUSED_ENTRIES } from './mcp/governance-report.js';
+export {
+  summarizeAgentUsage,
+  listConversationsForUsage,
+  buildAgentUsageReport,
+  DEFAULT_USAGE_WINDOW_DAYS,
+  type AgentUsageSummary,
+} from './mcp/agent-usage.js';
+export {
+  assertAgentOpsPatchMask,
+  assertAgentOpsContextVersion,
+  assertAdminPatchMask,
+  DEFAULT_AGENTOPS_STAGING_UPDATE_MASK,
+} from './mcp/staging-guard.js';
+export { gdaToolNames, gdaPromptNames } from './mcp/gda-tool-names.js';
+export {
+  createRoleGoogleClients,
+  resolveDefaultAgentName,
+  type RoleGoogleClients,
+} from './mcp/role-clients.js';
+export {
+  createServerAuditEmitter,
+  executeRoleGoogleTool,
+  executeLocalRfcTool,
+  type RoleToolContext,
+  type ServerAuditEmitter,
+} from './mcp/tool-runner.js';
+export { mapDataAgentSummary, mapInventoryAgent, buildInventoryFindings } from './mcp/inventory.js';
+export {
+  extractDatasourceReferences,
+  type AgentDatasourceSummary,
+  type BigQueryTableRef,
+  type LookerExploreRef,
+  type DatabaseTableRef,
+  type DatasourceContextSummary,
+} from './mcp/datasources.js';
 
 export { redact, redactServiceAccount } from './security/redaction.js';
 export {

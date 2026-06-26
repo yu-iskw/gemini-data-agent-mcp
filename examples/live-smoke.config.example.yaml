@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Example fields for local live-smoke configuration (copy to dev/local/<project>/).
+# Do not commit project-specific values.
+
+api_version: v1beta
+
+server:
+  name: gemini-data-agent-live-smoke
+  log_level: INFO
+  transport: stdio
+
+agents:
+  retailops-agent:
+    data_agent: projects/REPLACE_PROJECT/locations/REPLACE_LOCATION/dataAgents/REPLACE_AGENT_ID
+    impersonate_service_account: REPLACE_SA@REPLACE_PROJECT.iam.gserviceaccount.com
+    tools:
+      - query_data_agent
+      - chat_data_agent
+      - create_data_agent_conversation
+      - list_conversation_messages

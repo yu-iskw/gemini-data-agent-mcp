@@ -26,13 +26,19 @@
     "schema:export": "pnpm --filter @gemini-data-agents/core build && node scripts/export-config-schema.mjs",
     "codeql:local": "bash dev/codeql.sh",
     "smoke:mcp": "bash dev/mcp-inspector-smoke.sh",
+    "smoke:mcp:admin": "bash dev/mcp-inspector-admin-smoke.sh",
+    "smoke:mcp:audit": "bash dev/mcp-inspector-audit-smoke.sh",
+    "smoke:mcp:agentops": "bash dev/mcp-inspector-agentops-smoke.sh",
     "test": "vitest run",
+    "pretest": "pnpm build",
+    "test:coverage": "vitest run --coverage",
     "publish:npm:analyst": "pnpm config set node-linker hoisted && pnpm install && pnpm build && pnpm publish --filter @gemini-data-agents/analyst-mcp --no-git-checks --access public"
   },
   "devDependencies": {
     "@trunkio/launcher": "^1.3.4",
     "@typescript-eslint/eslint-plugin": "^8.58.1",
     "@typescript-eslint/parser": "^8.58.1",
+    "@vitest/coverage-v8": "4.1.3",
     "@vitest/eslint-plugin": "^1.6.14",
     "eslint": "^9.39.2",
     "eslint-import-resolver-typescript": "^4.4.4",
@@ -49,9 +55,11 @@
   "packageManager": "pnpm@10.28.1",
   "pnpm": {
     "overrides": {
-      "tar": "7.5.11",
+      "tar": "7.5.16",
+      "js-yaml": "4.2.0",
       "fast-uri@<=3.1.0": ">=3.1.1",
       "fast-uri@<=3.1.1": ">=3.1.2",
+      "hono@<4.12.25": ">=4.12.25",
       "hono@<4.12.18": ">=4.12.18",
       "ip-address@<=10.1.0": ">=10.1.1",
       "hono@<4.12.16": ">=4.12.16",

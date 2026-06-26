@@ -1,3 +1,4 @@
+import { gdaPromptNames, gdaToolNames } from '@gemini-data-agents/core';
 import { z } from 'zod';
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -19,8 +20,8 @@ export function registerPrompts(server: McpServer): void {
 
 function registerSwitchIntent(server: McpServer): void {
   server.prompt(
-    'switch_intent',
-    'Guide an intentional session intent transition before calling session_switch_intent.',
+    gdaPromptNames.switchIntent,
+    `Guide an intentional session intent transition before calling ${gdaToolNames.sessions.switchIntent}.`,
     {
       current_intent: z.enum(['explore', 'debug', 'report', 'ad-hoc']),
       target_intent: z.enum(['explore', 'debug', 'report', 'ad-hoc']),
@@ -39,7 +40,7 @@ Return:
 1. Why the switch is needed.
 2. What context should be preserved.
 3. What should be deprioritized after switching.
-4. A concise reason string suitable for session_switch_intent.reason.`,
+4. A concise reason string suitable for ${gdaToolNames.sessions.switchIntent}.reason.`,
           },
         },
       ],
@@ -49,7 +50,7 @@ Return:
 
 function registerForkSession(server: McpServer): void {
   server.prompt(
-    'fork_session',
+    gdaPromptNames.forkSession,
     'Prepare a controlled session fork with explicit branching rationale.',
     {
       session_id: z.string(),
@@ -78,7 +79,7 @@ Return:
 
 function registerResumeSession(server: McpServer): void {
   server.prompt(
-    'resume_session',
+    gdaPromptNames.resumeSession,
     'Resume a session with a compact recap and next-turn proposal.',
     {
       session_id: z.string(),
@@ -105,7 +106,7 @@ Provide:
 
 function registerHandoffSummary(server: McpServer): void {
   server.prompt(
-    'handoff_summary',
+    gdaPromptNames.handoffSummary,
     'Generate a concise handoff summary for another client or user.',
     {
       session_id: z.string(),
@@ -136,7 +137,7 @@ Format:
 
 function registerAnalyzeDataQuestion(server: McpServer): void {
   server.prompt(
-    'analyze_data_question',
+    gdaPromptNames.analyzeDataQuestion,
     'Use a configured Gemini Data Agent to answer a direct analytical question.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -167,7 +168,7 @@ After receiving the response:
 
 function registerInvestigateDataIssue(server: McpServer): void {
   server.prompt(
-    'investigate_data_issue',
+    gdaPromptNames.investigateDataIssue,
     'Multi-step investigation of a data issue using a Gemini Data Agent.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -198,7 +199,7 @@ Recommended workflow:
 
 function registerExplainGeneratedQuery(server: McpServer): void {
   server.prompt(
-    'explain_generated_query',
+    gdaPromptNames.explainGeneratedQuery,
     'Explain a generated query from a Gemini Data Agent response and assess whether it supports the answer.',
     {
       response: z.string().describe('The full Gemini Data Agent response text.'),
@@ -222,7 +223,7 @@ ${response}`,
 
 function registerCompareSegments(server: McpServer): void {
   server.prompt(
-    'compare_segments',
+    gdaPromptNames.compareSegments,
     'Compare two segments using a Gemini Data Agent.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -254,7 +255,7 @@ Return key differences, likely drivers, and any caveats from the response.`,
 
 function registerFindAnomalies(server: McpServer): void {
   server.prompt(
-    'find_anomalies',
+    gdaPromptNames.findAnomalies,
     'Identify anomalies in a metric using a Gemini Data Agent.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -284,7 +285,7 @@ Return anomalies, supporting evidence, and recommended follow-up questions.`,
 
 function registerPrepareDataAnalysisReport(server: McpServer): void {
   server.prompt(
-    'prepare_data_analysis_report',
+    gdaPromptNames.prepareDataAnalysisReport,
     'Prepare a structured data analysis report from Gemini Data Agent outputs.',
     {
       outputs: z.string().describe('The Gemini Data Agent outputs to summarize into a report.'),

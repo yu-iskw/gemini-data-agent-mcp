@@ -5,15 +5,19 @@ import {
   diffAnalystRegistryYaml,
   formatMcpToolError,
   emitAuditEvent,
+  gdaToolNames,
   parseAndValidateAnalystRegistryYaml,
   resolveAgentConfig,
   resolveCredentials,
+  resolveDefaultAgentName,
   serializeAnalystRegistryYaml,
   buildConfigInput,
   validateConfig,
   wrapNetworkError,
 } from '@gemini-data-agents/core';
 import { z } from 'zod';
+
+import { registerAdminRfcTools } from './admin-rfc-tools.js';
 
 import type { AppConfig } from '@gemini-data-agents/core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -24,12 +28,12 @@ export function registerAdminTools(server: McpServer, config: AppConfig): void {
   registerDiffAnalystRegistryYaml(server);
   registerInspectAdminAuth(server, config);
   registerDryRunDataAgentChange(server, config);
-  registerRemoteLifecycleStubs(server);
+  registerAdminRfcTools(server, config);
 }
 
 function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfig): void {
   server.tool(
-    'generate_analyst_registry_yaml',
+    gdaToolNames.registry.generateAnalystYaml,
     'Serialize the current resolved configuration as analyst-safe YAML text for manual commit (no secrets beyond auth fields in policy).',
     {
       use_loaded_config: z
@@ -66,7 +70,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'generate_analyst_registry_yaml',
+            tool: gdaToolNames.registry.generateAnalystYaml,
             agent: 'registry',
             api_version: config.api_version,
             auth_mode: 'n/a',
@@ -82,7 +86,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'generate_analyst_registry_yaml',
+            tool: gdaToolNames.registry.generateAnalystYaml,
             agent: 'registry',
             api_version: config.api_version,
             auth_mode: 'n/a',
@@ -100,7 +104,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
 
 function registerValidateAnalystRegistryYaml(server: McpServer): void {
   server.tool(
-    'validate_analyst_registry_yaml',
+    gdaToolNames.registry.validateAnalystYaml,
     'Parse and validate YAML text against the shared analyst registry schema.',
     {
       yaml: z.string().describe('Full YAML document string.'),
@@ -132,7 +136,7 @@ function registerValidateAnalystRegistryYaml(server: McpServer): void {
 
 function registerDiffAnalystRegistryYaml(server: McpServer): void {
   server.tool(
-    'diff_analyst_registry_yaml',
+    gdaToolNames.registry.diffAnalystYaml,
     'Unified line-oriented diff between two YAML strings.',
     {
       baseline: z.string().describe('Baseline YAML text.'),
@@ -147,7 +151,7 @@ function registerDiffAnalystRegistryYaml(server: McpServer): void {
 
 function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
   server.tool(
-    'inspect_admin_auth',
+    gdaToolNames.auth.inspect,
     'Resolve credentials for a named agent and report auth mode (no secret material).',
     {
       agent: z.string().optional().describe('Agent name; defaults to first configured agent.'),
@@ -155,16 +159,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
     async (args) => {
       const startTime = createAuditStartTime();
       try {
-        const names = Object.keys(config.agents);
-        const agentName = args.agent ?? names[0];
-        if (!agentName || !Object.hasOwn(config.agents, agentName)) {
-          throw new DataAgentMcpError(
-            'AGENT_NOT_FOUND',
-            `Agent not found. Available: ${names.join(', ') || '(none)'}`,
-            false,
-          );
-        }
-
+        const agentName = resolveDefaultAgentName(config, args.agent);
         const agentConfig = resolveAgentConfig(config, agentName);
         const credentials = await resolveCredentials(agentConfig.auth);
         const headers = await credentials.getRequestHeaders();
@@ -174,7 +169,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'inspect_admin_auth',
+            tool: gdaToolNames.auth.inspect,
             agent: agentName,
             api_version: config.api_version,
             auth_mode: agentConfig.auth.mode,
@@ -202,7 +197,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
 
 function registerDryRunDataAgentChange(server: McpServer, config: AppConfig): void {
   server.tool(
-    'dry_run_data_agent_change',
+    gdaToolNames.registry.dryRunAgentChange,
     'Validate a proposed agent definition merged into a copy of the loaded config without calling remote APIs.',
     {
       agent_name: z.string().describe('Registry key for the agent.'),
@@ -232,50 +227,4 @@ function registerDryRunDataAgentChange(server: McpServer, config: AppConfig): vo
       }
     },
   );
-}
-
-function registerRemoteLifecycleStubs(server: McpServer): void {
-  const stub = (
-    name: string,
-    description: string,
-    argsShape: Record<string, z.ZodTypeAny>,
-  ): void => {
-    server.tool(name, description, argsShape, async () => ({
-      content: [
-        {
-          type: 'text',
-          text: formatMcpToolError(
-            new DataAgentMcpError(
-              'NOT_IMPLEMENTED',
-              `Remote lifecycle call "${name}" is not implemented yet in the Gemini Data Agents REST client.`,
-              false,
-            ),
-          ),
-        },
-      ],
-      isError: true,
-    }));
-  };
-
-  stub('list_remote_data_agents', 'List remote Gemini Data Agents (not implemented).', {
-    project: z.string().optional(),
-    location: z.string().optional(),
-  });
-
-  stub('get_remote_data_agent', 'Get a remote Gemini Data Agent (not implemented).', {
-    name: z.string().describe('Resource name or ID.'),
-  });
-
-  stub('create_remote_data_agent', 'Create a remote Gemini Data Agent (not implemented).', {
-    body: z.record(z.unknown()).describe('Placeholder.'),
-  });
-
-  stub('update_remote_data_agent', 'Update a remote Gemini Data Agent (not implemented).', {
-    name: z.string(),
-    body: z.record(z.unknown()).describe('Placeholder.'),
-  });
-
-  stub('delete_remote_data_agent', 'Delete a remote Gemini Data Agent (not implemented).', {
-    name: z.string(),
-  });
 }

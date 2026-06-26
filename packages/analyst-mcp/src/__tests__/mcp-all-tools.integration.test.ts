@@ -127,8 +127,8 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       const { tools } = await client.listTools();
       const names = tools.map((t) => t.name);
       expect(names).not.toContain('raw_data_agent_request');
-      expect(names).toContain('query_data_agent');
-      expect(names).toContain('session_create');
+      expect(names).toContain('gda.data_agents.query');
+      expect(names).toContain('gda.sessions.create');
     } finally {
       await close();
     }
@@ -137,12 +137,12 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
   it('list_data_agents and get_data_agent_config succeed without network', async () => {
     const { client, close } = await connectAnalystClient();
     try {
-      let r = await client.callTool({ name: 'list_data_agents', arguments: {} });
+      let r = await client.callTool({ name: 'gda.registry.list_agents', arguments: {} });
       expect(r.isError).toBeFalsy();
       expect(JSON.stringify(r.content)).toContain('my-agent');
 
       r = await client.callTool({
-        name: 'get_data_agent_config',
+        name: 'gda.registry.get_agent',
         arguments: { agent: 'my-agent' },
       });
       expect(r.isError).toBeFalsy();
@@ -156,7 +156,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
     const { client, close } = await connectAnalystClient();
     try {
       const r = await client.callTool({
-        name: 'query_data_agent',
+        name: 'gda.data_agents.query',
         arguments: {
           agent: 'my-agent',
           prompt: 'What is revenue?',
@@ -174,7 +174,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
     const { client, close } = await connectAnalystClient();
     try {
       let r = await client.callTool({
-        name: 'chat_data_agent',
+        name: 'gda.locations.chat',
         arguments: {
           agent: 'my-agent',
           prompt: 'Hello',
@@ -183,7 +183,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       expect(r.isError).toBeFalsy();
 
       r = await client.callTool({
-        name: 'create_data_agent_conversation',
+        name: 'gda.conversations.create',
         arguments: {
           agent: 'my-agent',
         },
@@ -192,7 +192,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       expect(JSON.stringify(r.content)).toContain('conv-integration-1');
 
       r = await client.callTool({
-        name: 'list_conversation_messages',
+        name: 'gda.conversation_messages.list',
         arguments: {
           agent: 'my-agent',
           conversation:
@@ -209,7 +209,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
     const { client, close } = await connectAnalystClient();
     try {
       const r = await client.callTool({
-        name: 'get_operation',
+        name: 'gda.operations.get',
         arguments: {
           agent: 'my-agent',
           operation_name: 'projects/my-gcp-project/locations/us-central1/operations/op-1',
@@ -226,7 +226,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
     const { client, close } = await connectAnalystClient();
     try {
       let r = await client.callTool({
-        name: 'session_create',
+        name: 'gda.sessions.create',
         arguments: {
           agent: 'my-agent',
           tenant_id: actor.tenant_id,
@@ -242,7 +242,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       };
 
       r = await client.callTool({
-        name: 'session_chat',
+        name: 'gda.sessions.chat',
         arguments: {
           session_id: session.session_id,
           prompt: 'Hi',
@@ -257,7 +257,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       const updated = JSON.parse(chatText)['session'] as { revision: number };
 
       r = await client.callTool({
-        name: 'session_switch_intent',
+        name: 'gda.sessions.switch_intent',
         arguments: {
           session_id: session.session_id,
           target_intent: 'report',
@@ -270,7 +270,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       expect(r.isError).toBeFalsy();
 
       r = await client.callTool({
-        name: 'session_fork',
+        name: 'gda.sessions.fork',
         arguments: {
           parent_session_id: session.session_id,
           tenant_id: actor.tenant_id,
@@ -284,7 +284,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       const child = JSON.parse(forkText)['session'] as { session_id: string; revision: number };
 
       r = await client.callTool({
-        name: 'session_reset',
+        name: 'gda.sessions.reset',
         arguments: {
           session_id: child.session_id,
           target_revision: 1,
@@ -297,7 +297,7 @@ describe.sequential('Analyst MCP — exercise every registered tool', () => {
       expect(r.isError).toBeFalsy();
 
       r = await client.callTool({
-        name: 'session_handoff',
+        name: 'gda.sessions.handoff',
         arguments: {
           session_id: session.session_id,
           tenant_id: actor.tenant_id,

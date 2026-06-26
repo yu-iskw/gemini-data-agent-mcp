@@ -4,22 +4,24 @@ MCP servers for [**Gemini Data Agents**](https://cloud.google.com/gemini/docs/co
 
 Install role-separated MCP packages under **`@gemini-data-agents`**:
 
-| Package                               | Audience                     | Binary                        | npm install                                      |
-| ------------------------------------- | ---------------------------- | ----------------------------- | ------------------------------------------------ |
-| **`@gemini-data-agents/analyst-mcp`** | Data analysts, coding agents | `gemini-data-analyst-mcp`     | `npm install -g @gemini-data-agents/analyst-mcp` |
-| **`@gemini-data-agents/admin-mcp`**   | Operators                    | `gemini-data-agent-admin-mcp` | Monorepo/dev only (not published yet)            |
+| Package                                                                   | Audience                     | Binary                           | Docs                                      | npm install                                                     |
+| ------------------------------------------------------------------------- | ---------------------------- | -------------------------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| [**`@gemini-data-agents/analyst-mcp`**](packages/analyst-mcp/README.md)   | Data analysts, coding agents | `gemini-data-analyst-mcp`        | [README](packages/analyst-mcp/README.md)  | `npm install -g @gemini-data-agents/analyst-mcp`                |
+| [**`@gemini-data-agents/admin-mcp`**](packages/admin-mcp/README.md)       | Operators                    | `gemini-data-agent-admin-mcp`    | [README](packages/admin-mcp/README.md)    | Publish-ready (monorepo clone or global install when published) |
+| [**`@gemini-data-agents/audit-mcp`**](packages/audit-mcp/README.md)       | Auditors, governance         | `gemini-data-agent-audit-mcp`    | [README](packages/audit-mcp/README.md)    | Publish-ready (monorepo clone or global install when published) |
+| [**`@gemini-data-agents/agentops-mcp`**](packages/agentops-mcp/README.md) | AgentOps                     | `gemini-data-agent-agentops-mcp` | [README](packages/agentops-mcp/README.md) | Publish-ready (monorepo clone or global install when published) |
 
 Works with Cursor, Claude Code, Claude Agent SDK, Deep Agents, Codex, and any MCP client that supports **stdio** transport.
 
 ## Architecture
 
 ```text
-  Analyst MCP                         Admin MCP
-  (read-only registry + sessions)     (YAML artifacts for Git)
-         │                                   │
-         └─────────────┬─────────────────────┘
-                       ▼
-            geminidataanalytics.googleapis.com
+  Analyst MCP          Admin MCP           Audit MCP          AgentOps MCP
+  (sessions + query)   (YAML + control)    (governance)       (offline eval)
+         │                   │                   │                   │
+         └───────────────────┴───────────────────┴───────────────────┘
+                                     ▼
+                      geminidataanalytics.googleapis.com
 ```
 
 Analysts consume a **committed YAML file** on disk. Operators use the admin server to produce that YAML; humans copy it into Git (no automated commit/PR from the server). For operators, run the admin server from a clone: `node packages/admin-mcp/dist/cli.js --config admin-config.yaml` (see [Quickstart: admin server](#quickstart-admin-server)).
@@ -131,7 +133,7 @@ Register the server in your MCP client — see [MCP client configuration (`mcp.j
 
 Typical workflow:
 
-1. Call **`generate_analyst_registry_yaml`** in your MCP client.
+1. Call **`gda.registry.generate_analyst_yaml`** in your MCP client.
 2. Copy the returned YAML into your repository.
 3. Open a PR, review, and merge.
 4. Point analyst **`--config`** at the committed file path.
@@ -191,7 +193,7 @@ pnpm schema:export
 ### Advanced options
 
 - **`api_version`**: required at root; optional per-agent override.
-- **`agents.<name>.tools`**: MCP tool names enabled for that agent (`query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`).
+- **`agents.<name>.tools`**: Google capability keys enabled for that agent (`query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`). These gate analyst MCP tools, not MCP tool names themselves.
 - **`agents.<name>.impersonate_service_account`**: per-agent service account impersonation (ADC is used when omitted).
 - **`agents.<name>.client`**: optional `{ project, location }` when API client routing differs from the `data_agent` resource.
 
@@ -222,15 +224,15 @@ Local development: `gcloud auth application-default login`. See [Google Cloud AD
 
 ### Analyst (`gemini-data-analyst-mcp`)
 
-**Tools:** `query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`, `list_data_agents`, `get_data_agent_config`, `get_operation`, `session_create`, `session_chat`, `session_switch_intent`, `session_fork`, `session_reset`, `session_handoff`.
+**Tools:** `gda.data_agents.query`, `gda.locations.chat`, `gda.conversations.create`, `gda.conversation_messages.list`, `gda.registry.list_agents`, `gda.registry.get_agent`, `gda.operations.get`, `gda.sessions.create`, `gda.sessions.chat`, `gda.sessions.switch_intent`, `gda.sessions.fork`, `gda.sessions.reset`, `gda.sessions.handoff`.
 
 **Resources:** `gemini-data-agent://agents`, `gemini-data-agent://agents/{agent}`, `gemini-data-agent://agents/{agent}/tools`, `gemini-data-agent://agents/{agent}/auth-policy`, `gemini-data-agent://prompts`.
 
-**Prompts:** session-oriented prompts plus `analyze_data_question`, `investigate_data_issue`, `explain_generated_query`, `compare_segments`, `find_anomalies`, `prepare_data_analysis_report`.
+**Prompts:** `gda.prompt.*` session-oriented prompts plus `gda.prompt.analyze_data_question`, `gda.prompt.investigate_data_issue`, `gda.prompt.explain_generated_query`, `gda.prompt.compare_segments`, `gda.prompt.find_anomalies`, `gda.prompt.prepare_data_analysis_report`.
 
 ### Admin (`gemini-data-agent-admin-mcp`)
 
-**Tools:** `generate_analyst_registry_yaml`, `validate_analyst_registry_yaml`, `diff_analyst_registry_yaml`, `inspect_admin_auth`, `dry_run_data_agent_change`, and remote lifecycle stubs (currently **NOT_IMPLEMENTED**).
+**Tools:** `gda.registry.generate_analyst_yaml`, `gda.registry.validate_analyst_yaml`, `gda.registry.diff_analyst_yaml`, `gda.auth.inspect`, `gda.registry.dry_run_agent_change`, `gda.data_agents.list`, `gda.data_agents.get`, `gda.data_agents.patch`, `gda.data_agents.delete`, `gda.data_agents.set_iam_policy`, `gda.operations.get`.
 
 ## CLI reference
 
