@@ -1,6 +1,5 @@
 import { serializeAnalystRegistryYaml, validateConfig } from '@gemini-data-agents/core';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMcpServer } from '../server.js';
@@ -46,19 +45,12 @@ describe.sequential('Admin MCP — exercise every registered tool', () => {
   });
 
   async function connectAdminClient(config = adminConfig()) {
-    const server = createMcpServer(config);
-    const client = new Client({ name: 'admin-integration', version: '0.1.0' });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await server.connect(serverTransport);
-    await client.connect(clientTransport);
-    return {
-      client,
+    const { client, close } = await connectMcpTestClient(
+      createMcpServer,
       config,
-      close: async () => {
-        await client.close();
-        await server.close();
-      },
-    };
+      'admin-integration',
+    );
+    return { client, config, close };
   }
 
   it('lists admin tools including YAML and RFC read tools', async () => {

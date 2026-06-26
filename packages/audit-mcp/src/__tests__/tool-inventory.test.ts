@@ -1,11 +1,10 @@
-import { validateConfig } from '@gemini-data-agents/core';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { validateConfig, type AppConfig } from '@gemini-data-agents/core';
+import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createMcpServer } from '../server.js';
 
-import type { AppConfig } from '@gemini-data-agents/core';
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 const auditConfig: AppConfig = validateConfig({
   api_version: 'v1beta',
@@ -18,28 +17,23 @@ const auditConfig: AppConfig = validateConfig({
 });
 
 describe('audit MCP tool inventory', () => {
-  let client: Client | undefined;
-  let cleanup: (() => Promise<void>) | undefined;
+  let client: Client;
+  let close: () => Promise<void>;
 
   beforeAll(async () => {
-    const server = createMcpServer(auditConfig);
-    const clientInst = new Client({ name: 'audit-inventory', version: '0.1.0' });
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    await server.connect(serverTransport);
-    await clientInst.connect(clientTransport);
-    client = clientInst;
-    cleanup = async () => {
-      await clientInst.close();
-      await server.close();
-    };
+    ({ client, close } = await connectMcpTestClient(
+      createMcpServer,
+      auditConfig,
+      'audit-inventory',
+    ));
   });
 
   afterAll(async () => {
-    await cleanup?.();
+    await close();
   });
 
   it('registers audit thin-slice tools', async () => {
-    const { tools } = await client!.listTools();
+    const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
     expect(names).toContain('audit.conversations.list');
     expect(names).toContain('audit.messages.list');

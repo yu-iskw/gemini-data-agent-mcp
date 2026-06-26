@@ -41,34 +41,34 @@ export function resolveDefaultAgentName(config: AppConfig, preferred?: string): 
   return first;
 }
 
-export function resolveAgentForRole(config: AppConfig, agentName?: string): AgentConfig {
-  const name = resolveDefaultAgentName(config, agentName);
-  return resolveAgentConfig(config, name);
-}
-
 export async function createRoleGoogleClients(
   config: AppConfig,
   agentName?: string,
+  transport?: GoogleRestTransport,
 ): Promise<{ agentName: string; agent: AgentConfig; clients: RoleGoogleClients }> {
   const resolvedName = resolveDefaultAgentName(config, agentName);
   const agent = resolveAgentConfig(config, resolvedName);
-  const credentials = await resolveCredentials(agent.auth);
-  const transport = createGoogleRestTransport({
-    credentials,
-    defaultVersion: agent.api_version,
-    defaultAgent: resolvedName,
-    defaultTimeoutMs: resolveTimeout() * 1000,
-  });
+
+  let resolvedTransport = transport;
+  if (!resolvedTransport) {
+    const credentials = await resolveCredentials(agent.auth);
+    resolvedTransport = createGoogleRestTransport({
+      credentials,
+      defaultVersion: agent.api_version,
+      defaultAgent: resolvedName,
+      defaultTimeoutMs: resolveTimeout() * 1000,
+    });
+  }
 
   return {
     agentName: resolvedName,
     agent,
     clients: {
-      transport,
-      dataAgents: createDataAgentsClient(transport),
-      conversations: createConversationsClient(transport),
-      conversationMessages: createConversationMessagesClient(transport),
-      operations: createOperationsClient(transport),
+      transport: resolvedTransport,
+      dataAgents: createDataAgentsClient(resolvedTransport),
+      conversations: createConversationsClient(resolvedTransport),
+      conversationMessages: createConversationMessagesClient(resolvedTransport),
+      operations: createOperationsClient(resolvedTransport),
     },
   };
 }

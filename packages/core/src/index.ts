@@ -116,7 +116,6 @@ export {
 export {
   createRoleGoogleClients,
   resolveDefaultAgentName,
-  resolveAgentForRole,
   type RoleGoogleClients,
 } from './mcp/role-clients.js';
 export {
@@ -127,8 +126,6 @@ export {
   type ServerAuditEmitter,
 } from './mcp/tool-runner.js';
 export { mapDataAgentSummary, mapInventoryAgent, buildInventoryFindings } from './mcp/inventory.js';
-
-export { createFakeGoogleRestTransport } from './testing/fake-transport.js';
 
 export { redact, redactServiceAccount } from './security/redaction.js';
 export {

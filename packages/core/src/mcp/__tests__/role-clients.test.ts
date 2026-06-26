@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { createFakeGoogleRestTransport } from '../../testing/fake-transport.js';
 import { DataAgentMcpError } from '../../types.js';
-import { resolveDefaultAgentName } from '../role-clients.js';
+import { createRoleGoogleClients, resolveDefaultAgentName } from '../role-clients.js';
 
 import type { AppConfig } from '../../types.js';
 
@@ -43,12 +44,30 @@ describe('resolveDefaultAgentName', () => {
   });
 
   it('throws AGENT_NOT_FOUND for unknown agent names', () => {
-    expect(() => resolveDefaultAgentName(config, 'missing')).toThrow(DataAgentMcpError);
-    try {
-      resolveDefaultAgentName(config, 'missing');
-    } catch (err) {
-      expect(err).toBeInstanceOf(DataAgentMcpError);
-      expect((err as DataAgentMcpError).code).toBe('AGENT_NOT_FOUND');
-    }
+    expect(() => resolveDefaultAgentName(config, 'missing')).toThrow(
+      expect.objectContaining({ code: 'AGENT_NOT_FOUND' }),
+    );
+  });
+
+  it('throws AGENT_NOT_FOUND when no agents are configured', () => {
+    const emptyConfig: AppConfig = { ...config, agents: {} };
+    expect(() => resolveDefaultAgentName(emptyConfig)).toThrow(DataAgentMcpError);
+  });
+});
+
+describe('createRoleGoogleClients', () => {
+  it('builds clients from an injected transport', async () => {
+    const transport = createFakeGoogleRestTransport({
+      handler: () => ({ dataAgents: [] }),
+    });
+
+    const result = await createRoleGoogleClients(config, 'a', transport);
+
+    expect(result.agentName).toBe('a');
+    expect(result.agent).toBe(config.agents.a);
+    expect(result.clients.transport).toBe(transport);
+
+    const listed = await result.clients.dataAgents.list({ project: 'p', location: 'global' });
+    expect(listed.dataAgents).toEqual([]);
   });
 });

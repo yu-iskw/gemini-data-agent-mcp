@@ -7,7 +7,8 @@ import {
   normalizeToolError,
   toolErrorFromMcpError,
 } from './results.js';
-import { createRoleGoogleClients, type RoleGoogleClients } from './role-clients.js';
+import { type RoleGoogleClients } from './role-clients.js';
+import { mcpRuntimeDeps } from './runtime-deps.js';
 
 import type { ApiVersion, AppConfig, AuditEvent, AgentConfig, SecurityConfig } from '../types.js';
 import type { McpStructuredToolResult } from './results.js';
@@ -48,7 +49,7 @@ export async function executeRoleGoogleTool<TArgs extends { agent?: string }, TD
   const agentHint = args.agent ?? '';
 
   try {
-    const ctxBase = await createRoleGoogleClients(config, args.agent);
+    const ctxBase = await mcpRuntimeDeps.createRoleGoogleClients(config, args.agent);
     const version = resolveApiVersion(config, ctxBase.agent);
     const ctx: RoleToolContext = { ...ctxBase, version };
     const data = await run(ctx, args);
