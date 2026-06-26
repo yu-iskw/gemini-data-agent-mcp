@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# HTTP transport with OAuth disabled — CI smoke tests only. Do not use in production.
+# Requires: MCP_ALLOW_INSECURE_HTTP=true
+
+api_version: v1beta
+
+server:
+  name: gemini-data-analyst
+  transport: http
+  bind:
+    host: 127.0.0.1
+    port: 3999
+  public_url: http://127.0.0.1:3999/mcp
+  http:
+    path: /mcp
+  oauth:
+    enabled: false
+    resource_url: http://127.0.0.1:3999/mcp
+    issuer: http://localhost:8080/realms/master
+    scopes_supported:
+      - mcp:tools
+
+agents:
+  my-agent:
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent

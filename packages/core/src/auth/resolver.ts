@@ -4,6 +4,7 @@ import { DataAgentMcpError } from '../types.js';
 
 import { normalizeHeaders } from './headers.js';
 import { createImpersonatedCredentials } from './impersonation.js';
+import { getGoogleAccessTokenFromContext } from './request-context.js';
 
 import type { AuthConfig } from '../types.js';
 import type { Impersonated } from 'google-auth-library';
@@ -26,6 +27,10 @@ function cacheKey(auth: AuthConfig): string {
 }
 
 export async function resolveCredentials(auth: AuthConfig): Promise<ResolvedCredentials> {
+  if (auth.mode === 'user_token') {
+    return buildCredentials(auth);
+  }
+
   const key = cacheKey(auth);
   const cached = credentialCache.get(key);
   if (cached) return cached;
@@ -62,6 +67,19 @@ async function buildCredentials(auth: AuthConfig): Promise<ResolvedCredentials> 
         scopes,
       );
       return wrapImpersonated(impersonated);
+    }
+
+    case 'user_token': {
+      const token = getGoogleAccessTokenFromContext();
+      if (!token) {
+        throw new DataAgentMcpError(
+          'AUTH_MISSING_USER_TOKEN',
+          'Google access token is required for user_token auth mode (send X-Google-Access-Token on MCP HTTP requests)',
+          false,
+          { auth_mode: 'user_token' },
+        );
+      }
+      return wrapStaticBearerToken(token);
     }
 
     default: {
@@ -107,6 +125,14 @@ function wrapImpersonated(impersonated: Impersonated): ResolvedCredentials {
           { auth_mode: 'impersonation' },
         );
       }
+    },
+  };
+}
+
+function wrapStaticBearerToken(token: string): ResolvedCredentials {
+  return {
+    async getRequestHeaders(): Promise<Record<string, string>> {
+      return { Authorization: `Bearer ${token}` };
     },
   };
 }

@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=../schemas/app-config.v2.schema.json
+# Admin MCP over Streamable HTTP with OAuth (local dev).
+
+api_version: v1beta
+
+server:
+  name: gemini-data-agent-admin
+  transport: http
+  bind:
+    host: 127.0.0.1
+    port: 3001
+  public_url: http://localhost:3001/mcp
+  http:
+    path: /mcp
+  oauth:
+    enabled: true
+    resource_url: http://localhost:3001/mcp
+    issuer: http://localhost:8080/realms/master
+    scopes_supported:
+      - mcp:tools
+
+agents:
+  my-agent:
+    data_agent: projects/my-gcp-project/locations/us-central1/dataAgents/my-agent
+    tools:
+      - query_data_agent

@@ -1,6 +1,6 @@
 export type ApiVersion = 'v1' | 'v1beta' | 'v1alpha';
 
-export type AuthMode = 'adc' | 'impersonation';
+export type AuthMode = 'adc' | 'impersonation' | 'user_token';
 
 export type AuthSource = 'adc';
 
@@ -63,12 +63,83 @@ export interface SecurityConfig {
   raw_passthrough: RawPassthroughSecurityConfig;
 }
 
+export interface HttpCorsConfig {
+  allowed_origins?: string[];
+}
+
+export interface HttpSessionConfig {
+  max_sessions?: number;
+  idle_ttl_ms?: number;
+  max_sessions_per_principal?: number;
+}
+
+export interface HttpBindConfig {
+  host?: string;
+  port?: number;
+}
+
+export interface HttpServerConfig {
+  path?: string;
+  cors?: HttpCorsConfig;
+  sessions?: HttpSessionConfig;
+  max_body_bytes?: number;
+  /** HTTP header carrying the end-user Google access token when auth.mode is user_token. */
+  google_access_token_header?: string;
+  /** HTTP header carrying the Google ID token for identity binding in user_token mode. */
+  google_id_token_header?: string;
+  user_token?: UserTokenConfig;
+}
+
+export type UserTokenBindingMode = 'ingress_client_only' | 'google_sub_matches_mcp_sub';
+
+export const DEFAULT_GOOGLE_JWKS_URI = 'https://www.googleapis.com/oauth2/v3/certs';
+
+export interface UserTokenGoogleIdentityConfig {
+  issuer: string;
+  audiences: string[];
+  jwks_uri?: string;
+  hosted_domain?: string;
+  verify_at_hash?: boolean;
+}
+
+export interface UserTokenBindingConfig {
+  mode: UserTokenBindingMode;
+}
+
+export interface UserTokenConfig {
+  trusted_ingress_client_ids: string[];
+  google_identity: UserTokenGoogleIdentityConfig;
+  binding: UserTokenBindingConfig;
+}
+
+export type OAuthTokenProfile = 'jwt_jwks';
+
+export type OAuthScopeClaim = 'scope' | 'scp';
+
+export interface OAuthServerConfig {
+  enabled: boolean;
+  resource_url: string;
+  issuer: string;
+  scopes_supported: string[];
+  /** Scopes enforced on MCP access tokens (subset of or equal to scopes_supported). */
+  required_scopes: string[];
+  allowed_audiences: string[];
+  scope_claims: OAuthScopeClaim[];
+  token_profile: OAuthTokenProfile;
+}
+
 export interface ServerConfig {
   name: string;
   log_level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
   transport: 'stdio' | 'http';
+  /** @deprecated Use bind.host */
   host?: string;
+  /** @deprecated Use bind.port */
   port?: number;
+  public_url?: string;
+  bind?: HttpBindConfig;
+  http?: HttpServerConfig;
+  oauth?: OAuthServerConfig;
 }
 
 export interface AppConfig {

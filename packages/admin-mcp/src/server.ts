@@ -1,12 +1,12 @@
-import { logError, logInfo, setLogLevel } from '@gemini-data-agents/core';
+import { logError, logInfo, setLogLevel, startMcpHttpServer } from '@gemini-data-agents/core';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 import { registerAdminTools } from './admin-tools.js';
 
-import type { AppConfig } from '@gemini-data-agents/core';
+import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 
-export async function startServer(config: AppConfig): Promise<void> {
+export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);
 
   const server = new McpServer({
@@ -27,8 +27,16 @@ export async function startServer(config: AppConfig): Promise<void> {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     logInfo('server', 'MCP server connected via stdio');
+    return undefined;
+  } else if (config.server.transport === 'http') {
+    return await startMcpHttpServer({
+      config,
+      createMcpServer: () => createMcpServer(config),
+    });
   } else {
-    throw new Error(`Transport "${config.server.transport}" is not yet supported. Use "stdio".`);
+    throw new Error(
+      `Transport "${config.server.transport}" is not supported. Use "stdio" or "http".`,
+    );
   }
 }
 

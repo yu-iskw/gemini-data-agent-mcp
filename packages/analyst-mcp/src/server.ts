@@ -1,27 +1,19 @@
-import { setLogLevel, logInfo, logError } from '@gemini-data-agents/core';
+import { setLogLevel, logInfo, logError, startMcpHttpServer } from '@gemini-data-agents/core';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 import { registerPrompts } from './mcp/prompts.js';
 import { registerResources } from './mcp/resources.js';
-import { InMemorySessionStore } from './session/store.js';
+import { createSessionStore } from './session/create-session-store.js';
 import { registerTools } from './tools.js';
 
-import type { AppConfig } from '@gemini-data-agents/core';
+import type { SessionStore } from './session/store.js';
+import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 
-export async function startServer(config: AppConfig): Promise<void> {
+export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);
 
-  const sessionStore = new InMemorySessionStore();
-  const server = new McpServer({
-    name: config.server.name,
-    version: '0.1.0',
-  });
-
-  registerTools(server, config, sessionStore);
-  registerResources(server, config);
-  registerPrompts(server);
-
+  const sessionStore = createSessionStore();
   const agentCount = Object.keys(config.agents).length;
   logInfo('server', `Starting ${config.server.name}`, {
     transport: config.server.transport,
@@ -30,16 +22,34 @@ export async function startServer(config: AppConfig): Promise<void> {
   });
 
   if (config.server.transport === 'stdio' || config.server.transport === undefined) {
+    const server = createMcpServer(config, sessionStore);
     const transport = new StdioServerTransport();
     await server.connect(transport);
     logInfo('server', 'MCP server connected via stdio');
+    return undefined;
+  } else if (config.server.transport === 'http') {
+    if (process.env.K_SERVICE) {
+      logInfo(
+        'server',
+        'In-memory MCP and analyst sessions are per instance; use max-instances=1 or an external session store for multi-instance Cloud Run',
+      );
+    }
+
+    return await startMcpHttpServer({
+      config,
+      createMcpServer: () => createMcpServer(config, sessionStore),
+    });
   } else {
-    throw new Error(`Transport "${config.server.transport}" is not yet supported. Use "stdio".`);
+    throw new Error(
+      `Transport "${config.server.transport}" is not supported. Use "stdio" or "http".`,
+    );
   }
 }
 
-export function createMcpServer(config: AppConfig): McpServer {
-  const sessionStore = new InMemorySessionStore();
+export function createMcpServer(
+  config: AppConfig,
+  sessionStore: SessionStore = createSessionStore(),
+): McpServer {
   const server = new McpServer({
     name: config.server.name,
     version: '0.1.0',

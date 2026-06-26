@@ -27,16 +27,229 @@
               "type": "string",
               "enum": ["stdio", "http"],
               "default": "stdio",
-              "description": "MCP transport. Only stdio is supported today."
+              "description": "MCP transport: stdio (local subprocess) or http (Streamable HTTP)."
+            },
+            "public_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Public MCP endpoint URL (canonical OAuth resource and client discovery)."
+            },
+            "bind": {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "string",
+                  "description": "HTTP bind host. Defaults to 127.0.0.1 locally; use 0.0.0.0 in containers."
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535,
+                  "description": "HTTP bind port (1-65535). Defaults to 8080 when transport is http."
+                }
+              },
+              "additionalProperties": false,
+              "description": "HTTP bind address for the listening socket."
             },
             "host": {
               "type": "string",
-              "description": "HTTP transport host (not yet supported)."
+              "description": "Deprecated: use bind.host. HTTP bind host."
             },
             "port": {
               "type": "integer",
-              "exclusiveMinimum": 0,
-              "description": "HTTP transport port (not yet supported)."
+              "minimum": 1,
+              "maximum": 65535,
+              "description": "Deprecated: use bind.port. HTTP bind port (1-65535)."
+            },
+            "http": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "HTTP path for MCP. Must match public_url pathname when both are set."
+                },
+                "cors": {
+                  "type": "object",
+                  "properties": {
+                    "allowed_origins": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "description": "Browser origins allowed for CORS. Omit to disable CORS (native clients only)."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "CORS settings for browser MCP clients."
+                },
+                "sessions": {
+                  "type": "object",
+                  "properties": {
+                    "max_sessions": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Maximum concurrent MCP HTTP sessions (default 1000)."
+                    },
+                    "idle_ttl_ms": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Idle session TTL in milliseconds (default 900000)."
+                    },
+                    "max_sessions_per_principal": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "Maximum sessions per authenticated principal (default 50)."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "HTTP session lifecycle limits."
+                },
+                "max_body_bytes": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Maximum JSON request body size in bytes (default 1048576)."
+                },
+                "google_access_token_header": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "HTTP header for end-user Google access token when an agent uses auth_mode user_token (default x-google-access-token)."
+                },
+                "google_id_token_header": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "HTTP header for Google ID token identity binding in user_token mode (default x-google-id-token)."
+                },
+                "user_token": {
+                  "type": "object",
+                  "properties": {
+                    "trusted_ingress_client_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1,
+                      "description": "MCP JWT azp/client_id values allowed to use user_token egress."
+                    },
+                    "google_identity": {
+                      "type": "object",
+                      "properties": {
+                        "issuer": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "Expected issuer (iss) on the Google ID token used for identity binding."
+                        },
+                        "audiences": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "minItems": 1,
+                          "description": "Allowed aud values on the Google ID token (OAuth client IDs)."
+                        },
+                        "jwks_uri": {
+                          "type": "string",
+                          "format": "uri",
+                          "description": "JWKS URI for verifying Google ID tokens. Defaults to https://www.googleapis.com/oauth2/v3/certs."
+                        },
+                        "hosted_domain": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "When set, require ID token hd claim to match this Google Workspace domain."
+                        },
+                        "verify_at_hash": {
+                          "type": "boolean",
+                          "description": "When true (default), verify ID token at_hash against the access token per OIDC."
+                        }
+                      },
+                      "required": ["issuer", "audiences"],
+                      "additionalProperties": false
+                    },
+                    "binding": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": ["ingress_client_only", "google_sub_matches_mcp_sub"],
+                          "description": "How MCP ingress identity is bound to the Google egress token."
+                        }
+                      },
+                      "required": ["mode"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["trusted_ingress_client_ids", "google_identity", "binding"],
+                  "additionalProperties": false,
+                  "description": "Required when any agent uses auth_mode user_token: ingress allowlist and Google ID token binding."
+                }
+              },
+              "additionalProperties": false,
+              "description": "HTTP transport settings."
+            },
+            "oauth": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Require OAuth Bearer tokens on HTTP MCP requests."
+                },
+                "resource_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Canonical MCP resource URL. Defaults to server.public_url when omitted."
+                },
+                "issuer": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "OAuth/OIDC issuer URL for MCP ingress JWT verification (JWT-at-JWKS profile)."
+                },
+                "scopes_supported": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": ["mcp:tools"],
+                  "description": "Scopes advertised in Protected Resource Metadata."
+                },
+                "required_scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "OAuth scopes required on MCP access tokens (enforced at ingress)."
+                },
+                "allowed_audiences": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "JWT aud values accepted for MCP ingress. Defaults to resource_url when omitted."
+                },
+                "scope_claims": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["scope", "scp"]
+                  },
+                  "default": ["scope"],
+                  "description": "JWT claims parsed for OAuth scopes on MCP access tokens."
+                },
+                "token_profile": {
+                  "type": "string",
+                  "enum": ["jwt_jwks"],
+                  "default": "jwt_jwks",
+                  "description": "MCP ingress token profile. Only jwt_jwks (JWT verified via issuer JWKS) is supported."
+                }
+              },
+              "required": ["issuer"],
+              "additionalProperties": false,
+              "description": "OAuth resource-server settings for HTTP transport."
             }
           },
           "additionalProperties": false,
@@ -70,6 +283,11 @@
               "impersonate_service_account": {
                 "type": "string",
                 "description": "Optional service account email to impersonate. Omit to use Application Default Credentials (ADC)."
+              },
+              "auth_mode": {
+                "type": "string",
+                "enum": ["adc", "user_token"],
+                "description": "Egress auth mode: adc (default) or user_token (HTTP only; requires X-Google-Access-Token header)."
               },
               "api_version": {
                 "type": "string",

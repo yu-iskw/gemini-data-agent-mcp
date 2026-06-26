@@ -18,12 +18,18 @@
     "test": "pnpm --workspace-root exec vitest run packages/core/src"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "google-auth-library": "^10.6.2",
     "js-yaml": "^4.1.0",
+    "jose": "^6.0.11",
     "zod": "^3.24.3",
     "zod-to-json-schema": "^3.24.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.15.3"
   }
