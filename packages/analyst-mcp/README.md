@@ -343,6 +343,14 @@ pnpm --filter @gemini-data-agents/analyst-mcp build
 node packages/analyst-mcp/dist/cli.js --config config.yaml
 ```
 
+## Related packages
+
+| Package                                                         | Audience                                 |
+| --------------------------------------------------------------- | ---------------------------------------- |
+| [`@gemini-data-agents/admin-mcp`](../admin-mcp/README.md)       | Operators (registry YAML, control plane) |
+| [`@gemini-data-agents/audit-mcp`](../audit-mcp/README.md)       | Auditors and governance                  |
+| [`@gemini-data-agents/agentops-mcp`](../agentops-mcp/README.md) | AgentOps / offline eval                  |
+
 ## License
 
 Apache-2.0

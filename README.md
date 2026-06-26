@@ -4,22 +4,24 @@ MCP servers for [**Gemini Data Agents**](https://cloud.google.com/gemini/docs/co
 
 Install role-separated MCP packages under **`@gemini-data-agents`**:
 
-| Package                               | Audience                     | Binary                        | npm install                                      |
-| ------------------------------------- | ---------------------------- | ----------------------------- | ------------------------------------------------ |
-| **`@gemini-data-agents/analyst-mcp`** | Data analysts, coding agents | `gemini-data-analyst-mcp`     | `npm install -g @gemini-data-agents/analyst-mcp` |
-| **`@gemini-data-agents/admin-mcp`**   | Operators                    | `gemini-data-agent-admin-mcp` | Monorepo/dev only (not published yet)            |
+| Package                                                                   | Audience                     | Binary                           | Docs                                      | npm install                                                     |
+| ------------------------------------------------------------------------- | ---------------------------- | -------------------------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| [**`@gemini-data-agents/analyst-mcp`**](packages/analyst-mcp/README.md)   | Data analysts, coding agents | `gemini-data-analyst-mcp`        | [README](packages/analyst-mcp/README.md)  | `npm install -g @gemini-data-agents/analyst-mcp`                |
+| [**`@gemini-data-agents/admin-mcp`**](packages/admin-mcp/README.md)       | Operators                    | `gemini-data-agent-admin-mcp`    | [README](packages/admin-mcp/README.md)    | Publish-ready (monorepo clone or global install when published) |
+| [**`@gemini-data-agents/audit-mcp`**](packages/audit-mcp/README.md)       | Auditors, governance         | `gemini-data-agent-audit-mcp`    | [README](packages/audit-mcp/README.md)    | Publish-ready (monorepo clone or global install when published) |
+| [**`@gemini-data-agents/agentops-mcp`**](packages/agentops-mcp/README.md) | AgentOps                     | `gemini-data-agent-agentops-mcp` | [README](packages/agentops-mcp/README.md) | Publish-ready (monorepo clone or global install when published) |
 
 Works with Cursor, Claude Code, Claude Agent SDK, Deep Agents, Codex, and any MCP client that supports **stdio** transport.
 
 ## Architecture
 
 ```text
-  Analyst MCP                         Admin MCP
-  (read-only registry + sessions)     (YAML artifacts for Git)
-         │                                   │
-         └─────────────┬─────────────────────┘
-                       ▼
-            geminidataanalytics.googleapis.com
+  Analyst MCP          Admin MCP           Audit MCP          AgentOps MCP
+  (sessions + query)   (YAML + control)    (governance)       (offline eval)
+         │                   │                   │                   │
+         └───────────────────┴───────────────────┴───────────────────┘
+                                     ▼
+                      geminidataanalytics.googleapis.com
 ```
 
 Analysts consume a **committed YAML file** on disk. Operators use the admin server to produce that YAML; humans copy it into Git (no automated commit/PR from the server). For operators, run the admin server from a clone: `node packages/admin-mcp/dist/cli.js --config admin-config.yaml` (see [Quickstart: admin server](#quickstart-admin-server)).
