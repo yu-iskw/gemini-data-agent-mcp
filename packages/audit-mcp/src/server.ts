@@ -9,13 +9,6 @@ import type { AppConfig, McpHttpServerHandle } from '@gemini-data-agents/core';
 export async function startServer(config: AppConfig): Promise<McpHttpServerHandle | undefined> {
   setLogLevel(config.server.log_level);
 
-  const server = new McpServer({
-    name: config.server.name,
-    version: '0.1.0',
-  });
-
-  registerAuditTools(server, config);
-
   logInfo('server', `Starting ${config.server.name} (audit)`, {
     transport: config.server.transport,
     agents: Object.keys(config.agents).length,
@@ -23,6 +16,7 @@ export async function startServer(config: AppConfig): Promise<McpHttpServerHandl
   });
 
   if (config.server.transport === 'stdio' || config.server.transport === undefined) {
+    const server = createMcpServer(config);
     const transport = new StdioServerTransport();
     await server.connect(transport);
     logInfo('server', 'MCP server connected via stdio');

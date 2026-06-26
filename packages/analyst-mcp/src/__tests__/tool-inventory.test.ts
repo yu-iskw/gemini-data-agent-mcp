@@ -1,4 +1,4 @@
-import { validateConfig, type AppConfig } from '@gemini-data-agents/core';
+import { gdaToolNames, validateConfig, type AppConfig } from '@gemini-data-agents/core';
 import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -43,16 +43,16 @@ describe('analyst MCP tool inventory', () => {
   it('includes analyst and session tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('query_data_agent');
-    expect(names).toContain('session_create');
-    expect(names).toContain('list_data_agents');
+    expect(names).toContain(gdaToolNames.dataAgents.query);
+    expect(names).toContain(gdaToolNames.sessions.create);
+    expect(names).toContain(gdaToolNames.registry.listAgents);
   });
 
   it('does not expose raw passthrough or admin/registry mutation tools', async () => {
     const { tools } = await client!.listTools();
     const names = tools.map((t) => t.name);
     expect(names).not.toContain('raw_data_agent_request');
-    expect(names).not.toContain('generate_analyst_registry_yaml');
+    expect(names).not.toContain(gdaToolNames.registry.generateAnalystYaml);
     expect(names).not.toContain('create_remote_data_agent');
   });
 });
@@ -70,7 +70,7 @@ describe('registerTools standalone inventory', () => {
       const { tools } = await clientInst.listTools();
       const names = tools.map((t) => t.name);
       expect(names.length).toBeGreaterThan(10);
-      expect(names).toContain('get_operation');
+      expect(names).toContain(gdaToolNames.operations.get);
     } finally {
       await clientInst.close();
       await server.close();

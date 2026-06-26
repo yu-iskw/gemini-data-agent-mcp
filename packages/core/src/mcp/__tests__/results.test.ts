@@ -5,7 +5,7 @@ import { buildToolErrorResult, normalizeToolError, toolErrorFromMcpError } from 
 
 describe('buildToolErrorResult', () => {
   it('returns an error envelope with isError set', () => {
-    const result = buildToolErrorResult('data_agents.list', {
+    const result = buildToolErrorResult('gda.data_agents.list', {
       code: 'PERMISSION_DENIED',
       message: 'denied',
       retryable: false,
@@ -20,7 +20,7 @@ describe('buildToolErrorResult', () => {
       googleStatus: 403,
     });
     expect(result.content[0]?.text).toBe('Error [PERMISSION_DENIED]: denied');
-    expect(result.structuredContent.metadata.toolName).toBe('data_agents.list');
+    expect(result.structuredContent.metadata.toolName).toBe('gda.data_agents.list');
   });
 });
 

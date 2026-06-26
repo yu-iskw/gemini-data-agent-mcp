@@ -1,4 +1,4 @@
-import { validateConfig, type AppConfig } from '@gemini-data-agents/core';
+import { gdaToolNames, validateConfig, type AppConfig } from '@gemini-data-agents/core';
 import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -32,11 +32,16 @@ describe('agentops MCP tool inventory', () => {
     await close();
   });
 
-  it('registers agentops offline eval tools', async () => {
+  it('registers agentops develop and offline eval tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('agentops.offline_eval.validate_cases');
-    expect(names).toContain('agentops.offline_eval.summarize_result');
-    expect(names).toContain('agentops.offline_eval.run');
+    expect(names).toContain(gdaToolNames.dataAgents.create);
+    expect(names).toContain(gdaToolNames.dataAgents.get);
+    expect(names).toContain(gdaToolNames.dataAgents.patchStaging);
+    expect(names).not.toContain(gdaToolNames.dataAgents.patch);
+    expect(names).toContain(gdaToolNames.locations.chatStaging);
+    expect(names).toContain(gdaToolNames.offlineEval.validateCases);
+    expect(names).toContain(gdaToolNames.offlineEval.summarizeResult);
+    expect(names).toContain(gdaToolNames.offlineEval.run);
   });
 });

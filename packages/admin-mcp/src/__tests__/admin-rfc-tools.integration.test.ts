@@ -27,43 +27,64 @@ function adminConfig(): AppConfig {
   });
 }
 
+function adminAgentGetResponse() {
+  return {
+    name: dataAgentName,
+    displayName: 'Admin Agent',
+    description: 'Primary admin agent',
+  };
+}
+
+function handleAdminRfcGet(request: GoogleRestRequest): unknown | undefined {
+  if (request.method === 'GET' && request.path.endsWith('/dataAgents/admin')) {
+    return adminAgentGetResponse();
+  }
+  if (request.method === 'GET' && request.path.endsWith('/dataAgents')) {
+    return {
+      dataAgents: [adminAgentGetResponse()],
+      nextPageToken: 'next-admin-page',
+    };
+  }
+  if (request.method === 'GET' && request.path.endsWith('/operations/op-1')) {
+    return {
+      name: operationName,
+      done: true,
+      response: { '@type': 'type.googleapis.com/google.protobuf.Empty' },
+    };
+  }
+  return undefined;
+}
+
+function handleAdminRfcMutations(request: GoogleRestRequest): unknown | undefined {
+  if (request.method === 'POST' && request.path.endsWith(':getIamPolicy')) {
+    throw new Error('getIamPolicy should not be called on admin MCP');
+  }
+  if (
+    request.method === 'POST' &&
+    request.path.endsWith('/dataAgents') &&
+    !request.path.includes(':')
+  ) {
+    return { name: dataAgentName, displayName: 'Created Agent' };
+  }
+  if (request.method === 'PATCH' && request.path.endsWith('/dataAgents/admin')) {
+    return { name: dataAgentName, displayName: 'Patched Agent' };
+  }
+  if (request.method === 'DELETE' && request.path.endsWith('/dataAgents/admin')) {
+    return {};
+  }
+  if (request.method === 'POST' && request.path.endsWith(':setIamPolicy')) {
+    const body = request.body as { policy?: { bindings: unknown[] } };
+    return body.policy ?? body;
+  }
+  return undefined;
+}
+
 function createAdminRfcFakeHandler() {
   return (request: GoogleRestRequest) => {
-    if (request.method === 'GET' && request.path.endsWith('/dataAgents/admin')) {
-      return {
-        name: dataAgentName,
-        displayName: 'Admin Agent',
-        description: 'Primary admin agent',
-      };
+    const response = handleAdminRfcGet(request) ?? handleAdminRfcMutations(request);
+    if (response !== undefined) {
+      return response;
     }
-
-    if (request.method === 'GET' && request.path.endsWith('/dataAgents')) {
-      return {
-        dataAgents: [
-          {
-            name: dataAgentName,
-            displayName: 'Admin Agent',
-            description: 'Primary admin agent',
-          },
-        ],
-        nextPageToken: 'next-admin-page',
-      };
-    }
-
-    if (request.method === 'POST' && request.path.endsWith(':getIamPolicy')) {
-      return {
-        bindings: [{ role: 'roles/viewer', members: ['user:admin@example.com'] }],
-      };
-    }
-
-    if (request.method === 'GET' && request.path.endsWith('/operations/op-1')) {
-      return {
-        name: operationName,
-        done: true,
-        response: { '@type': 'type.googleapis.com/google.protobuf.Empty' },
-      };
-    }
-
     throw new Error(`Unexpected request: ${request.method} ${request.path}`);
   };
 }
@@ -95,7 +116,7 @@ describe.sequential('Admin MCP — RFC Google tools', () => {
 
   it('data_agents.list returns mapped agents', async () => {
     const result = await client.callTool({
-      name: 'data_agents.list',
+      name: 'gda.data_agents.list',
       arguments: { project, location, agent: 'admin' },
     });
 
@@ -114,7 +135,7 @@ describe.sequential('Admin MCP — RFC Google tools', () => {
 
   it('data_agents.get returns a single agent', async () => {
     const result = await client.callTool({
-      name: 'data_agents.get',
+      name: 'gda.data_agents.get',
       arguments: { name: dataAgentName, agent: 'admin' },
     });
 
@@ -126,10 +147,30 @@ describe.sequential('Admin MCP — RFC Google tools', () => {
     });
   });
 
-  it('data_agents.get_iam_policy returns IAM bindings', async () => {
+  it('data_agents.patch updates an agent', async () => {
     const result = await client.callTool({
-      name: 'data_agents.get_iam_policy',
-      arguments: { resource: dataAgentName, agent: 'admin' },
+      name: 'gda.data_agents.patch',
+      arguments: {
+        name: dataAgentName,
+        data_agent: { displayName: 'Patched Agent' },
+        update_mask: 'displayName',
+        agent: 'admin',
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const envelope = parseMcpToolEnvelope(result);
+    expect(envelope.data).toMatchObject({ displayName: 'Patched Agent' });
+  });
+
+  it('data_agents.set_iam_policy sets IAM bindings', async () => {
+    const result = await client.callTool({
+      name: 'gda.data_agents.set_iam_policy',
+      arguments: {
+        resource: dataAgentName,
+        policy: { bindings: [{ role: 'roles/viewer', members: ['user:admin@example.com'] }] },
+        agent: 'admin',
+      },
     });
 
     expect(result.isError).toBeFalsy();
@@ -139,9 +180,20 @@ describe.sequential('Admin MCP — RFC Google tools', () => {
     });
   });
 
+  it('data_agents.delete removes an agent', async () => {
+    const result = await client.callTool({
+      name: 'gda.data_agents.delete',
+      arguments: { name: dataAgentName, agent: 'admin' },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const envelope = parseMcpToolEnvelope(result);
+    expect(envelope.data).toMatchObject({ deleted: true, name: dataAgentName });
+  });
+
   it('operations.get returns a completed operation', async () => {
     const result = await client.callTool({
-      name: 'operations.get',
+      name: 'gda.operations.get',
       arguments: { name: operationName, agent: 'admin' },
     });
 

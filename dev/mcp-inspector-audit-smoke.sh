@@ -11,10 +11,10 @@ SRV="gemini-data-agent-audit"
 echo "== Audit: tools/list"
 "${INSPECTOR[@]}" --config "$CFG" --server "$SRV" --method tools/list >/dev/null
 
-echo "== Audit: audit.data_agents.inventory (protocol; GCP may fail without credentials)"
+echo "== Audit: gda.data_agents.inventory (protocol; GCP may fail without credentials)"
 set +e
 "${INSPECTOR[@]}" --config "$CFG" --server "$SRV" --method tools/call \
-	--tool-name audit.data_agents.inventory \
+	--tool-name gda.data_agents.inventory \
 	--tool-arg project=my-gcp-project \
 	--tool-arg location=global >/dev/null 2>&1
 RC=$?

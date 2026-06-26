@@ -133,7 +133,7 @@ Register the server in your MCP client — see [MCP client configuration (`mcp.j
 
 Typical workflow:
 
-1. Call **`generate_analyst_registry_yaml`** in your MCP client.
+1. Call **`gda.registry.generate_analyst_yaml`** in your MCP client.
 2. Copy the returned YAML into your repository.
 3. Open a PR, review, and merge.
 4. Point analyst **`--config`** at the committed file path.
@@ -193,7 +193,7 @@ pnpm schema:export
 ### Advanced options
 
 - **`api_version`**: required at root; optional per-agent override.
-- **`agents.<name>.tools`**: MCP tool names enabled for that agent (`query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`).
+- **`agents.<name>.tools`**: Google capability keys enabled for that agent (`query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`). These gate analyst MCP tools, not MCP tool names themselves.
 - **`agents.<name>.impersonate_service_account`**: per-agent service account impersonation (ADC is used when omitted).
 - **`agents.<name>.client`**: optional `{ project, location }` when API client routing differs from the `data_agent` resource.
 
@@ -224,15 +224,15 @@ Local development: `gcloud auth application-default login`. See [Google Cloud AD
 
 ### Analyst (`gemini-data-analyst-mcp`)
 
-**Tools:** `query_data_agent`, `chat_data_agent`, `create_data_agent_conversation`, `list_conversation_messages`, `list_data_agents`, `get_data_agent_config`, `get_operation`, `session_create`, `session_chat`, `session_switch_intent`, `session_fork`, `session_reset`, `session_handoff`.
+**Tools:** `gda.data_agents.query`, `gda.locations.chat`, `gda.conversations.create`, `gda.conversation_messages.list`, `gda.registry.list_agents`, `gda.registry.get_agent`, `gda.operations.get`, `gda.sessions.create`, `gda.sessions.chat`, `gda.sessions.switch_intent`, `gda.sessions.fork`, `gda.sessions.reset`, `gda.sessions.handoff`.
 
 **Resources:** `gemini-data-agent://agents`, `gemini-data-agent://agents/{agent}`, `gemini-data-agent://agents/{agent}/tools`, `gemini-data-agent://agents/{agent}/auth-policy`, `gemini-data-agent://prompts`.
 
-**Prompts:** session-oriented prompts plus `analyze_data_question`, `investigate_data_issue`, `explain_generated_query`, `compare_segments`, `find_anomalies`, `prepare_data_analysis_report`.
+**Prompts:** `gda.prompt.*` session-oriented prompts plus `gda.prompt.analyze_data_question`, `gda.prompt.investigate_data_issue`, `gda.prompt.explain_generated_query`, `gda.prompt.compare_segments`, `gda.prompt.find_anomalies`, `gda.prompt.prepare_data_analysis_report`.
 
 ### Admin (`gemini-data-agent-admin-mcp`)
 
-**Tools:** `generate_analyst_registry_yaml`, `validate_analyst_registry_yaml`, `diff_analyst_registry_yaml`, `inspect_admin_auth`, `dry_run_data_agent_change`, and remote lifecycle stubs (currently **NOT_IMPLEMENTED**).
+**Tools:** `gda.registry.generate_analyst_yaml`, `gda.registry.validate_analyst_yaml`, `gda.registry.diff_analyst_yaml`, `gda.auth.inspect`, `gda.registry.dry_run_agent_change`, `gda.data_agents.list`, `gda.data_agents.get`, `gda.data_agents.patch`, `gda.data_agents.delete`, `gda.data_agents.set_iam_policy`, `gda.operations.get`.
 
 ## CLI reference
 

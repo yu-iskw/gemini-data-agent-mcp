@@ -71,7 +71,7 @@ describe('session tool authorization', () => {
       await client.connect(clientTransport);
 
       const result = await client.callTool({
-        name: 'session_chat',
+        name: 'gda.sessions.chat',
         arguments: {
           session_id: 'sess-private',
           prompt: 'Summarize private data',

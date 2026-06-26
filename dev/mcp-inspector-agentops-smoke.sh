@@ -13,7 +13,7 @@ echo "== AgentOps: tools/list"
 
 echo "== AgentOps: offline_eval.validate_cases"
 "${INSPECTOR[@]}" --config "$CFG" --server "$SRV" --method tools/call \
-	--tool-name agentops.offline_eval.validate_cases \
+	--tool-name gda.offline_eval.validate_cases \
 	--tool-arg 'cases=[{"id":"c1","input":"hello"}]' >/dev/null
 
 echo "OK: agentops MCP Inspector smoke passed."

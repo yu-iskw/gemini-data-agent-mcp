@@ -88,6 +88,90 @@ describe('DataAgentsClient', () => {
     const result = await client.listAccessible({ project: 'p1', location: 'global' });
     expect(result.dataAgents).toHaveLength(1);
   });
+
+  it('listAllResult reports truncation when maxPages is reached', async () => {
+    const transport = createFakeGoogleRestTransport({
+      handler: () => ({
+        dataAgents: [{ name: 'projects/p1/locations/global/dataAgents/a1' }],
+        nextPageToken: 'more',
+      }),
+    });
+
+    const client = createDataAgentsClient(transport);
+    const result = await client.listAllResult({ project: 'p1', location: 'global', maxPages: 1 });
+    expect(result.agents).toHaveLength(1);
+    expect(result.truncated).toBe(true);
+  });
+
+  it('creates a data agent', async () => {
+    const transport = createFakeGoogleRestTransport({
+      handler: (request: GoogleRestRequest) => {
+        expect(request.method).toBe('POST');
+        expect(request.path).toBe('v1beta/projects/p1/locations/global/dataAgents');
+        return { name: 'projects/p1/locations/global/dataAgents/new' };
+      },
+    });
+
+    const client = createDataAgentsClient(transport);
+    const agent = await client.create({
+      project: 'p1',
+      location: 'global',
+      dataAgent: { name: 'projects/p1/locations/global/dataAgents/new', displayName: 'New' },
+    });
+    expect(agent.name).toContain('dataAgents/new');
+  });
+
+  it('patches a data agent', async () => {
+    const transport = createFakeGoogleRestTransport({
+      handler: (request: GoogleRestRequest) => {
+        expect(request.method).toBe('PATCH');
+        expect(request.path).toBe('v1beta/projects/p1/locations/global/dataAgents/a1');
+        return { name: 'projects/p1/locations/global/dataAgents/a1', displayName: 'Updated' };
+      },
+    });
+
+    const client = createDataAgentsClient(transport);
+    const agent = await client.patch({
+      name: 'projects/p1/locations/global/dataAgents/a1',
+      dataAgent: {
+        name: 'projects/p1/locations/global/dataAgents/a1',
+        displayName: 'Updated',
+      },
+    });
+    expect(agent.displayName).toBe('Updated');
+  });
+
+  it('deletes a data agent', async () => {
+    const transport = createFakeGoogleRestTransport({
+      handler: (request: GoogleRestRequest) => {
+        expect(request.method).toBe('DELETE');
+        expect(request.path).toBe('v1beta/projects/p1/locations/global/dataAgents/a1');
+        return {};
+      },
+    });
+
+    const client = createDataAgentsClient(transport);
+    await expect(
+      client.delete({ name: 'projects/p1/locations/global/dataAgents/a1' }),
+    ).resolves.toEqual({});
+  });
+
+  it('sets IAM policy via POST', async () => {
+    const transport = createFakeGoogleRestTransport({
+      handler: (request: GoogleRestRequest) => {
+        expect(request.method).toBe('POST');
+        expect(request.path).toBe('v1beta/projects/p1/locations/global/dataAgents/a1:setIamPolicy');
+        return { bindings: [{ role: 'roles/viewer', members: ['user:me@example.com'] }] };
+      },
+    });
+
+    const client = createDataAgentsClient(transport);
+    const policy = await client.setIamPolicy({
+      resource: 'projects/p1/locations/global/dataAgents/a1',
+      policy: { bindings: [{ role: 'roles/viewer', members: ['user:me@example.com'] }] },
+    });
+    expect(policy.bindings).toHaveLength(1);
+  });
 });
 
 describe('ConversationsClient', () => {

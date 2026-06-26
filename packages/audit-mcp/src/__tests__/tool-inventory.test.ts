@@ -1,4 +1,4 @@
-import { validateConfig, type AppConfig } from '@gemini-data-agents/core';
+import { gdaToolNames, validateConfig, type AppConfig } from '@gemini-data-agents/core';
 import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -35,9 +35,13 @@ describe('audit MCP tool inventory', () => {
   it('registers audit thin-slice tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('audit.conversations.list');
-    expect(names).toContain('audit.messages.list');
-    expect(names).toContain('audit.data_agents.inventory');
-    expect(names).toContain('audit.governance_report.generate');
+    expect(names).toContain(gdaToolNames.conversations.list);
+    expect(names).toContain(gdaToolNames.conversationMessages.list);
+    expect(names).toContain(gdaToolNames.dataAgents.inventory);
+    expect(names).toContain(gdaToolNames.dataAgents.listAccessible);
+    expect(names).toContain(gdaToolNames.dataAgents.datasources);
+    expect(names).toContain(gdaToolNames.dataAgents.getIamPolicy);
+    expect(names).toContain(gdaToolNames.dataAgents.usage);
+    expect(names).toContain(gdaToolNames.governanceReports.generate);
   });
 });

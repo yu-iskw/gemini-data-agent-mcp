@@ -22,6 +22,7 @@ import {
   formatConfigResponse,
   formatConversationCreated,
   formatConversationMessages,
+  gdaToolNames,
 } from '@gemini-data-agents/core';
 import { z } from 'zod';
 
@@ -136,7 +137,7 @@ function registerSessionCreate(
   sessionStore: SessionStore,
 ): void {
   server.tool(
-    'session_create',
+    gdaToolNames.sessions.create,
     'Create a shared session that binds local session state to a managed Data Agent conversation.',
     {
       session_id: z.string().optional().describe('Optional custom session identifier.'),
@@ -160,7 +161,7 @@ function registerSessionCreate(
         if (!agentHasTool(agentConfig, 'create_data_agent_conversation')) {
           throw new DataAgentMcpError(
             'TOOL_DISABLED',
-            `Agent "${agentName}" does not have create_data_agent_conversation in tools.`,
+            `Agent "${agentName}" does not have create_data_agent_conversation in tools (required for MCP tool ${gdaToolNames.conversations.create}).`,
             false,
             { agent: agentName },
           );
@@ -201,7 +202,7 @@ function registerSessionCreate(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_create',
+            tool: gdaToolNames.sessions.create,
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -237,7 +238,7 @@ function registerSessionCreate(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_create',
+            tool: gdaToolNames.sessions.create,
             agent: agentName,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,
@@ -264,7 +265,7 @@ function registerSessionChat(
   sessionStore: SessionStore,
 ): void {
   server.tool(
-    'session_chat',
+    gdaToolNames.sessions.chat,
     'Run one chat turn against an existing shared session.',
     {
       session_id: z.string(),
@@ -289,7 +290,7 @@ function registerSessionChat(
         if (!agentHasTool(agentConfig, 'chat_data_agent')) {
           throw new DataAgentMcpError(
             'TOOL_DISABLED',
-            `Agent "${session.agent}" does not have chat_data_agent in tools.`,
+            `Agent "${session.agent}" does not have chat_data_agent in tools (required for MCP tool ${gdaToolNames.sessions.chat}).`,
             false,
             { agent: session.agent },
           );
@@ -325,7 +326,7 @@ function registerSessionChat(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_chat',
+            tool: gdaToolNames.sessions.chat,
             agent: session.agent,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -362,7 +363,7 @@ function registerSessionChat(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_chat',
+            tool: gdaToolNames.sessions.chat,
             agent: unknownValue,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,
@@ -390,7 +391,7 @@ function registerSessionSwitchIntent(
   sessionStore: SessionStore,
 ): void {
   server.tool(
-    'session_switch_intent',
+    gdaToolNames.sessions.switchIntent,
     'Switch session intent with optimistic concurrency protection.',
     {
       session_id: z.string(),
@@ -418,7 +419,7 @@ function registerSessionSwitchIntent(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_switch_intent',
+            tool: gdaToolNames.sessions.switchIntent,
             agent: updated.agent,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -442,7 +443,7 @@ function registerSessionSwitchIntent(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_switch_intent',
+            tool: gdaToolNames.sessions.switchIntent,
             agent: unknownValue,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -470,7 +471,7 @@ function registerSessionFork(
   sessionStore: SessionStore,
 ): void {
   server.tool(
-    'session_fork',
+    gdaToolNames.sessions.fork,
     'Fork a new session from an existing shared session.',
     {
       parent_session_id: z.string(),
@@ -495,7 +496,7 @@ function registerSessionFork(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_fork',
+            tool: gdaToolNames.sessions.fork,
             agent: child.agent,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -517,7 +518,7 @@ function registerSessionFork(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_fork',
+            tool: gdaToolNames.sessions.fork,
             agent: unknownValue,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -545,7 +546,7 @@ function registerSessionReset(
   sessionStore: SessionStore,
 ): void {
   server.tool(
-    'session_reset',
+    gdaToolNames.sessions.reset,
     'Move a session head pointer to a prior revision.',
     {
       session_id: z.string(),
@@ -570,7 +571,7 @@ function registerSessionReset(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_reset',
+            tool: gdaToolNames.sessions.reset,
             agent: updated.agent,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -592,7 +593,7 @@ function registerSessionReset(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_reset',
+            tool: gdaToolNames.sessions.reset,
             agent: unknownValue,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -620,7 +621,7 @@ function registerSessionHandoff(
   sessionStore: SessionStore,
 ): void {
   server.tool(
-    'session_handoff',
+    gdaToolNames.sessions.handoff,
     'Generate a portable handoff payload for a session.',
     {
       session_id: z.string(),
@@ -638,7 +639,7 @@ function registerSessionHandoff(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_handoff',
+            tool: gdaToolNames.sessions.handoff,
             agent: handoff.session.agent,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -660,7 +661,7 @@ function registerSessionHandoff(
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'session_handoff',
+            tool: gdaToolNames.sessions.handoff,
             agent: unknownValue,
             api_version: sessionLocalValue,
             auth_mode: sessionLocalValue,
@@ -684,7 +685,7 @@ function registerSessionHandoff(
 
 function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
   server.tool(
-    'query_data_agent',
+    gdaToolNames.dataAgents.query,
     'Ask a natural-language analytical question to a configured Gemini Data Agent.',
     {
       agent: z.string().describe('Configured data agent name from the YAML registry.'),
@@ -717,7 +718,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
         if (!agentHasTool(agentConfig, 'query_data_agent')) {
           throw new DataAgentMcpError(
             'TOOL_DISABLED',
-            `Agent "${agentName}" does not have query_data_agent in tools.`,
+            `Agent "${agentName}" does not have query_data_agent in tools (required for MCP tool ${gdaToolNames.dataAgents.query}).`,
             false,
             { agent: agentName },
           );
@@ -769,7 +770,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'query_data_agent',
+            tool: gdaToolNames.dataAgents.query,
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -795,7 +796,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'query_data_agent',
+            tool: gdaToolNames.dataAgents.query,
             agent: agentName,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,
@@ -815,7 +816,7 @@ function registerQueryDataAgent(server: McpServer, config: AppConfig): void {
 
 function registerChatDataAgent(server: McpServer, config: AppConfig): void {
   server.tool(
-    'chat_data_agent',
+    gdaToolNames.locations.chat,
     'Chat with a configured Gemini Data Agent, optionally continuing a persisted conversation.',
     {
       agent: z.string().describe('Configured data agent name from the YAML registry.'),
@@ -844,7 +845,7 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
         if (!agentHasTool(agentConfig, 'chat_data_agent')) {
           throw new DataAgentMcpError(
             'TOOL_DISABLED',
-            `Agent "${agentName}" does not have chat_data_agent in tools.`,
+            `Agent "${agentName}" does not have chat_data_agent in tools (required for MCP tool ${gdaToolNames.locations.chat}).`,
             false,
             { agent: agentName },
           );
@@ -871,7 +872,7 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'chat_data_agent',
+            tool: gdaToolNames.locations.chat,
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -894,7 +895,7 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'chat_data_agent',
+            tool: gdaToolNames.locations.chat,
             agent: agentName,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,
@@ -913,7 +914,7 @@ function registerChatDataAgent(server: McpServer, config: AppConfig): void {
 
 function registerCreateConversation(server: McpServer, config: AppConfig): void {
   server.tool(
-    'create_data_agent_conversation',
+    gdaToolNames.conversations.create,
     'Create a managed conversation for multi-turn chat with a configured data agent.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -937,7 +938,7 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
         if (!agentHasTool(agentConfig, 'create_data_agent_conversation')) {
           throw new DataAgentMcpError(
             'TOOL_DISABLED',
-            `Agent "${agentName}" does not have create_data_agent_conversation in tools.`,
+            `Agent "${agentName}" does not have create_data_agent_conversation in tools (required for MCP tool ${gdaToolNames.conversations.create}).`,
             false,
             { agent: agentName },
           );
@@ -962,7 +963,7 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'create_data_agent_conversation',
+            tool: gdaToolNames.conversations.create,
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -985,7 +986,7 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'create_data_agent_conversation',
+            tool: gdaToolNames.conversations.create,
             agent: agentName,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,
@@ -1004,7 +1005,7 @@ function registerCreateConversation(server: McpServer, config: AppConfig): void 
 
 function registerListConversationMessages(server: McpServer, config: AppConfig): void {
   server.tool(
-    'list_conversation_messages',
+    gdaToolNames.conversationMessages.list,
     'List stored messages for a managed conversation.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -1024,7 +1025,7 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
         if (!agentHasTool(agentConfig, 'list_conversation_messages')) {
           throw new DataAgentMcpError(
             'TOOL_DISABLED',
-            `Agent "${agentName}" does not have list_conversation_messages in tools.`,
+            `Agent "${agentName}" does not have list_conversation_messages in tools (required for MCP tool ${gdaToolNames.conversationMessages.list}).`,
             false,
             { agent: agentName },
           );
@@ -1050,7 +1051,7 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'list_conversation_messages',
+            tool: gdaToolNames.conversationMessages.list,
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -1073,7 +1074,7 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'list_conversation_messages',
+            tool: gdaToolNames.conversationMessages.list,
             agent: agentName,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,
@@ -1092,7 +1093,7 @@ function registerListConversationMessages(server: McpServer, config: AppConfig):
 
 function registerListDataAgents(server: McpServer, config: AppConfig): void {
   server.tool(
-    'list_data_agents',
+    gdaToolNames.registry.listAgents,
     'List locally configured Gemini Data Agents from the YAML registry.',
     {
       include_redacted_auth: z
@@ -1131,7 +1132,7 @@ function registerListDataAgents(server: McpServer, config: AppConfig): void {
 
 function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void {
   server.tool(
-    'get_data_agent_config',
+    gdaToolNames.registry.getAgent,
     'Return redacted configuration for a named Gemini Data Agent.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -1169,7 +1170,7 @@ function registerGetDataAgentConfig(server: McpServer, config: AppConfig): void 
 
 function registerGetOperation(server: McpServer, config: AppConfig): void {
   server.tool(
-    'get_operation',
+    gdaToolNames.operations.get,
     'Retrieve a long-running operation for a Gemini Data Agent.',
     {
       agent: z.string().describe(configuredAgentNameDescription),
@@ -1199,7 +1200,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'get_operation',
+            tool: gdaToolNames.operations.get,
             agent: agentName,
             api_version: apiVersion,
             auth_mode: agentConfig.auth.mode,
@@ -1226,7 +1227,7 @@ function registerGetOperation(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'get_operation',
+            tool: gdaToolNames.operations.get,
             agent: agentName,
             api_version: args.api_version ?? unknownValue,
             auth_mode: unknownValue,

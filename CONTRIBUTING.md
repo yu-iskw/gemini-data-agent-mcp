@@ -192,3 +192,7 @@ npm trusted publishing requires the package to exist on npm before you can confi
 ## License
 
 By contributing, you agree that your contributions will be licensed under the Apache-2.0 license.
+
+## MCP tool names
+
+All MCP tools use the `gda.*` namespace per [ADR 0006](docs/adr/0006-gda-mcp-tool-naming.md). Config `agents.*.tools` capability keys (e.g. `query_data_agent`) are unchanged.

@@ -21,6 +21,10 @@ export interface Conversation {
   displayName?: string;
   createTime?: string;
   updateTime?: string;
+  /** Full Data Agent resource name when returned by the API. */
+  dataAgent?: string;
+  /** Associated agent resource names when returned by the API. */
+  agents?: string[];
 }
 
 export interface ListConversationsResponse {

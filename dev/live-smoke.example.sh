@@ -16,10 +16,10 @@ INSPECTOR=(npx -y @modelcontextprotocol/inspector --cli)
 
 echo "== Live smoke using $CONFIG_DIR"
 
-echo "== Admin: data_agents.list"
+echo "== Admin: gda.data_agents.list"
 "${INSPECTOR[@]}" --config "$CONFIG_DIR/mcp-inspector.admin.json" \
 	--server gemini-data-agent-admin \
-	--method tools/call --tool-name data_agents.list \
+	--method tools/call --tool-name gda.data_agents.list \
 	--tool-arg "project=$(grep -E '^project:' "$CONFIG_DIR/.env" 2>/dev/null | cut -d: -f2- | tr -d ' ' || echo '')" \
 	>/dev/null 2>&1 || {
 	# Fallback: read project/location from analyst config via simple defaults in local scripts

@@ -1,4 +1,4 @@
-import { validateConfig, type AppConfig } from '@gemini-data-agents/core';
+import { gdaToolNames, validateConfig, type AppConfig } from '@gemini-data-agents/core';
 import { connectMcpTestClient } from '@gemini-data-agents/core/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -35,18 +35,23 @@ describe('admin MCP tool inventory', () => {
   it('includes YAML and inspection tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('generate_analyst_registry_yaml');
-    expect(names).toContain('validate_analyst_registry_yaml');
-    expect(names).toContain('diff_analyst_registry_yaml');
-    expect(names).toContain('inspect_admin_auth');
+    expect(names).toContain(gdaToolNames.registry.generateAnalystYaml);
+    expect(names).toContain(gdaToolNames.registry.validateAnalystYaml);
+    expect(names).toContain(gdaToolNames.registry.diffAnalystYaml);
+    expect(names).toContain(gdaToolNames.auth.inspect);
   });
 
   it('includes RFC admin lifecycle read tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names).toContain('data_agents.list');
-    expect(names).toContain('data_agents.get');
-    expect(names).toContain('data_agents.get_iam_policy');
-    expect(names).toContain('operations.get');
+    expect(names).toContain(gdaToolNames.dataAgents.list);
+    expect(names).toContain(gdaToolNames.dataAgents.get);
+    expect(names).not.toContain(gdaToolNames.dataAgents.create);
+    expect(names).toContain(gdaToolNames.dataAgents.patch);
+    expect(names).toContain(gdaToolNames.dataAgents.delete);
+    expect(names).toContain(gdaToolNames.dataAgents.setIamPolicy);
+    expect(names).toContain(gdaToolNames.operations.get);
+    expect(names).not.toContain(gdaToolNames.dataAgents.getIamPolicy);
+    expect(names).not.toContain(gdaToolNames.dataAgents.patchStaging);
   });
 });

@@ -1,6 +1,5 @@
 export { createFakeGoogleRestTransport } from './fake-transport.js';
 export {
-  buildFakeRoleClients,
   connectMcpTestClient,
   mockRoleGoogleClients,
   mcpToolErrorText,

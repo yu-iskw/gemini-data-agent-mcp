@@ -22,7 +22,7 @@ function requirePrompt(prompts: PromptRegistry, name: string): { callback: Promp
 describe('Prompt templates', () => {
   it('switch_intent prompt includes current and target intents', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'switch_intent');
+    const prompt = requirePrompt(prompts, 'gda.prompt.switch_intent');
 
     const result = prompt.callback({
       current_intent: 'explore',
@@ -37,7 +37,7 @@ describe('Prompt templates', () => {
 
   it('fork_session prompt includes branch goal', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'fork_session');
+    const prompt = requirePrompt(prompts, 'gda.prompt.fork_session');
 
     const result = prompt.callback({
       session_id: 'sess_1',
@@ -52,7 +52,7 @@ describe('Prompt templates', () => {
 
   it('resume_session prompt includes revision', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'resume_session');
+    const prompt = requirePrompt(prompts, 'gda.prompt.resume_session');
 
     const result = prompt.callback({
       session_id: 'sess_2',
@@ -67,7 +67,7 @@ describe('Prompt templates', () => {
 
   it('handoff_summary prompt includes payload', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'handoff_summary');
+    const prompt = requirePrompt(prompts, 'gda.prompt.handoff_summary');
 
     const result = prompt.callback({
       session_id: 'sess_3',
@@ -80,7 +80,7 @@ describe('Prompt templates', () => {
 
   it('analyze_data_question template includes agent and question in output', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'analyze_data_question');
+    const prompt = requirePrompt(prompts, 'gda.prompt.analyze_data_question');
 
     const result = prompt.callback({ agent: 'sales-prod', question: 'Why did revenue drop?' });
     const text = result.messages[0]?.content.text ?? '';
@@ -90,7 +90,7 @@ describe('Prompt templates', () => {
 
   it('compare_segments prompt includes all required fields', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'compare_segments');
+    const prompt = requirePrompt(prompts, 'gda.prompt.compare_segments');
 
     const result = prompt.callback({
       agent: 'sales-prod',
@@ -108,7 +108,7 @@ describe('Prompt templates', () => {
 
   it('investigate_data_issue template includes agent and issue', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'investigate_data_issue');
+    const prompt = requirePrompt(prompts, 'gda.prompt.investigate_data_issue');
 
     const result = prompt.callback({ agent: 'finance', issue: 'margin dropped 10%' });
     const text = result.messages[0]?.content.text ?? '';
@@ -118,7 +118,7 @@ describe('Prompt templates', () => {
 
   it('find_anomalies prompt includes metric and dimensions', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'find_anomalies');
+    const prompt = requirePrompt(prompts, 'gda.prompt.find_anomalies');
 
     const result = prompt.callback({
       agent: 'sales',
@@ -133,7 +133,7 @@ describe('Prompt templates', () => {
 
   it('explain_generated_query prompt includes response text', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'explain_generated_query');
+    const prompt = requirePrompt(prompts, 'gda.prompt.explain_generated_query');
 
     const result = prompt.callback({ response: 'SELECT * FROM sales GROUP BY region' });
     const text = result.messages[0]?.content.text ?? '';
@@ -142,7 +142,7 @@ describe('Prompt templates', () => {
 
   it('prepare_data_analysis_report includes outputs', async () => {
     const prompts = await getPromptRegistry();
-    const prompt = requirePrompt(prompts, 'prepare_data_analysis_report');
+    const prompt = requirePrompt(prompts, 'gda.prompt.prepare_data_analysis_report');
 
     const result = prompt.callback({ outputs: 'revenue analysis output here' });
     const text = result.messages[0]?.content.text ?? '';

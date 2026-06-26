@@ -51,7 +51,7 @@ describe('createServerAuditEmitter', () => {
 
     emit({
       event: 'mcp_tool_invocation',
-      tool: 'data_agents.list',
+      tool: 'gda.data_agents.list',
       agent: 'a',
       api_version: 'v1beta',
       auth_mode: 'adc',
@@ -61,7 +61,7 @@ describe('createServerAuditEmitter', () => {
     });
 
     expect(emitSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ server: 'admin', tool: 'data_agents.list' }),
+      expect.objectContaining({ server: 'admin', tool: 'gda.data_agents.list' }),
       config.security,
     );
   });
@@ -77,7 +77,7 @@ describe('executeLocalRfcTool', () => {
     const emit = createServerAuditEmitter('admin', config.security);
 
     const result = await executeLocalRfcTool(config, emit, {
-      toolName: 'inspect_admin_auth',
+      toolName: 'gda.auth.inspect',
       operationKind: 'read',
       agent: 'a',
       authMode: 'adc',
@@ -87,7 +87,7 @@ describe('executeLocalRfcTool', () => {
     expect(result.structuredContent.ok).toBe(true);
     expect(result.structuredContent.data).toEqual({ ok: true });
     expect(emitSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, tool: 'inspect_admin_auth' }),
+      expect.objectContaining({ success: true, tool: 'gda.auth.inspect' }),
       config.security,
     );
   });
@@ -97,7 +97,7 @@ describe('executeLocalRfcTool', () => {
     const emit = createServerAuditEmitter('admin', config.security);
 
     const result = await executeLocalRfcTool(config, emit, {
-      toolName: 'inspect_admin_auth',
+      toolName: 'gda.auth.inspect',
       operationKind: 'read',
       run: async () => {
         throw new DataAgentMcpError('VALIDATION_ERROR', 'bad input', false);
@@ -129,7 +129,7 @@ describe('executeRoleGoogleTool', () => {
     const emit = createServerAuditEmitter('admin', config.security);
 
     const result = await executeRoleGoogleTool(config, emit, {
-      toolName: 'data_agents.get',
+      toolName: 'gda.data_agents.get',
       args: { agent: 'a' },
       operationKind: 'read',
       run: async (ctx) => ctx.clients.dataAgents.get({ name: config.agents.a.data_agent }),
@@ -154,7 +154,7 @@ describe('executeRoleGoogleTool', () => {
     const emit = createServerAuditEmitter('admin', config.security);
 
     const result = await executeRoleGoogleTool(config, emit, {
-      toolName: 'data_agents.get',
+      toolName: 'gda.data_agents.get',
       args: { agent: 'a' },
       operationKind: 'read',
       run: async (ctx) => ctx.clients.dataAgents.get({ name: config.agents.a.data_agent }),

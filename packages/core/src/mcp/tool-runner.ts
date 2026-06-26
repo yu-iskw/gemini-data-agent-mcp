@@ -38,14 +38,13 @@ export async function executeRoleGoogleTool<TArgs extends { agent?: string }, TD
     toolName: string;
     args: TArgs;
     operationKind: NonNullable<AuditEvent['operation_kind']>;
-    auditExtra?: (args: TArgs, ctx: RoleToolContext) => Partial<AuditEvent>;
-    failureAuditExtra?: (args: TArgs) => Partial<AuditEvent>;
+    auditExtra?: (args: TArgs) => Partial<AuditEvent>;
     run: (ctx: RoleToolContext, args: TArgs) => Promise<TData>;
     compact?: boolean;
   },
 ): Promise<McpStructuredToolResult> {
   const startTime = createAuditStartTime();
-  const { toolName, args, operationKind, auditExtra, failureAuditExtra, run } = options;
+  const { toolName, args, operationKind, auditExtra, run } = options;
   const agentHint = args.agent ?? '';
 
   try {
@@ -63,7 +62,7 @@ export async function executeRoleGoogleTool<TArgs extends { agent?: string }, TD
       latency_ms: calculateLatency(startTime),
       success: true,
       operation_kind: operationKind,
-      ...(auditExtra?.(args, ctx) ?? {}),
+      ...(auditExtra?.(args) ?? {}),
     });
 
     return buildToolResult(toolName, data, { compact: options.compact });
@@ -80,7 +79,7 @@ export async function executeRoleGoogleTool<TArgs extends { agent?: string }, TD
       error_code: wrapped.code,
       error_category: wrapped.code,
       operation_kind: operationKind,
-      ...(failureAuditExtra?.(args) ?? {}),
+      ...(auditExtra?.(args) ?? {}),
     });
     return buildToolErrorResult(toolName, toolErrorFromMcpError(wrapped));
   }

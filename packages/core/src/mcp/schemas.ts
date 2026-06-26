@@ -14,7 +14,38 @@ export const mcpInputSchemas = {
   pageSize: z.number().int().positive().optional(),
   pageToken: z.string().optional(),
   filter: z.string().optional(),
+  contextVersion: z
+    .enum(['CONTEXT_VERSION_UNSPECIFIED', 'STAGING', 'PUBLISHED'])
+    .optional()
+    .describe('Data agent context version for chat or staging tests.'),
 } as const;
+
+/** REST create/patch body for DataAgent resources (may include fields beyond typed DataAgent). */
+export const DataAgentBodySchema = z.record(z.unknown());
+
+export const IamPolicySchema = z.object({
+  bindings: z
+    .array(
+      z.object({
+        role: z.string(),
+        members: z.array(z.string()),
+        condition: z.record(z.unknown()).optional(),
+      }),
+    )
+    .optional(),
+  etag: z.string().optional(),
+  version: z.number().optional(),
+});
+
+export type IamPolicyInput = z.infer<typeof IamPolicySchema>;
+
+export const AgentUsageSummarySchema = z.object({
+  name: z.string(),
+  usedInWindow: z.boolean(),
+  lastActivityAt: z.string().optional(),
+  conversationCountInWindow: z.number(),
+  confidence: z.enum(['low', 'medium']),
+});
 
 const DataAgentSummarySchema = z.object({
   name: z.string(),
@@ -56,7 +87,8 @@ export const GovernanceReportSchema = z.object({
   }),
   summary: z.object({
     dataAgentCount: z.number(),
-    conversationCount: z.number().optional(),
+    usageWindowDays: z.number().optional(),
+    unusedAgentCount: z.number().optional(),
     messageCount: z.number().optional(),
     findingCount: z.number(),
   }),
@@ -68,6 +100,19 @@ export const GovernanceReportSchema = z.object({
       redacted: z.boolean(),
     }),
   ),
+  possiblyUnused: z
+    .array(
+      z.object({
+        name: z.string(),
+        confidence: z.literal('low'),
+        reason: z.string(),
+      }),
+    )
+    .optional(),
+  agentUsage: z.array(AgentUsageSummarySchema).optional(),
+  inventoryTruncated: z.boolean().optional(),
+  possiblyUnusedTruncated: z.boolean().optional(),
+  conversationsTruncated: z.boolean().optional(),
 });
 
 export type GovernanceReport = z.infer<typeof GovernanceReportSchema>;

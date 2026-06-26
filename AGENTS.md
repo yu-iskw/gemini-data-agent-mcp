@@ -113,20 +113,25 @@ When you want durable fixes (not one-off chat advice):
 ## Learned User Preferences
 
 - Prefer disciplined, self-improving agent behavior and propose reusable workflow improvements; ask before making persistent rule/skill/convention changes.
-- Prefer simple, direct, maintainable solutions over clever abstractions.
+- Prefer simple, direct, maintainable solutions over clever abstractions and API-per-method tool duplication.
 - Prefer state-based tests with real collaborators (or simple fakes/stubs), and avoid mocks/monkey patches unless explicitly approved.
 - When using plan-driven execution, keep the plan file unchanged, reuse existing TODOs, and advance work sequentially to completion.
-- Value explicit verification loops (`/verifier`, MCP Inspector for MCP servers, lint/security scans, and trial-and-error fixes) until behavior is confirmed working end to end.
+- Value explicit verification loops (`/verifier`, subagents, MCP Inspector, `pnpm test:coverage`, lint/security scans) until behavior is confirmed working end to end.
+- Spawn subagents for exploration, verification, and parallel review on non-trivial work.
 - Keep README.md end-user focused; put contributor and development guidance in CONTRIBUTING.md.
+- Do not commit or push project-specific live verification assets under `dev/local/` unless explicitly asked.
 
 ## Learned Workspace Facts
 
-- Role-separated layout: `packages/core` (`@gemini-data-agents/core`, private shared library), `packages/analyst-mcp` (read-only analyst MCP), and `packages/admin-mcp` (admin MCP).
+- Role-separated MCP packages: `core` (private shared library), `admin-mcp` (administer/control plane), `audit-mcp` (analyze usage, governance, IAM), `agentops-mcp` (develop/offline eval), `analyst-mcp` (read-only analyst).
 - npm publishes only `@gemini-data-agents/analyst-mcp`; `@gemini-data-agents/core` stays private and is not published.
-- MCP Inspector configs and smoke script live under `dev/` for analyst and admin server validation.
+- MCP Inspector configs and per-role smoke scripts live under `dev/` (`pnpm smoke:mcp`, `smoke:mcp:admin`, `smoke:mcp:audit`, `smoke:mcp:agentops`).
+- Role MCP tools follow job-to-be-done surfaces; keep role packages thin with domain logic in `core`.
+- Vitest enforces 70% line/branch/function/statement thresholds; run `pnpm test:coverage`.
+- Shared MCP integration test harness lives in `packages/core/src/testing/` (fake transport, `connectMcpTestClient`).
 - Config v2 YAML uses full `data_agent` resource names, a root `api_version`, and per-agent `tools` lists; ADC is default with optional `impersonate_service_account`.
 - Backward compatibility is not required during active development; large refactors are acceptable.
-- This workspace repeatedly validates MCP server behavior against official MCP and Google Gemini Data Agent documentation.
 - Security and quality hardening commonly includes `pnpm knip`, `osv-scanner`, and `grype` in addition to standard lint/test checks.
 - The MCP server intentionally removed A2A-related tools and concentrates on MCP-native flows.
 - Authentication strategy is ADC-first with optional service account impersonation configuration.
+- `dev/local/` is gitignored for local-only live verification configs (e.g. `yexperiment`); committed smoke examples stay generic.

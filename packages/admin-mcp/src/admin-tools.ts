@@ -5,9 +5,11 @@ import {
   diffAnalystRegistryYaml,
   formatMcpToolError,
   emitAuditEvent,
+  gdaToolNames,
   parseAndValidateAnalystRegistryYaml,
   resolveAgentConfig,
   resolveCredentials,
+  resolveDefaultAgentName,
   serializeAnalystRegistryYaml,
   buildConfigInput,
   validateConfig,
@@ -31,7 +33,7 @@ export function registerAdminTools(server: McpServer, config: AppConfig): void {
 
 function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfig): void {
   server.tool(
-    'generate_analyst_registry_yaml',
+    gdaToolNames.registry.generateAnalystYaml,
     'Serialize the current resolved configuration as analyst-safe YAML text for manual commit (no secrets beyond auth fields in policy).',
     {
       use_loaded_config: z
@@ -68,7 +70,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'generate_analyst_registry_yaml',
+            tool: gdaToolNames.registry.generateAnalystYaml,
             agent: 'registry',
             api_version: config.api_version,
             auth_mode: 'n/a',
@@ -84,7 +86,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'generate_analyst_registry_yaml',
+            tool: gdaToolNames.registry.generateAnalystYaml,
             agent: 'registry',
             api_version: config.api_version,
             auth_mode: 'n/a',
@@ -102,7 +104,7 @@ function registerGenerateAnalystRegistryYaml(server: McpServer, config: AppConfi
 
 function registerValidateAnalystRegistryYaml(server: McpServer): void {
   server.tool(
-    'validate_analyst_registry_yaml',
+    gdaToolNames.registry.validateAnalystYaml,
     'Parse and validate YAML text against the shared analyst registry schema.',
     {
       yaml: z.string().describe('Full YAML document string.'),
@@ -134,7 +136,7 @@ function registerValidateAnalystRegistryYaml(server: McpServer): void {
 
 function registerDiffAnalystRegistryYaml(server: McpServer): void {
   server.tool(
-    'diff_analyst_registry_yaml',
+    gdaToolNames.registry.diffAnalystYaml,
     'Unified line-oriented diff between two YAML strings.',
     {
       baseline: z.string().describe('Baseline YAML text.'),
@@ -149,7 +151,7 @@ function registerDiffAnalystRegistryYaml(server: McpServer): void {
 
 function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
   server.tool(
-    'inspect_admin_auth',
+    gdaToolNames.auth.inspect,
     'Resolve credentials for a named agent and report auth mode (no secret material).',
     {
       agent: z.string().optional().describe('Agent name; defaults to first configured agent.'),
@@ -157,16 +159,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
     async (args) => {
       const startTime = createAuditStartTime();
       try {
-        const names = Object.keys(config.agents);
-        const agentName = args.agent ?? names[0];
-        if (!agentName || !Object.hasOwn(config.agents, agentName)) {
-          throw new DataAgentMcpError(
-            'AGENT_NOT_FOUND',
-            `Agent not found. Available: ${names.join(', ') || '(none)'}`,
-            false,
-          );
-        }
-
+        const agentName = resolveDefaultAgentName(config, args.agent);
         const agentConfig = resolveAgentConfig(config, agentName);
         const credentials = await resolveCredentials(agentConfig.auth);
         const headers = await credentials.getRequestHeaders();
@@ -176,7 +169,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
         emitAuditEvent(
           {
             event: 'mcp_tool_invocation',
-            tool: 'inspect_admin_auth',
+            tool: gdaToolNames.auth.inspect,
             agent: agentName,
             api_version: config.api_version,
             auth_mode: agentConfig.auth.mode,
@@ -204,7 +197,7 @@ function registerInspectAdminAuth(server: McpServer, config: AppConfig): void {
 
 function registerDryRunDataAgentChange(server: McpServer, config: AppConfig): void {
   server.tool(
-    'dry_run_data_agent_change',
+    gdaToolNames.registry.dryRunAgentChange,
     'Validate a proposed agent definition merged into a copy of the loaded config without calling remote APIs.',
     {
       agent_name: z.string().describe('Registry key for the agent.'),

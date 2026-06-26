@@ -2,11 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { vi, type MockInstance } from 'vitest';
 
-import { createConversationMessagesClient } from '../google/conversation-messages-client.js';
-import { createConversationsClient } from '../google/conversations-client.js';
-import { createDataAgentsClient } from '../google/data-agents-client.js';
-import { createOperationsClient } from '../google/operations-client.js';
-import { createRoleGoogleClients, type RoleGoogleClients } from '../mcp/role-clients.js';
+import { createRoleGoogleClients } from '../mcp/role-clients.js';
 import { mcpRuntimeDeps } from '../mcp/runtime-deps.js';
 
 import { createFakeGoogleRestTransport } from './fake-transport.js';
@@ -14,19 +10,6 @@ import { createFakeGoogleRestTransport } from './fake-transport.js';
 import type { GoogleRestRequest } from '../google/transport.js';
 import type { AppConfig } from '../types.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-
-export function buildFakeRoleClients(
-  handler: (request: GoogleRestRequest) => unknown,
-): RoleGoogleClients {
-  const transport = createFakeGoogleRestTransport({ handler });
-  return {
-    transport,
-    dataAgents: createDataAgentsClient(transport),
-    conversations: createConversationsClient(transport),
-    conversationMessages: createConversationMessagesClient(transport),
-    operations: createOperationsClient(transport),
-  };
-}
 
 export function mockRoleGoogleClients(
   handler: (request: GoogleRestRequest) => unknown,

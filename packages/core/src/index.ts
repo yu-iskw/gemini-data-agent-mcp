@@ -52,6 +52,12 @@ export {
   type ListDataAgentsInput,
   type GetDataAgentInput,
   type GetIamPolicyInput,
+  type DataAgentMutationBody,
+  type CreateDataAgentInput,
+  type PatchDataAgentInput,
+  type DeleteDataAgentInput,
+  type SetIamPolicyInput,
+  type ListAllAgentsResult,
 } from './google/data-agents-client.js';
 export {
   createConversationsClient,
@@ -109,10 +115,29 @@ export {
   GovernanceReportSchema,
   OfflineEvalCaseSchema,
   OfflineEvalSummarySchema,
+  DataAgentBodySchema,
+  IamPolicySchema,
+  AgentUsageSummarySchema,
   mcpInputSchemas,
   type ListDataAgentsResult,
   type GovernanceReport,
+  type IamPolicyInput,
 } from './mcp/schemas.js';
+export { buildGovernanceReport, MAX_POSSIBLY_UNUSED_ENTRIES } from './mcp/governance-report.js';
+export {
+  summarizeAgentUsage,
+  listConversationsForUsage,
+  buildAgentUsageReport,
+  DEFAULT_USAGE_WINDOW_DAYS,
+  type AgentUsageSummary,
+} from './mcp/agent-usage.js';
+export {
+  assertAgentOpsPatchMask,
+  assertAgentOpsContextVersion,
+  assertAdminPatchMask,
+  DEFAULT_AGENTOPS_STAGING_UPDATE_MASK,
+} from './mcp/staging-guard.js';
+export { gdaToolNames, gdaPromptNames } from './mcp/gda-tool-names.js';
 export {
   createRoleGoogleClients,
   resolveDefaultAgentName,
@@ -126,6 +151,14 @@ export {
   type ServerAuditEmitter,
 } from './mcp/tool-runner.js';
 export { mapDataAgentSummary, mapInventoryAgent, buildInventoryFindings } from './mcp/inventory.js';
+export {
+  extractDatasourceReferences,
+  type AgentDatasourceSummary,
+  type BigQueryTableRef,
+  type LookerExploreRef,
+  type DatabaseTableRef,
+  type DatasourceContextSummary,
+} from './mcp/datasources.js';
 
 export { redact, redactServiceAccount } from './security/redaction.js';
 export {

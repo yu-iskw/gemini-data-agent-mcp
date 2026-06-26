@@ -84,7 +84,7 @@ describe('createMcpServer session store sharing', () => {
       await client.connect(clientTransport);
 
       const result = await client.callTool({
-        name: 'session_chat',
+        name: 'gda.sessions.chat',
         arguments: {
           session_id: 'sess-shared',
           prompt: 'Continue analysis',
