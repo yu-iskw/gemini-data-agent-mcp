@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Non-interactive MCP Inspector checks (@modelcontextprotocol/inspector --cli).
 # Run from repository root after: pnpm build
-# Inspector version is not pinned; use: npm view @modelcontextprotocol/inspector version
+# Inspector version is pinned to 2.12.0; check for newer releases with: npm view @modelcontextprotocol/inspector version
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-INSPECTOR=(npx -y @modelcontextprotocol/inspector --cli)
+INSPECTOR=(npx -y @modelcontextprotocol/inspector@2.12.0 --cli)
 CFG_ANALYST="$ROOT/dev/mcp-inspector.analyst.json"
 SRV_ANALYST="gemini-data-analyst"
 CFG_ADMIN="$ROOT/dev/mcp-inspector.admin.json"
